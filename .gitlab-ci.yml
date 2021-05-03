@@ -1,0 +1,13 @@
+stages:
+  - build
+
+# Build pdf file
+latex:
+  image: texlive/texlive:latest
+  stage: build
+  script:
+    - latexmk -cd -pdf -shell-escape document/thesis.tex
+  artifacts:
+    paths:
+      - "document/thesis.pdf"
+    expire_in: 1 day
