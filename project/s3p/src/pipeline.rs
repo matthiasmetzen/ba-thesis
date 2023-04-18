@@ -37,6 +37,40 @@ where
                     return;
                 },
             }
+#[cfg(test)]
+mod tests {
+    use crate::{request::{Request, Response}, middleware::{Stack, Identity}};
+    use miette::Result;
+
+    use super::*;
+
+    pub struct StubClient;
+    impl Client for StubClient {
+        async fn send(&self, request: Request) -> Result<Response> {
+            todo!()
         }
+    }
+
+    pub struct StubServer;
+    impl Server for StubServer {
+    async fn accept(&self) -> Result<Request> {
+        todo!()
+        }
+
+    async fn reply(&self, response: Response) -> Result<Response> {
+        todo!()
+    }
+}
+
+    #[tokio::test]
+    async fn test_run() {
+        let p = Pipeline {
+            input: StubServer,
+            middlewares: Stack::new(Identity, Identity),
+            output: StubClient,
+        };
+        p.run().await;
+
+        ()
     }
 }
