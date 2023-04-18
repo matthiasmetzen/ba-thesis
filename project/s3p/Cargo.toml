@@ -15,5 +15,6 @@ moka = "0.10"
 s3s = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s" }
 thiserror = "1.0"
 tokio = { version = "1.27", features = ["full"] }
+tower = { version = "0.4", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "tracing-log"] }
