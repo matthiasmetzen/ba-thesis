@@ -6,7 +6,8 @@ pub enum MiddlewareAction {
     Reply(Response),
 }
 
-pub trait Layer {
+#[async_trait::async_trait]
+pub trait Layer: Send + Sync {
     async fn process_request(&self, request: Request) -> Result<MiddlewareAction> {
         Ok(MiddlewareAction::Forward(request))
     }
@@ -31,6 +32,7 @@ impl<I: Layer, O: Layer> Stack<I, O> {
     }
 }
 
+#[async_trait::async_trait]
 impl<I: Layer, O: Layer> Layer for Stack<I, O> {
     async fn process_request(&self, request: Request) -> Result<MiddlewareAction> {
         let r = self.outer.process_request(request).await?;
@@ -49,3 +51,13 @@ impl<I: Layer, O: Layer> Layer for Stack<I, O> {
 pub struct Identity;
 
 impl Layer for Identity {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn make_stack() {
+        let _s = Stack::new(Identity, Identity);
+    }
+}
