@@ -1,18 +1,13 @@
-use futures::channel::oneshot::Sender;
-use miette::{Report};
+use miette::{Report, WrapErr, miette};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Request {
-    pub tx: Sender<Response>
 }
 
 impl Request {
-    pub async fn reply(self, res: impl Into<Response>) -> Result<(), Response> {
-        self.tx.send(res.into())
-    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Response;
 
 impl From<Report> for Response {
