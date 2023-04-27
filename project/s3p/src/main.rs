@@ -2,6 +2,10 @@
 #![feature(return_position_impl_trait_in_trait)]
 #![feature(trait_alias)]
 #![feature(associated_type_defaults)]
+#![feature(type_alias_impl_trait)]
+#![feature(impl_trait_projections)]
+#![feature(impl_trait_in_assoc_type)]
+#![feature(fn_traits)]
 
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use tracing::info;

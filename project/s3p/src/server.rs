@@ -1,266 +1,136 @@
-use futures::{Sink};
-use futures::channel::mpsc::{SendError};
-use futures::future::{BoxFuture, select_all};
-use hyper::service::Service;
-use miette::Result;
-use parking_lot::{Mutex, RwLock};
-use tower::ServiceBuilder;
-use tower::make::Shared;
+use futures::future::BoxFuture;
+use hyper::service::{make_service_fn, service_fn};
+use miette::{Result, miette};
 
 use crate::request::{Request, Response};
 
-use std::collections::BTreeMap;
 use std::net::TcpListener;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::future::Future;
 
-use clap::Parser;
 use tracing::info;
 
-pub trait Server {
+pub trait ServerBuilder {
     type Request;
-    type HandlerId = usize;
 
-    async fn serve(&self) -> Result<impl Future>;
-    async fn process(&self, request: Self::Request) -> Result<Response>;
-
-    // Uses internal mutability
-    fn register_handler(&self, handler: Box<dyn Handler<Request>>) -> Self::HandlerId;
-    // Uses internal mutability
-    fn unregister_handler(&self, idx: Self::HandlerId);
+    fn serve(&self, handler: impl Handler) -> Result<impl Server>;
 }
 
-pub(crate) trait ShareableServer<Req: Send> : Send + Sync {
-    type Response: Send;
-
-    type Error: Send;
-
-    fn call<'slf>(&'slf self, req: Req) -> impl Future<Output = Result<Self::Response, Self::Error>> + Send + 'slf;
-
-    fn call_shared(self: Arc<Self>, req: Req) -> impl Future<Output = Result<Self::Response, Self::Error>> + Send
-    where 
-        Arc<Self>: 'static
-    {
-        let svc = self.clone();
-        Box::pin(async move { svc.call(req).await })
-    }
+pub trait Server: Send {
+    async fn stop(self) -> Result<()>;
 }
 
-#[async_trait::async_trait]
 pub trait Handler<Req: Clone = Request, Resp = Response>: Send + Sync {
-    async fn handle(&self, msg: Req) -> Result<Resp>;
+    type Future: Future<Output = Result<Resp>> + Send;
+
+    fn handle(&self, msg: Req) -> Self::Future;
 }
 
 // Accept async closures as handlers
-#[async_trait::async_trait]
 impl<Fun, Fut, Req, Resp> Handler<Req, Resp> for Fun
 where
-    for <'a> Req: Clone + Send + Sync + 'a,
+    Req: Clone + Send + Sync + 'static,
     Fun: Fn(Req) -> Fut + Send + Sync,
-    Fut: Future<Output = Result<Resp>> + Send + Sync
+    Fut: Future<Output = Result<Resp>> + Send
 {
-    async fn handle(&self, msg: Req) -> Result<Resp> {
-        self(msg).await
+    type Future = impl Future<Output = Result<Resp>> + Send;
+
+    fn handle(&self, msg: Req) -> Self::Future {
+        self(msg)
     }
 }
 
-impl Clone for Box<dyn Handler> {
-    fn clone(&self) -> Self {
-        self.to_owned()
+impl<Req, Resp, H: Handler<Req, Resp>> Handler<Req, Resp> for Arc<H> 
+where
+    Req: Clone + Send + Sync + 'static,
+    Resp: Send + Sync,
+{
+    type Future = H::Future;
+
+    fn handle(&self, msg: Req) -> Self::Future {
+        self.deref().handle(msg)
     }
 }
 
-//from: https://github.com/Nugine/s3s/blob/main/crates/s3s-proxy/src/main.rs#L16
-#[derive(Debug, Parser)]
-struct Opt {
-    #[clap(long, default_value = "localhost")]
-    host: String,
-
-    #[clap(long, default_value = "8014")]
-    port: u16,
-
-    #[clap(long)]
-    domain_name: Option<String>,
-
-    #[clap(long)]
-    endpoint_url: String,
+struct S3Server<'a> {
+    fut: BoxFuture<'a, Result<()>>,
+    term_sig: tokio::sync::oneshot::Sender<()>,
 }
-
-pub trait SrvSender = Sink<Request, Error = SendError> + Send + Sync + Clone + 'static + std::marker::Unpin;
-#[derive(Default)]
-struct S3Server {
-    cb: RwLock<BTreeMap<usize, Box<dyn Handler>>>,
-    next_id: Mutex<usize>,
-}
-
-impl Clone for S3Server {
-    fn clone(&self) -> Self {
-        Self { 
-            ..Default::default()
-        }
-    }
-}
-
-impl S3Server {
-    #[allow(unused)]
-    fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-}
-
-impl ShareableServer<hyper::Request<hyper::Body>> for S3Server {
-    type Response = hyper::Response<hyper::Body>;
-
-    type Error = miette::Report;
-
-    fn call<'slf>(&'slf self, req: hyper::Request<hyper::Body>) -> impl Future<Output = Result<Self::Response, Self::Error>> + Send + 'slf{
-        let req = req.map(s3s::Body::from);
-        let request = s3s::http::Request::from(req);
-
-        async move {
-            let res = self.process(request).await?;
-            Ok(res.into())
-        }
-    }
-}
-
-/* impl Service<hyper::Request<hyper::Body>> for S3Server {
-    type Response = hyper::Response<hyper::Body>;
-
-    type Error = miette::Report;
-
-    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
-
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<std::result::Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
-        let req = req.map(s3s::Body::from);
-        let request = s3s::http::Request::from(req);
-
-        let fut = async {
-            let res = self.process(request).await?;
-            Ok(res.into())
-        };
-
-        Box::pin(fut)
-    }
-} */
 
 #[derive(Clone)]
-struct SharedServer<S: Server>(Arc<S>);
+pub struct S3ServerBuilder {
+    pub host: String,
+    pub port: u16,
+}
 
-/* impl <T: Send, S: Server + ShareableServer<T>> Service<T> for SharedServer<S> 
-where
-    Result<<S as ShareableServer<T>>::Response, <S as ShareableServer<T>>::Error>: Send,
-{
-    type Response = <S as ShareableServer<T>>::Response;
-
-    type Error = <S as ShareableServer<T>>::Error;
-
-    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
-
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<std::result::Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: T) -> Self::Future {
-        let svc = self.0.clone();
-        Box::pin(svc.call_shared(req))
-    }
-} */
-
-impl Service<hyper::Request<hyper::Body>> for SharedServer<S3Server> {
-    type Response = hyper::Response<hyper::Body>;
-
-    type Error = miette::Report;
-
-    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
-
-    fn poll_ready(&mut self, _cx: &mut std::task::Context<'_>) -> std::task::Poll<std::result::Result<(), Self::Error>> {
-        std::task::Poll::Ready(Ok(()))
-    }
-
-    fn call(&mut self, req: hyper::Request<hyper::Body>) -> Self::Future {
-        let req = req.map(s3s::Body::from);
-        let request = s3s::http::Request::from(req);
-
-        let svc = self.0.clone();
-
-        let fut = async move {
-            let res = svc.process(request).await?;
-            Ok(res.into())
-        };
-
-        Box::pin(fut)
+impl S3ServerBuilder {
+    #[allow(unused)]
+    pub fn new(host: String, port: u16) -> Self {
+        Self {
+            host,
+            port,
+        }
     }
 }
 
-impl Server for S3Server {
+impl<'a> Server for S3Server<'a> {
+    async fn stop(self) -> Result<()> {
+        self.term_sig.send(()).map_err(|_| miette!("Failed to send stop signal"))?;
+        self.fut.await.ok();
+        Ok(())
+    }
+}
+
+impl ServerBuilder for S3ServerBuilder {
     type Request = s3s::http::Request;
 
-    async fn serve(&self) -> Result<impl Future> {
-        let opt = Opt::parse();
+    fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
+        let h = Arc::new(handler);
+        let svc_fn = move |req: hyper::Request<hyper::Body>| {
+            let h = h.clone();
+            async move {
+                let req = req.map(s3s::Body::from);
+                let req = s3s::http::Request::from(req);
 
-        // Setup S3 service
-        let service = SharedServer(Arc::new(self.clone()));
-        let service = ServiceBuilder::new()
-            .service(service);
-        let shared = Shared::new(service);
+                let resp = h.handle(req.into()).await;
+                match resp {
+                    Ok(r) => Ok(r.into()),
+                    Err(e) => Err(e),
+                }
+            }
+        };
+
+        let svc_fn = Arc::new(svc_fn);
+        let make_svc = make_service_fn(move |_| {
+            let svc_fn = svc_fn.clone();
+            std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| svc_fn.call((req,)))))
+        });
 
         // Run server
-        let listener = TcpListener::bind((opt.host.as_str(), opt.port))
+        let listener = TcpListener::bind((self.host.as_str(), self.port))
             .map_err(|e| miette::miette!(e))?;
         let server = hyper::Server::from_tcp(listener)
             .map_err(|e| miette::miette!(e))?
-            .serve(shared);
+            .serve(make_svc);
+
+        let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+        let server = server
+            .with_graceful_shutdown(async {
+                rx.await.ok();
+            });
 
         let task = tokio::spawn(server);
-        info!("server is running at http://{}:{}/", opt.host, opt.port);
+        info!("server is running at http://{}:{}/", self.host, self.port);
 
-        Ok(task)
-    }
-
-    async fn process(&self, request: Self::Request) -> Result<Response> {
-        info!("Called S3Server::process");
-
-        let req: Request = request.into(); // TODO: make a RequestBuilder
-
-        let handlers = self.cb.read();
-
-        // Send Request to registered handlers
-        let resp = match handlers.len() {
-            0 => unimplemented!(), // TODO: better error
-            1 => {
-                // Optimization if cb.len == 1: send by move
-                let fut = handlers.first_key_value().unwrap().1.as_ref().handle(req);
-                fut.await?
-            }
-            _ => {
-                // Send Request to all available handlers
-                let futs = handlers.iter().map(|(_,c)| c.handle(req.clone()));
-
-                // Resolve handlers in parallel and get the first available response
-                // TODO: continue until first successful response
-                select_all(futs).await.0.map_err(|e| miette::miette!(e))?
-            }
+        let srv = S3Server {
+            fut: Box::pin(Box::pin(async move { 
+                let _ = task.await.map_err(|e| miette::miette!(e))?; 
+                Ok(())
+            })),
+            term_sig: tx,
         };
 
-        Ok(resp)
-    }
-
-    fn register_handler(&self, handler: Box<dyn Handler<Request>>) -> usize {
-        let mut id_lock = self.next_id.lock();
-        let id = *id_lock;
-        self.cb.write().insert(id, handler);
-        *id_lock += 1;
-        id
-    }
-
-    fn unregister_handler(&self, idx: usize) {
-        self.cb.write().remove(&idx);
+        Ok(srv)
     }
 }

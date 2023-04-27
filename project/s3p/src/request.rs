@@ -1,4 +1,4 @@
-use miette::{Report, WrapErr, miette};
+use miette::Report;
 
 #[derive(Debug, Clone)]
 pub struct Request {
@@ -18,7 +18,8 @@ impl From<Report> for Response {
 
 impl From<Response> for hyper::Response<hyper::Body> {
     fn from(value: Response) -> Self {
-        todo!()
+        // FIXME: temporary
+        hyper::Response::default()
     }
 }
 
