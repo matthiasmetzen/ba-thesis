@@ -1,0 +1,22 @@
+[package]
+name = "s3p"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait= "0.1"
+clap = { version = "4.2.4", features = ["derive"] }
+futures = { version = "0.3.28" }
+hyper = { version = "0.14", features = ["full"] }
+kanal = "0.1.0-pre8"
+miette = "5.7"
+moka = "0.10"
+parking_lot = { version = "0.12", features = ["send_guard"] }
+s3s = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s" }
+thiserror = "1.0"
+tokio = { version = "1.27", features = ["full"] }
+tower = { version = "0.4", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "tracing-log"] }
