@@ -1,11 +1,9 @@
-use std::{sync::{Arc}, ops::Deref};
-
-use futures::{SinkExt};
+use std::{sync::Arc, ops::Deref};
 
 
-use miette::{Result};
+use miette::Result;
 
-use crate::{middleware::{Layer, MiddlewareAction}, server::{ServerBuilder, Server}, client::Client, request::{Request}};
+use crate::{middleware::{Layer, MiddlewareAction}, server::{ServerBuilder, Server}, client::Client, request::Request};
 
 pub struct PipelineInner<S: ServerBuilder, M: Layer, C: Client> {
     server: S,
@@ -25,6 +23,7 @@ where
     M: Layer + Send + Sync,
     C: Client + Send + Sync
 {
+    #[allow(unused)]
     pub fn new(server: S, middleware: M, client: C) -> Self {
         Self(Arc::new(
                 PipelineInner {

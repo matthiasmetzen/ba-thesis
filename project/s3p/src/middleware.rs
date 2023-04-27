@@ -1,6 +1,7 @@
 use crate::request::{Request, Response};
 use miette::Result;
 
+#[allow(unused)]
 pub enum MiddlewareAction {
     Forward(Request),
     Reply(Response),
@@ -24,6 +25,7 @@ pub struct Stack<Inner: Layer, Outer: Layer> {
 }
 
 impl<I: Layer, O: Layer> Stack<I, O> {
+    #[allow(unused)]
     pub fn new(inner: I, outer: O) -> Self {
         Self {
             inner,
