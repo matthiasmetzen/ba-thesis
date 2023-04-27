@@ -1,11 +1,11 @@
-use std::{sync::{Arc, Weak}, ops::Deref, pin::pin};
+use std::{sync::{Arc}, ops::Deref};
 
-use futures::{StreamExt, SinkExt};
-use tracing::error;
+use futures::{SinkExt};
 
-use miette::{Result, WrapErr, miette};
 
-use crate::{middleware::{Layer, MiddlewareAction}, server::{ServerBuilder, Server}, client::Client, request::{Response, Request}};
+use miette::{Result};
+
+use crate::{middleware::{Layer, MiddlewareAction}, server::{ServerBuilder, Server}, client::Client, request::{Request}};
 
 pub struct PipelineInner<S: ServerBuilder, M: Layer, C: Client> {
     server: S,
@@ -26,15 +26,13 @@ where
     C: Client + Send + Sync
 {
     pub fn new(server: S, middleware: M, client: C) -> Self {
-        Self {
-            0: Arc::new(
+        Self(Arc::new(
                 PipelineInner {
                     server,
                     middleware,
                     client,
                 }
-            )
-        }
+            ))
     }
 }
 

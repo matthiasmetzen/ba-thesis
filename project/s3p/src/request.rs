@@ -11,27 +11,27 @@ impl Request {
 pub struct Response;
 
 impl From<Report> for Response {
-    fn from(value: Report) -> Self {
+    fn from(_value: Report) -> Self {
         todo!()
     }
 }
 
 impl From<Response> for hyper::Response<hyper::Body> {
-    fn from(value: Response) -> Self {
+    fn from(_value: Response) -> Self {
         // FIXME: temporary
         hyper::Response::default()
     }
 }
 
 impl From<hyper::Request<hyper::Body>> for Response {
-    fn from(value: hyper::Request<hyper::Body>) -> Self {
+    fn from(_value: hyper::Request<hyper::Body>) -> Self {
         todo!()
     }
 }
 
 // FIXME: Temporary
 impl From<s3s::http::Request> for Request {
-    fn from(value: s3s::http::Request) -> Self {
+    fn from(_value: s3s::http::Request) -> Self {
         todo!()
     }
 }

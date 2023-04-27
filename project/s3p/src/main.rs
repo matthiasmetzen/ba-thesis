@@ -8,7 +8,7 @@
 #![feature(fn_traits)]
 
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
-use tracing::info;
+
 
 
 mod server;
