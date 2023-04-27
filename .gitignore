@@ -412,3 +412,7 @@ $RECYCLE.BIN/
 
 # Ignore compiled pdf document
 thesis.pdf
+
+# Rust + Cargo
+target/*
+Cargo.lock
