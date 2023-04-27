@@ -21,7 +21,7 @@ mod utils;
 mod error;
 
 mod header;
-mod http;
+pub mod http;
 mod ops;
 mod request;
 mod s3_trait;
