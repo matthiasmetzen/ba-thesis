@@ -1,4 +1,0 @@
-[workspace]
-members = [
-    "project/s3p"
-]
