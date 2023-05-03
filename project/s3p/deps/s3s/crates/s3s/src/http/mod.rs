@@ -20,7 +20,7 @@ mod body;
 pub use self::body::*;
 
 mod request;
-pub use self::request::Request;
+pub use self::request::{Request, S3Extensions};
 
 mod response;
 pub use self::response::Response;

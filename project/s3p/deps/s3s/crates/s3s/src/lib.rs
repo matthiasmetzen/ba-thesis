@@ -22,7 +22,7 @@ mod error;
 
 mod header;
 pub mod http;
-mod ops;
+pub mod ops;
 mod request;
 mod s3_trait;
 mod sig_v2;

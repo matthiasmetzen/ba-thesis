@@ -220,7 +220,11 @@ pub async fn call(
     }
 }
 
-async fn prepare(req: &mut Request, auth: Option<&dyn S3Auth>, base_domain: Option<&str>) -> S3Result<&'static dyn Operation> {
+pub async fn prepare(
+    req: &mut Request,
+    auth: Option<&dyn S3Auth>,
+    base_domain: Option<&str>,
+) -> S3Result<&'static dyn Operation> {
     let s3_path;
     let mut content_length;
     {
