@@ -134,3 +134,34 @@ impl ServerBuilder for S3ServerBuilder {
         Ok(srv)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use ctor::ctor;
+    use tokio::signal::ctrl_c;
+
+    use super::*;
+
+    #[ctor]
+    fn prepare() {
+        let _ = crate::try_init_tracing();
+    }
+
+    // Runs until Ctrl+C is received
+    #[tokio::test]
+    async fn run_s3_server() -> Result<()> {
+        let server = S3ServerBuilder::new("localhost".into(), 3000);
+
+        let handler = |_req| async {
+            Ok(Response::default())
+        };
+
+        let server = server.serve(handler)?;
+
+        ctrl_c().await.map_err(|e| miette::miette!(e))?;
+        server.stop().await?;
+
+        Ok(())
+    }
+}

@@ -7,7 +7,7 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(fn_traits)]
 
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*, util::TryInitError};
 
 
 
@@ -19,12 +19,12 @@ mod pipeline;
 
 #[tokio::main]
 async fn main() {
-    init_tracing();
+    let _ = try_init_tracing();
 }
 
-fn init_tracing() {
+fn try_init_tracing() -> Result<(), TryInitError> {
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(EnvFilter::from_default_env())
-        .init();
+        .try_init()
 }
