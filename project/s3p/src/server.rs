@@ -1,19 +1,17 @@
-use futures::future::BoxFuture;
+use futures::{future::BoxFuture, TryFutureExt, FutureExt};
 use hyper::service::{make_service_fn, service_fn};
-use miette::{Result, miette};
+use miette::{Result, miette, WrapErr};
 
-use crate::request::{Request, Response};
+use crate::request::{Request, Response, S3Extension};
 
 use std::net::TcpListener;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::future::Future;
 
-use tracing::info;
+use tracing::{info, debug};
 
 pub trait ServerBuilder {
-    type Request;
-
     fn serve(&self, handler: impl Handler) -> Result<impl Server>;
 }
 
@@ -21,7 +19,7 @@ pub trait Server: Send {
     async fn stop(self) -> Result<()>;
 }
 
-pub trait Handler<Req: Clone = Request, Resp = Response>: Send + Sync {
+pub trait Handler<Req = Request, Resp = Response>: Send + Sync {
     type Future: Future<Output = Result<Resp>> + Send;
 
     fn handle(&self, msg: Req) -> Self::Future;
@@ -30,7 +28,7 @@ pub trait Handler<Req: Clone = Request, Resp = Response>: Send + Sync {
 // Accept async closures as handlers
 impl<Fun, Fut, Req, Resp> Handler<Req, Resp> for Fun
 where
-    Req: Clone + Send + Sync + 'static,
+    Req: Send + Sync + 'static,
     Fun: Fn(Req) -> Fut + Send + Sync,
     Fut: Future<Output = Result<Resp>> + Send
 {
@@ -43,7 +41,7 @@ where
 
 impl<Req, Resp, H: Handler<Req, Resp>> Handler<Req, Resp> for Arc<H> 
 where
-    Req: Clone + Send + Sync + 'static,
+    Req: Send + Sync + 'static,
     Resp: Send + Sync,
 {
     type Future = H::Future;
@@ -83,15 +81,22 @@ impl<'a> Server for S3Server<'a> {
 }
 
 impl ServerBuilder for S3ServerBuilder {
-    type Request = s3s::http::Request;
-
     fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
         let h = Arc::new(handler);
         let svc_fn = move |req: hyper::Request<hyper::Body>| {
             let h = h.clone();
             async move {
                 let req = req.map(s3s::Body::from);
-                let req = s3s::http::Request::from(req);
+
+                let mut req = s3s::http::Request::from(req);
+                let op = s3s::ops::prepare(&mut req, None, None).await.map_err(|e| miette!(e))?;
+
+                
+                let mut req = Request::from(req);
+                let s3_ext = req.extensions.get_mut::<S3Extension>().ok_or_else(|| miette!("Could not find S3Extension"))?;
+                s3_ext.op = op.name().into();
+
+                debug!("{:#?}", req);
 
                 let resp = h.handle(req.into()).await;
                 match resp {
@@ -104,7 +109,18 @@ impl ServerBuilder for S3ServerBuilder {
         let svc_fn = Arc::new(svc_fn);
         let make_svc = make_service_fn(move |_| {
             let svc_fn = svc_fn.clone();
-            std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| svc_fn.call((req,)))))
+            std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| {
+                svc_fn.call((req,))
+                    .map(|res| {
+                        match res {
+                            Ok(_) => res,
+                            Err(err) => {
+                                let body = hyper::Body::from(err.to_string());
+                                hyper::Response::builder().status(500).body(body).map_err(|e| miette!(e))
+                            }
+                        }
+                    })
+            })))
         });
 
         // Run server
@@ -124,10 +140,10 @@ impl ServerBuilder for S3ServerBuilder {
         info!("server is running at http://{}:{}/", self.host, self.port);
 
         let srv = S3Server {
-            fut: Box::pin(Box::pin(async move { 
+            fut: Box::pin(async move { 
                 let _ = task.await.map_err(|e| miette::miette!(e))?; 
                 Ok(())
-            })),
+            }),
             term_sig: tx,
         };
 

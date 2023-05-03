@@ -87,9 +87,6 @@ where
             }
         };
 
-        //let handler = Arc::new(handler);
-        //self.server.register_handler(handler);
-
         let server = self.server.serve(handler)?;
 
         Ok(server)
@@ -123,8 +120,6 @@ mod tests {
 
 
     impl ServerBuilder for StubServerBuilder {
-        type Request = Request;
-
         fn serve(&self, _handler: impl Handler) -> Result<impl Server> {
             Ok(StubServer)
         }
