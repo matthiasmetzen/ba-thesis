@@ -1,12 +1,12 @@
 use std::{ops::Deref, sync::Arc};
 
-use miette::{miette, Result};
-use tower::Service;
+use miette::{Result};
+
 
 use crate::{
     client::Client,
     middleware::{Layer, MiddlewareAction},
-    request::{Request, Response},
+    request::{Request},
     server::{Server, ServerBuilder},
 };
 
@@ -129,17 +129,17 @@ mod tests {
 
         fn poll_ready(
             &mut self,
-            cx: &mut std::task::Context<'_>,
+            _cx: &mut std::task::Context<'_>,
         ) -> std::task::Poll<std::result::Result<(), Self::Error>> {
             todo!()
         }
 
-        fn call(&mut self, req: Request) -> Self::Future {
+        fn call(&mut self, _req: Request) -> Self::Future {
             todo!()
         }
     }
     impl Client for StubClient {
-        fn send(&self, request: Request) -> impl Future<Output = Result<Response>> + Send {
+        fn send(&self, _request: Request) -> impl Future<Output = Result<Response>> + Send {
             async { todo!() }
         }
     }

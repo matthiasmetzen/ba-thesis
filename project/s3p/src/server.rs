@@ -113,7 +113,7 @@ impl ServerBuilder for S3ServerBuilder {
                 let mut req = s3s::http::Request::from(req);
 
                 let auth = auth.as_deref().map(|a| a.as_ref());
-                let base_domain = base_domain.as_deref().map(|s| &*s);
+                let base_domain = base_domain.as_deref();
 
                 let op = s3s::ops::prepare(&mut req, auth, base_domain)
                     .await
@@ -128,7 +128,7 @@ impl ServerBuilder for S3ServerBuilder {
 
                 debug!("{:#?}", req);
 
-                let resp = h.handle(req.into()).await;
+                let resp = h.handle(req).await;
                 match resp {
                     Ok(r) => Ok(r.into()),
                     Err(e) => Err(e),
