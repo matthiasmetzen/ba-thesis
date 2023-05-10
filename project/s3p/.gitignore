@@ -1,1 +1,3 @@
 target/
+.env
+s3creds.conf
