@@ -1,9 +1,14 @@
-use std::{sync::Arc, ops::Deref};
+use std::{ops::Deref, sync::Arc};
 
+use miette::{miette, Result};
+use tower::Service;
 
-use miette::Result;
-
-use crate::{middleware::{Layer, MiddlewareAction}, server::{ServerBuilder, Server}, client::Client, request::Request};
+use crate::{
+    client::Client,
+    middleware::{Layer, MiddlewareAction},
+    request::{Request, Response},
+    server::{Server, ServerBuilder},
+};
 
 pub struct PipelineInner<S: ServerBuilder, M: Layer, C: Client> {
     server: S,
@@ -17,40 +22,38 @@ where
     M: Layer + Send + Sync,
     C: Client + Send + Sync;
 
-impl<S, M, C> Pipeline<S, M, C> 
+impl<S, M, C> Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
-    C: Client + Send + Sync
+    C: Client + Send + Sync,
 {
     #[allow(unused)]
     pub fn new(server: S, middleware: M, client: C) -> Self {
-        Self(Arc::new(
-                PipelineInner {
-                    server,
-                    middleware,
-                    client,
-                }
-            ))
+        Self(Arc::new(PipelineInner {
+            server,
+            middleware,
+            client,
+        }))
     }
 }
 
-impl<S, M, C> Clone for Pipeline<S, M, C> 
+impl<S, M, C> Clone for Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
-    C: Client + Send + Sync
+    C: Client + Send + Sync,
 {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-impl<S, M, C> Deref for Pipeline<S, M, C> 
+impl<S, M, C> Deref for Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
-    C: Client + Send + Sync
+    C: Client + Send + Sync,
 {
     type Target = PipelineInner<S, M, C>;
 
@@ -63,21 +66,21 @@ impl<S, M, C> From<PipelineInner<S, M, C>> for Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
-    C: Client + Send + Sync
+    C: Client + Send + Sync,
 {
     fn from(value: PipelineInner<S, M, C>) -> Self {
         Self(Arc::new(value))
     }
 }
 
-impl<S, M, C> Pipeline<S, M, C> 
+impl<S, M, C> Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
-    C: Client + Send + Sync
+    C: Client + Send + Sync,
 {
     #[allow(unused)]
-    async fn run(&self) -> Result<impl Server + '_> {
+    pub async fn run(&self) -> Result<impl Server + '_> {
         let handler = move |req: Request| async {
             let res = self.middleware.process_request(req).await;
             match res {
@@ -95,18 +98,49 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{request::{Request, Response}, middleware::{Stack, Identity}, server::{Handler, Server, S3ServerBuilder}};
+    use std::pin::Pin;
+
+    use crate::{
+        client::S3Client,
+        middleware::{Identity, Stack},
+        request::{Request, Response},
+        server::{Handler, S3ServerBuilder, Server},
+    };
+    use ctor::ctor;
     use futures::Future;
     use miette::Result;
+    use tokio::signal::ctrl_c;
+    use tower::Service;
 
     use super::*;
 
+    #[ctor]
+    fn prepare() {
+        let _ = crate::try_init_tracing();
+    }
+
     pub struct StubClient;
+    impl Service<Request> for StubClient {
+        type Response = Response;
+
+        type Error = miette::Error;
+
+        type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+        fn poll_ready(
+            &mut self,
+            cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<std::result::Result<(), Self::Error>> {
+            todo!()
+        }
+
+        fn call(&mut self, req: Request) -> Self::Future {
+            todo!()
+        }
+    }
     impl Client for StubClient {
-        fn send(&self, _request: Request) -> impl Future<Output = Result<Response>> {
-            async {
-                Ok(Response)
-            }
+        fn send(&self, request: Request) -> impl Future<Output = Result<Response>> + Send {
+            async { todo!() }
         }
     }
 
@@ -118,7 +152,6 @@ mod tests {
     }
     pub struct StubServerBuilder;
 
-
     impl ServerBuilder for StubServerBuilder {
         fn serve(&self, _handler: impl Handler) -> Result<impl Server> {
             Ok(StubServer)
@@ -126,11 +159,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_run() -> Result<()> {
+    async fn test_run_pipeline() -> Result<()> {
         let s3 = S3ServerBuilder::new("localhost".into(), 3000);
-        let p = Pipeline::new(s3, Stack::new(Identity, Identity), StubClient);
+        let middleware = Stack::new(Identity, Identity);
+        let client = S3Client::builder()
+            .endpoint_url("http://localhost:9000")
+            .credentials_from_single("user", "password")
+            .build()?;
+        let p = Pipeline::new(s3, middleware, client);
         let server = p.run().await?;
 
+        ctrl_c().await.map_err(|e| miette::miette!(e))?; // FIXME: Temporary
         server.stop().await?;
 
         Ok(())
