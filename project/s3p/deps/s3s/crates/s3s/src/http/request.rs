@@ -28,7 +28,7 @@ pub struct S3Extensions {
     pub qs: Option<OrderedQs>,
 
     pub multipart: Option<Multipart>,
-    pub(crate) vec_stream: Option<VecByteStream>,
+    pub vec_stream: Option<VecByteStream>,
 
     pub credentials: Option<Credentials>,
 }

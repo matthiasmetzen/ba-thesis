@@ -141,7 +141,7 @@ where
     Ok(vec)
 }
 
-pub(crate) struct VecByteStream {
+pub struct VecByteStream {
     queue: VecDeque<Bytes>,
     remaining_bytes: usize,
 }
