@@ -1,12 +1,11 @@
 use std::{ops::Deref, sync::Arc};
 
-use miette::{Result};
-
+use miette::Result;
 
 use crate::{
     client::Client,
     middleware::{Layer, MiddlewareAction},
-    request::{Request},
+    request::Request,
     server::{Server, ServerBuilder},
 };
 
