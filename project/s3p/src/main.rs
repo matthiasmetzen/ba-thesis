@@ -7,19 +7,19 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(fn_traits)]
 
-use client::S3Client;
+mod client;
+mod middleware;
+mod pipeline;
+mod request;
+mod server;
+
+use client::s3::S3Client;
 use middleware::{Identity, Stack};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 use s3s::auth::SimpleAuth;
 use server::{S3ServerBuilder, Server};
 use tracing_subscriber::{fmt, prelude::*, util::TryInitError, EnvFilter};
-
-mod client;
-mod middleware;
-mod pipeline;
-mod request;
-mod server;
 
 #[tokio::main]
 async fn main() -> Result<()> {

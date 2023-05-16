@@ -83,9 +83,9 @@ impl Request {}
 
 #[derive(Debug, Default)]
 pub struct Response {
-    status: StatusCode,
-    headers: HeaderMap<HeaderValue>,
-    body: Body,
+    pub status: StatusCode,
+    pub headers: HeaderMap<HeaderValue>,
+    pub body: Body,
 }
 
 impl From<Report> for Response {

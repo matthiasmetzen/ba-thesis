@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 use miette::Result;
 
@@ -9,83 +9,46 @@ use crate::{
     server::{Server, ServerBuilder},
 };
 
-pub struct PipelineInner<S: ServerBuilder, M: Layer, C: Client> {
+pub struct Pipeline<S, M, C>
+where
+    S: ServerBuilder + Send + Sync,
+    M: Layer + Send + Sync,
+    C: Client + Send + Sync,
+{
     server: S,
     middleware: M,
     client: C,
 }
 
-pub struct Pipeline<S, M, C>(Arc<PipelineInner<S, M, C>>)
-where
-    S: ServerBuilder + Send + Sync,
-    M: Layer + Send + Sync,
-    C: Client + Send + Sync;
-
 impl<S, M, C> Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
     C: Client + Send + Sync,
 {
-    #[allow(unused)]
     pub fn new(server: S, middleware: M, client: C) -> Self {
-        Self(Arc::new(PipelineInner {
+        Self {
             server,
             middleware,
             client,
-        }))
+        }
     }
-}
 
-impl<S, M, C> Clone for Pipeline<S, M, C>
-where
-    S: ServerBuilder + Send + Sync,
-    M: Layer + Send + Sync,
-    C: Client + Send + Sync,
-{
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<S, M, C> Deref for Pipeline<S, M, C>
-where
-    S: ServerBuilder + Send + Sync,
-    M: Layer + Send + Sync,
-    C: Client + Send + Sync,
-{
-    type Target = PipelineInner<S, M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
-impl<S, M, C> From<PipelineInner<S, M, C>> for Pipeline<S, M, C>
-where
-    S: ServerBuilder + Send + Sync,
-    M: Layer + Send + Sync,
-    C: Client + Send + Sync,
-{
-    fn from(value: PipelineInner<S, M, C>) -> Self {
-        Self(Arc::new(value))
-    }
-}
-
-impl<S, M, C> Pipeline<S, M, C>
-where
-    S: ServerBuilder + Send + Sync,
-    M: Layer + Send + Sync,
-    C: Client + Send + Sync,
-{
     #[allow(unused)]
-    pub async fn run(&self) -> Result<impl Server + '_> {
-        let handler = move |req: Request| async {
-            let res = self.middleware.process_request(req).await;
-            match res {
-                Ok(MiddlewareAction::Forward(req)) => self.client.send(req).await,
-                Ok(MiddlewareAction::Reply(res)) => Ok(res),
-                Err(e) => Err(e),
+    pub async fn run(self) -> Result<impl Server> {
+        let middleware = Arc::new(self.middleware);
+        let client = Arc::new(self.client);
+
+        let handler = move |req: Request| {
+            let middleware = middleware.clone();
+            let client = client.clone();
+            async move {
+                let res = middleware.process_request(req).await;
+                match res {
+                    Ok(MiddlewareAction::Forward(req)) => client.send(req).await,
+                    Ok(MiddlewareAction::Reply(res)) => Ok(res),
+                    Err(e) => Err(e),
+                }
             }
         };
 
@@ -100,7 +63,7 @@ mod tests {
     use std::pin::Pin;
 
     use crate::{
-        client::S3Client,
+        client::s3::S3Client,
         middleware::{Identity, Stack},
         request::{Request, Response},
         server::{Handler, S3ServerBuilder, Server},
