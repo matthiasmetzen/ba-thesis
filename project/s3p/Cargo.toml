@@ -16,9 +16,8 @@ dotenvy = "0.15"
 futures = { version = "0.3.28" }
 http = "0.2.9"
 hyper = { version = "0.14", features = ["full"] }
-kanal = "0.1.0-pre8"
 miette = { version = "5.7", features = ["fancy"] }
-moka = "0.10"
+moka = { version = "0.11", features = ["future"] }
 parking_lot = { version = "0.12", features = ["send_guard"] }
 s3s = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s" }
 s3s-aws = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s-aws" }
