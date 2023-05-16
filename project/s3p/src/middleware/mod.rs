@@ -1,6 +1,9 @@
 use crate::request::{Request, Response};
 use miette::Result;
 
+pub mod cache;
+pub use self::cache::CacheLayer;
+
 #[allow(unused)]
 pub enum MiddlewareAction {
     Forward(Request),
@@ -27,10 +30,7 @@ pub struct Stack<Inner: Layer, Outer: Layer> {
 impl<I: Layer, O: Layer> Stack<I, O> {
     #[allow(unused)]
     pub fn new(inner: I, outer: O) -> Self {
-        Self {
-            inner,
-            outer
-        }
+        Self { inner, outer }
     }
 }
 
@@ -40,7 +40,7 @@ impl<I: Layer, O: Layer> Layer for Stack<I, O> {
         let r = self.outer.process_request(request).await?;
         match r {
             MiddlewareAction::Forward(req) => return self.inner.process_request(req).await,
-            MiddlewareAction::Reply(_) => return Ok(r)
+            MiddlewareAction::Reply(_) => return Ok(r),
         }
     }
 
