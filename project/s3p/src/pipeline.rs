@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use miette::Result;
 
 use crate::{
     client::Client,
-    middleware::{Layer, MiddlewareAction},
-    request::Request,
+    middleware::{Layer, RequestProcessor},
     server::{Server, ServerBuilder},
 };
 
@@ -36,7 +33,7 @@ where
 
     #[allow(unused)]
     pub async fn run(self) -> Result<impl Server> {
-        let middleware = Arc::new(self.middleware);
+        /*let middleware = Arc::new(self.middleware);
         let client = Arc::new(self.client);
 
         let handler = move |req: Request| {
@@ -50,7 +47,9 @@ where
                     Err(e) => Err(e),
                 }
             }
-        };
+        };*/
+
+        let handler = RequestProcessor::new(self.client, self.middleware).as_handler();
 
         let server = self.server.serve(handler)?;
 
@@ -64,7 +63,7 @@ mod tests {
 
     use crate::{
         client::s3::S3Client,
-        middleware::{Identity, Stack},
+        middleware::{Chain, Identity},
         request::{Request, Response},
         server::{Handler, S3ServerBuilder, Server},
     };
@@ -123,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn test_run_pipeline() -> Result<()> {
         let s3 = S3ServerBuilder::new("localhost".into(), 3000);
-        let middleware = Stack::new(Identity, Identity);
+        let middleware = Chain::new(Identity, Identity);
         let client = S3Client::builder()
             .endpoint_url("http://localhost:9000")
             .credentials_from_single("user", "password")

@@ -14,7 +14,7 @@ mod request;
 mod server;
 
 use client::s3::S3Client;
-use middleware::{Identity, Stack};
+use middleware::{CacheLayer, Chain, Identity};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 use s3s::auth::SimpleAuth;
@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
         )))
         .base_domain(base_domain);
 
-    let middleware = Stack::new(Identity, Identity);
+    let middleware = Chain::new(CacheLayer::new(512), Identity);
     let client = S3Client::builder()
         .endpoint_url(endpoint_url.as_str())
         .credentials_from_single(access_key_id.as_str(), secret_access_key.as_str())
