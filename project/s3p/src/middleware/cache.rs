@@ -1,9 +1,9 @@
 use super::*;
 use crate::request::*;
 
-use http::{HeaderName, HeaderValue, StatusCode};
+use http::{HeaderName, HeaderValue, Method, StatusCode};
 use hyper::body::{Bytes, HttpBody};
-use miette::IntoDiagnostic;
+use miette::{miette, IntoDiagnostic};
 use moka::future::Cache;
 use s3s::Body;
 
@@ -35,7 +35,7 @@ pub struct CacheLayer {
 }
 
 impl CacheLayer {
-    fn new(capacity: u64) -> Self {
+    pub fn new(capacity: u64) -> Self {
         Self {
             cache: Cache::builder()
                 .max_capacity(capacity)
@@ -46,51 +46,54 @@ impl CacheLayer {
         }
     }
 
-    fn make_key(&self, request: &Request) -> Key {
-        todo!()
+    fn make_key(&self, request: &Request) -> Option<Key> {
+        let http_ext = request.extensions.get::<HttpExtension>()?;
+        http_ext.uri.path().to_string().into()
     }
 
     fn is_cachable(&self, request: &Request) -> bool {
-        todo!()
+        let Some(http_ext) = request
+            .extensions
+            .get::<HttpExtension>() 
+            else {
+                return false;
+            };
+        http_ext.method == Method::GET
     }
 }
 
 #[async_trait::async_trait]
 impl Layer for CacheLayer {
-    async fn process_request(&self, request: Request) -> Result<MiddlewareAction> {
-        let key = self.make_key(&request);
+    async fn call(&self, req: Request, next: impl NextLayer) -> Result<Response> {
+        if !self.is_cachable(&req) {
+            return next.call(req).await;
+        }
 
-        match self.cache.get(&key) {
-            Some(data) => {
-                let mut resp = Response::default();
-                resp.status = data.status_code;
+        let key = self.make_key(&req).ok_or_else(|| {
+            miette!("Response marked as cacheable but key was None").context(format!("{:#?}", req))
+        })?;
 
-                // TODO: proper headers
-                resp.headers.append(
-                    "cache-control-key",
-                    HeaderValue::from_str(key.as_str()).into_diagnostic()?,
-                );
+        if let Some(data) = self.cache.get(&key) {
+            let mut resp = Response::default();
+            resp.status = data.status_code;
 
-                if let Some(bytes) = data.body {
-                    resp.body = Body::from(bytes);
-                }
+            // TODO: proper headers
+            resp.headers.append(
+                "cache-control-key",
+                HeaderValue::from_str(key.as_str()).into_diagnostic()?,
+            );
 
-                Ok(MiddlewareAction::Reply(resp))
+            if let Some(bytes) = data.body {
+                resp.body = Body::from(bytes);
             }
-            _ => Ok(MiddlewareAction::Forward(request)),
-        }
-    }
 
-    async fn process_response(&self, response: Response) -> Result<Response> {
-        // TODO: how to get key here?
-
-        let key: Key = todo!();
-        let is_cachable: bool = todo!();
-
-        if is_cachable {
-            self.cache.insert(key, CachedResponse::new(&response));
+            return Ok(resp);
         }
 
-        Ok(response)
+        let resp = next.call(req).await?;
+
+        self.cache.insert(key, CachedResponse::new(&resp)).await;
+
+        Ok(resp)
     }
 }
