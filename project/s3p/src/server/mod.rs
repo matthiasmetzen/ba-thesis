@@ -5,10 +5,10 @@ use s3s::auth::S3Auth;
 
 use crate::request::{Request, Response, S3Extension};
 
-use std::future::Future;
 use std::net::TcpListener;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::future::Future;
 
 use tracing::{debug, info};
 
@@ -57,6 +57,16 @@ struct S3Server<'a> {
     term_sig: tokio::sync::oneshot::Sender<()>,
 }
 
+impl<'a> Server for S3Server<'a> {
+    async fn stop(self) -> Result<()> {
+        self.term_sig
+            .send(())
+            .map_err(|_| miette!("Failed to send stop signal"))?;
+        self.fut.await.ok();
+        Ok(())
+    }
+}
+
 pub struct S3ServerBuilder {
     pub host: String,
     pub port: u16,
@@ -83,16 +93,6 @@ impl S3ServerBuilder {
     pub fn base_domain(mut self, base_domain: impl Into<Option<String>>) -> Self {
         self.base_domain = base_domain.into();
         self
-    }
-}
-
-impl<'a> Server for S3Server<'a> {
-    async fn stop(self) -> Result<()> {
-        self.term_sig
-            .send(())
-            .map_err(|_| miette!("Failed to send stop signal"))?;
-        self.fut.await.ok();
-        Ok(())
     }
 }
 
