@@ -1,11 +1,12 @@
 use super::*;
 use crate::request::*;
 
-use http::{HeaderName, HeaderValue, Method, StatusCode};
-use hyper::body::{Bytes, HttpBody};
+use http::{HeaderValue, Method, StatusCode};
+use hyper::body::Bytes;
 use miette::{miette, IntoDiagnostic};
 use moka::future::Cache;
 use s3s::Body;
+use tracing::debug;
 
 type Key = String;
 type Data = CachedResponse;
@@ -13,14 +14,23 @@ type Data = CachedResponse;
 #[derive(Debug, Clone)]
 struct CachedResponse {
     status_code: StatusCode,
-    body: Option<Bytes>,
+    body: Option<Arc<Bytes>>,
 }
 
 impl CachedResponse {
-    fn new(resp: &Response) -> Self {
+    async fn new(resp: &mut Response) -> Self {
+        let mut body = std::mem::take(&mut resp.body);
+        let bytes = body.store_all_unlimited().await.ok().map(Arc::new);
+
+        resp.body = match bytes.clone() {
+            Some(b) => Body::from(b.to_vec()),
+            None => Body::default()
+        };
+
+        debug!("resp body: {:#?}", bytes);
         Self {
             status_code: resp.status,
-            body: resp.body.bytes(),
+            body: bytes,
         }
     }
 
@@ -60,6 +70,33 @@ impl CacheLayer {
             };
         http_ext.method == Method::GET
     }
+
+    pub fn get_cached_response(&self, key: &Key) -> Result<Response> {
+        let data = self.cache.get(key).ok_or_else(|| miette!("No cache entry found"))?;
+
+        debug!("found cache entry for {}", key);
+        let mut resp = Response::default();
+        resp.status = data.status_code;
+
+        // TODO: proper headers
+        resp.headers.append(
+            "Etag",
+            HeaderValue::from_str(key.as_str()).into_diagnostic()?,
+        );
+
+        resp.headers.append(
+            "cache-control",
+            HeaderValue::from_str("no-cache").into_diagnostic()?,
+        );
+
+        
+        if let Some(bytes) = data.body {
+            resp.body = Body::from(bytes.to_vec());
+        }
+
+
+        Ok(resp)
+    }
 }
 
 #[async_trait::async_trait]
@@ -73,26 +110,17 @@ impl Layer for CacheLayer {
             miette!("Response marked as cacheable but key was None").context(format!("{:#?}", req))
         })?;
 
-        if let Some(data) = self.cache.get(&key) {
-            let mut resp = Response::default();
-            resp.status = data.status_code;
-
-            // TODO: proper headers
-            resp.headers.append(
-                "cache-control-key",
-                HeaderValue::from_str(key.as_str()).into_diagnostic()?,
-            );
-
-            if let Some(bytes) = data.body {
-                resp.body = Body::from(bytes);
-            }
-
+        if let Ok(resp) = self.get_cached_response(&key) {
             return Ok(resp);
         }
 
-        let resp = next.call(req).await?;
+        let mut resp = next.call(req).await?;
 
-        self.cache.insert(key, CachedResponse::new(&resp)).await;
+        // TODO: move and expand this check
+        if resp.status == StatusCode::OK {
+            self.cache.insert(key, CachedResponse::new(&mut resp).await).await;
+        }
+
 
         Ok(resp)
     }
