@@ -19,7 +19,7 @@ use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 use s3s::auth::SimpleAuth;
 use server::{S3ServerBuilder, Server};
-use tracing_subscriber::{fmt, prelude::*, util::TryInitError, EnvFilter};
+use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, util::TryInitError, EnvFilter};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -58,14 +58,25 @@ async fn main() -> Result<()> {
         Err(_) => false,
     };
 
-    let s3 = S3ServerBuilder::new(host, port)
-        .auth(Some(SimpleAuth::from_single(
+    let validate_credentials: bool = match std::env::var("S3_VALIDATE_CREDENTIALS") {
+        Ok(f) => f
+            .parse()
+            .into_diagnostic()
+            .wrap_err("Failed to parse S3_VALIDATE_CREDENTIALS")
+            .with_context(|| format!("Expected bool, got {}", f))?,
+        Err(_) => false,
+    };
+
+    let mut s3 = S3ServerBuilder::new(host, port).base_domain(base_domain);
+
+    if validate_credentials {
+        s3 = s3.auth(Some(SimpleAuth::from_single(
             access_key_id.as_str(),
             secret_access_key.as_str(),
-        )))
-        .base_domain(base_domain);
+        )));
+    }
 
-    let middleware = Chain::new(CacheLayer::new(512), Identity);
+    let middleware = Chain::new(CacheLayer::new(4192), Identity);
     let client = S3Client::builder()
         .endpoint_url(endpoint_url.as_str())
         .credentials_from_single(access_key_id.as_str(), secret_access_key.as_str())
@@ -85,6 +96,10 @@ async fn main() -> Result<()> {
 fn try_init_tracing() -> Result<(), TryInitError> {
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(EnvFilter::from_default_env())
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
         .try_init()
 }
