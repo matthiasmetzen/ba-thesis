@@ -269,7 +269,10 @@ pub async fn prepare(
                 transformed_body: None,
             };
 
-            let credentials = scx.check().await?;
+            let credentials = match auth {
+                Some(_) => scx.check().await?,
+                None => None,
+            };
 
             body_changed = scx.transformed_body.is_some() || scx.multipart.is_some();
             transformed_body = scx.transformed_body;
