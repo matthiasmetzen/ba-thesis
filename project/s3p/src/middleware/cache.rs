@@ -14,16 +14,16 @@ type Data = CachedResponse;
 #[derive(Debug, Clone)]
 struct CachedResponse {
     status_code: StatusCode,
-    body: Option<Arc<Bytes>>,
+    body: Option<Bytes>,
 }
 
 impl CachedResponse {
     async fn new(resp: &mut Response) -> Self {
         let mut body = std::mem::take(&mut resp.body);
-        let bytes = body.store_all_unlimited().await.ok().map(Arc::new);
+        let bytes = body.store_all_unlimited().await.ok();
 
         resp.body = match bytes.clone() {
-            Some(b) => Body::from(b.to_vec()),
+            Some(b) => Body::from(b),
             None => Body::default()
         };
 
@@ -91,7 +91,7 @@ impl CacheLayer {
 
         
         if let Some(bytes) = data.body {
-            resp.body = Body::from(bytes.to_vec());
+            resp.body = Body::from(bytes);
         }
 
 
