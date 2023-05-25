@@ -43,6 +43,8 @@ pub trait Operation: Send + Sync + 'static {
     fn name(&self) -> &'static str;
 
     async fn call(&self, s3: &Arc<dyn S3>, req: &mut Request) -> S3Result<Response>;
+
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 fn build_s3_request<T>(input: T, req: &mut Request) -> S3Request<T> {

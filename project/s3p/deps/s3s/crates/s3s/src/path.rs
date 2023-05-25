@@ -8,7 +8,7 @@
 use std::net::IpAddr;
 
 /// A path in the S3 storage
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum S3Path {
     /// Root path
     Root,

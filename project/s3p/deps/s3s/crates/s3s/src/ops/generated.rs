@@ -345,6 +345,10 @@ impl super::Operation for AbortMultipartUpload {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct CompleteMultipartUpload;
@@ -422,6 +426,10 @@ impl super::Operation for CompleteMultipartUpload {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -602,6 +610,10 @@ impl super::Operation for CopyObject {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct CreateBucket;
@@ -665,6 +677,10 @@ impl super::Operation for CreateBucket {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -804,6 +820,10 @@ impl super::Operation for CreateMultipartUpload {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucket;
@@ -840,6 +860,10 @@ impl super::Operation for DeleteBucket {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -881,6 +905,10 @@ impl super::Operation for DeleteBucketAnalyticsConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucketCors;
@@ -917,6 +945,10 @@ impl super::Operation for DeleteBucketCors {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -955,6 +987,10 @@ impl super::Operation for DeleteBucketEncryption {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucketIntelligentTieringConfiguration;
@@ -988,6 +1024,10 @@ impl super::Operation for DeleteBucketIntelligentTieringConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1029,6 +1069,10 @@ impl super::Operation for DeleteBucketInventoryConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucketLifecycle;
@@ -1065,6 +1109,10 @@ impl super::Operation for DeleteBucketLifecycle {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1106,6 +1154,10 @@ impl super::Operation for DeleteBucketMetricsConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucketOwnershipControls;
@@ -1142,6 +1194,10 @@ impl super::Operation for DeleteBucketOwnershipControls {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1180,6 +1236,10 @@ impl super::Operation for DeleteBucketPolicy {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucketReplication;
@@ -1216,6 +1276,10 @@ impl super::Operation for DeleteBucketReplication {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1254,6 +1318,10 @@ impl super::Operation for DeleteBucketTagging {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteBucketWebsite;
@@ -1290,6 +1358,10 @@ impl super::Operation for DeleteBucketWebsite {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1346,6 +1418,10 @@ impl super::Operation for DeleteObject {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeleteObjectTagging;
@@ -1388,6 +1464,10 @@ impl super::Operation for DeleteObjectTagging {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1445,6 +1525,10 @@ impl super::Operation for DeleteObjects {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct DeletePublicAccessBlock;
@@ -1481,6 +1565,10 @@ impl super::Operation for DeletePublicAccessBlock {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1521,6 +1609,10 @@ impl super::Operation for GetBucketAccelerateConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketAcl;
@@ -1559,6 +1651,10 @@ impl super::Operation for GetBucketAcl {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1604,6 +1700,10 @@ impl super::Operation for GetBucketAnalyticsConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketCors;
@@ -1642,6 +1742,10 @@ impl super::Operation for GetBucketCors {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1684,6 +1788,10 @@ impl super::Operation for GetBucketEncryption {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketIntelligentTieringConfiguration;
@@ -1721,6 +1829,10 @@ impl super::Operation for GetBucketIntelligentTieringConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1766,6 +1878,10 @@ impl super::Operation for GetBucketInventoryConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketLifecycleConfiguration;
@@ -1804,6 +1920,10 @@ impl super::Operation for GetBucketLifecycleConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1844,6 +1964,10 @@ impl super::Operation for GetBucketLocation {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketLogging;
@@ -1882,6 +2006,10 @@ impl super::Operation for GetBucketLogging {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -1927,6 +2055,10 @@ impl super::Operation for GetBucketMetricsConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketNotificationConfiguration;
@@ -1965,6 +2097,10 @@ impl super::Operation for GetBucketNotificationConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2007,6 +2143,10 @@ impl super::Operation for GetBucketOwnershipControls {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketPolicy;
@@ -2047,6 +2187,10 @@ impl super::Operation for GetBucketPolicy {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2089,6 +2233,10 @@ impl super::Operation for GetBucketPolicyStatus {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketReplication;
@@ -2130,6 +2278,10 @@ impl super::Operation for GetBucketReplication {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketRequestPayment;
@@ -2168,6 +2320,10 @@ impl super::Operation for GetBucketRequestPayment {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2208,6 +2364,10 @@ impl super::Operation for GetBucketTagging {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketVersioning;
@@ -2247,6 +2407,10 @@ impl super::Operation for GetBucketVersioning {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetBucketWebsite;
@@ -2285,6 +2449,10 @@ impl super::Operation for GetBucketWebsite {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2428,6 +2596,10 @@ impl super::Operation for GetObject {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetObjectAcl;
@@ -2474,6 +2646,10 @@ impl super::Operation for GetObjectAcl {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2545,6 +2721,10 @@ impl super::Operation for GetObjectAttributes {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetObjectLegalHold;
@@ -2593,6 +2773,10 @@ impl super::Operation for GetObjectLegalHold {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetObjectLockConfiguration;
@@ -2633,6 +2817,10 @@ impl super::Operation for GetObjectLockConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2682,6 +2870,10 @@ impl super::Operation for GetObjectRetention {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetObjectTagging;
@@ -2729,6 +2921,10 @@ impl super::Operation for GetObjectTagging {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetObjectTorrent;
@@ -2775,6 +2971,10 @@ impl super::Operation for GetObjectTorrent {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct GetPublicAccessBlock;
@@ -2816,6 +3016,10 @@ impl super::Operation for GetPublicAccessBlock {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct HeadBucket;
@@ -2852,6 +3056,10 @@ impl super::Operation for HeadBucket {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2971,6 +3179,10 @@ impl super::Operation for HeadObject {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct ListBucketAnalyticsConfigurations;
@@ -3013,6 +3225,10 @@ impl super::Operation for ListBucketAnalyticsConfigurations {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct ListBucketIntelligentTieringConfigurations;
@@ -3051,6 +3267,10 @@ impl super::Operation for ListBucketIntelligentTieringConfigurations {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3094,6 +3314,10 @@ impl super::Operation for ListBucketInventoryConfigurations {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct ListBucketMetricsConfigurations;
@@ -3136,6 +3360,10 @@ impl super::Operation for ListBucketMetricsConfigurations {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct ListBuckets;
@@ -3167,6 +3395,10 @@ impl super::Operation for ListBuckets {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3225,6 +3457,10 @@ impl super::Operation for ListMultipartUploads {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct ListObjectVersions;
@@ -3282,6 +3518,10 @@ impl super::Operation for ListObjectVersions {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct ListObjects;
@@ -3338,6 +3578,10 @@ impl super::Operation for ListObjects {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3401,6 +3645,10 @@ impl super::Operation for ListObjectsV2 {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3468,6 +3716,10 @@ impl super::Operation for ListParts {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketAccelerateConfiguration;
@@ -3510,6 +3762,10 @@ impl super::Operation for PutBucketAccelerateConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3575,6 +3831,10 @@ impl super::Operation for PutBucketAcl {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketAnalyticsConfiguration;
@@ -3617,6 +3877,10 @@ impl super::Operation for PutBucketAnalyticsConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3664,6 +3928,10 @@ impl super::Operation for PutBucketCors {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketEncryption;
@@ -3710,6 +3978,10 @@ impl super::Operation for PutBucketEncryption {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketIntelligentTieringConfiguration;
@@ -3749,6 +4021,10 @@ impl super::Operation for PutBucketIntelligentTieringConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3793,6 +4069,10 @@ impl super::Operation for PutBucketInventoryConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketLifecycleConfiguration;
@@ -3835,6 +4115,10 @@ impl super::Operation for PutBucketLifecycleConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3882,6 +4166,10 @@ impl super::Operation for PutBucketLogging {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketMetricsConfiguration;
@@ -3924,6 +4212,10 @@ impl super::Operation for PutBucketMetricsConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -3969,6 +4261,10 @@ impl super::Operation for PutBucketNotificationConfiguration {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketOwnershipControls;
@@ -4011,6 +4307,10 @@ impl super::Operation for PutBucketOwnershipControls {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -4062,6 +4362,10 @@ impl super::Operation for PutBucketPolicy {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketReplication;
@@ -4111,6 +4415,10 @@ impl super::Operation for PutBucketReplication {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketRequestPayment;
@@ -4157,6 +4465,10 @@ impl super::Operation for PutBucketRequestPayment {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketTagging;
@@ -4202,6 +4514,10 @@ impl super::Operation for PutBucketTagging {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -4252,6 +4568,10 @@ impl super::Operation for PutBucketVersioning {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutBucketWebsite;
@@ -4297,6 +4617,10 @@ impl super::Operation for PutBucketWebsite {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -4605,6 +4929,10 @@ impl super::Operation for PutObject {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutObjectAcl;
@@ -4678,6 +5006,10 @@ impl super::Operation for PutObjectAcl {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutObjectLegalHold;
@@ -4733,6 +5065,10 @@ impl super::Operation for PutObjectLegalHold {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutObjectLockConfiguration;
@@ -4786,6 +5122,10 @@ impl super::Operation for PutObjectLockConfiguration {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -4846,6 +5186,10 @@ impl super::Operation for PutObjectRetention {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutObjectTagging;
@@ -4901,6 +5245,10 @@ impl super::Operation for PutObjectTagging {
         };
         Ok(res)
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 pub struct PutPublicAccessBlock;
@@ -4946,6 +5294,10 @@ impl super::Operation for PutPublicAccessBlock {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -4999,6 +5351,10 @@ impl super::Operation for RestoreObject {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -5055,6 +5411,10 @@ impl super::Operation for SelectObjectContent {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -5149,6 +5509,10 @@ impl super::Operation for UploadPart {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -5254,6 +5618,10 @@ impl super::Operation for UploadPartCopy {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -5418,6 +5786,10 @@ impl super::Operation for WriteGetObjectResponse {
             Err(err) => super::serialize_error(err)?,
         };
         Ok(res)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

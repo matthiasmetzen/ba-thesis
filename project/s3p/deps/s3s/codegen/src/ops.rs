@@ -614,6 +614,12 @@ fn codegen_op_http_call(op: &Operation, g: &mut Codegen) {
     g.ln("Ok(res)");
 
     g.ln("}");
+
+    g.lf();
+    g.ln(f!("fn as_any(&self) -> &dyn std::any::Any {{"));
+    g.ln(f!("self"));
+    g.ln(f!("}}"));
+
     g.ln("}");
 }
 
