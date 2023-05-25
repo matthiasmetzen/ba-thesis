@@ -49,7 +49,7 @@ where
             }
         };*/
 
-        let handler = RequestProcessor::new(self.client, self.middleware).as_handler();
+        let handler = RequestProcessor::new(self.client, self.middleware).into_handler();
 
         let server = self.server.serve(handler)?;
 

@@ -111,7 +111,7 @@ impl<C: Client, L: Layer> RequestProcessor<C, L> {
         self.layer.call(req, send).await
     }
 
-    pub fn as_handler(self) -> impl Handler {
+    pub fn into_handler(self) -> impl Handler {
         let client = Arc::new(self.client);
         let layer = Arc::new(self.layer);
 
