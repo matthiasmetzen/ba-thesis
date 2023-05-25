@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(async_fn_in_trait)]
 #![feature(return_position_impl_trait_in_trait)]
 #![feature(trait_alias)]
@@ -6,6 +7,7 @@
 #![feature(impl_trait_projections)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(fn_traits)]
+#![feature(type_name_of_val)]
 
 mod client;
 mod middleware;

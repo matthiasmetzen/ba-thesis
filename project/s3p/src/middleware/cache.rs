@@ -1,10 +1,12 @@
 use super::*;
-use crate::req::*;
+use crate::req::{s3::S3RequestExt, *};
 
-use http::{HeaderValue, Method, StatusCode};
+use http::{HeaderValue, StatusCode};
 use hyper::body::Bytes;
 use miette::{miette, IntoDiagnostic};
 use moka::future::Cache;
+use s3s::ops;
+use s3s::ops::Operation;
 use s3s::Body;
 use tracing::debug;
 
@@ -24,10 +26,9 @@ impl CachedResponse {
 
         resp.body = match bytes.clone() {
             Some(b) => Body::from(b),
-            None => Body::default()
+            None => Body::default(),
         };
 
-        debug!("resp body: {:#?}", bytes);
         Self {
             status_code: resp.status,
             body: bytes,
@@ -56,23 +57,11 @@ impl CacheLayer {
         }
     }
 
-    fn make_key(&self, request: &Request) -> Option<Key> {
-        let http_ext = request.extensions.get::<HttpExtension>()?;
-        http_ext.uri.path().to_string().into()
-    }
-
-    fn is_cachable(&self, request: &Request) -> bool {
-        let Some(http_ext) = request
-            .extensions
-            .get::<HttpExtension>() 
-            else {
-                return false;
-            };
-        http_ext.method == Method::GET
-    }
-
     pub fn get_cached_response(&self, key: &Key) -> Result<Response> {
-        let data = self.cache.get(key).ok_or_else(|| miette!("No cache entry found"))?;
+        let data = self
+            .cache
+            .get(key)
+            .ok_or_else(|| miette!("No cache entry found"))?;
 
         debug!("found cache entry for {}", key);
         let mut resp = Response::default();
@@ -89,26 +78,32 @@ impl CacheLayer {
             HeaderValue::from_str("no-cache").into_diagnostic()?,
         );
 
-        
         if let Some(bytes) = data.body {
             resp.body = Body::from(bytes);
         }
 
-
         Ok(resp)
+    }
+}
+
+impl CacheLogic for CacheLayer {
+    fn make_cache_intent(&self, request: &Request) -> Option<CacheIntent> {
+        if let Some(s3ext) = request.extensions.get::<S3Extension>() {
+            return s3ext.make_cache_intent(request);
+        }
+
+        None
     }
 }
 
 #[async_trait::async_trait]
 impl Layer for CacheLayer {
     async fn call(&self, req: Request, next: impl NextLayer) -> Result<Response> {
-        if !self.is_cachable(&req) {
+        let Some(intent) = self.make_cache_intent(&req) else {
             return next.call(req).await;
-        }
+        };
 
-        let key = self.make_key(&req).ok_or_else(|| {
-            miette!("Response marked as cacheable but key was None").context(format!("{:#?}", req))
-        })?;
+        let key = intent.key;
 
         if let Ok(resp) = self.get_cached_response(&key) {
             return Ok(resp);
@@ -118,10 +113,71 @@ impl Layer for CacheLayer {
 
         // TODO: move and expand this check
         if resp.status == StatusCode::OK {
-            self.cache.insert(key, CachedResponse::new(&mut resp).await).await;
+            self.cache
+                .insert(key, CachedResponse::new(&mut resp).await)
+                .await;
         }
 
-
         Ok(resp)
+    }
+}
+
+pub struct CacheIntent {
+    pub key: Key,
+}
+
+pub trait CacheLogic {
+    fn make_cache_intent(&self, request: &Request) -> Option<CacheIntent>;
+}
+
+impl CacheLogic for ops::GetObject {
+    fn make_cache_intent(&self, request: &Request) -> Option<CacheIntent> {
+        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
+        let des = Self::deserialize_http(&mut req).ok()?;
+
+        if des.range.is_some() || des.part_number.is_some() {
+            return None;
+        }
+
+        let key = format!(
+            "op={}, {}:{}:{}",
+            self.name(),
+            des.bucket,
+            des.key,
+            des.version_id.unwrap_or("".to_string())
+        );
+
+        Some(CacheIntent { key })
+    }
+}
+
+impl CacheLogic for ops::HeadBucket {
+    fn make_cache_intent(&self, request: &Request) -> Option<CacheIntent> {
+        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
+        let des = Self::deserialize_http(&mut req).ok()?;
+
+        if des.expected_bucket_owner.is_some() {
+            return None;
+        }
+
+        let key = format!("op={}, {}", self.name(), des.bucket);
+
+        Some(CacheIntent { key })
+    }
+}
+
+impl CacheLogic for S3Extension {
+    fn make_cache_intent(&self, request: &Request) -> Option<CacheIntent> {
+        let op = self.op.as_ref()?;
+
+        if let Ok(op) = op.try_as_ref::<ops::GetObject>() {
+            return op.make_cache_intent(request);
+        }
+
+        if let Ok(op) = op.try_as_ref::<ops::HeadBucket>() {
+            return op.make_cache_intent(request);
+        }
+
+        None
     }
 }

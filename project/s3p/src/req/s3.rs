@@ -1,13 +1,41 @@
+use std::any::TypeId;
+
+use http::Extensions;
 use miette::miette;
+use miette::Result;
 use s3s::auth::Credentials;
 use s3s::http::{Multipart, OrderedQs};
 use s3s::path::S3Path;
 use s3s::stream::ByteStream;
 use s3s::stream::VecByteStream;
+use s3s::Body;
 
 use super::{HttpExtension, Request};
 
 pub(crate) struct Operation(pub &'static dyn s3s::ops::Operation);
+
+#[allow(unused)]
+impl Operation {
+    pub fn try_as_ref<T: s3s::ops::Operation>(&self) -> Result<&T> {
+        let op = self.0.as_any().downcast_ref::<T>();
+
+        op.ok_or_else(|| {
+            miette!("Could not downcast ref").context(format!(
+                "Expected T to be type {}, but got {}",
+                std::any::type_name::<T>(),
+                self.0.name()
+            ))
+        })
+    }
+
+    pub fn is_type<T: s3s::ops::Operation>(&self) -> bool {
+        self.0.as_any().type_id() == std::any::TypeId::of::<T>()
+    }
+
+    pub fn inner_type_id(&self) -> TypeId {
+        self.0.as_any().type_id()
+    }
+}
 
 impl std::fmt::Debug for Operation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -117,5 +145,81 @@ impl From<s3s::http::Request> for Request {
         exts.insert(http_ext);
 
         Request { extensions: exts }
+    }
+}
+
+pub(crate) trait S3RequestExt {
+    fn try_as_s3_request(&self) -> Result<s3s::http::Request>;
+}
+
+impl S3RequestExt for Request {
+    fn try_as_s3_request(&self) -> Result<s3s::http::Request> {
+        let http_ext = self
+            .extensions
+            .get::<HttpExtension>()
+            .ok_or_else(|| miette!("Missing S3 extension"))?;
+
+        let s3_ext = self
+            .extensions
+            .get::<S3Extension>()
+            .ok_or_else(|| miette!("Missing S3 extension"))?;
+
+        Ok(s3s::http::Request {
+            extensions: Extensions::new(),
+            body: Body::empty(),
+            headers: http_ext.headers.clone(),
+            method: http_ext.method.clone(),
+            uri: http_ext.uri.clone(),
+            s3ext: s3s::http::S3Extensions {
+                s3_path: s3_ext.s3_path.clone(),
+                qs: None,
+                multipart: None,
+                vec_stream: None,
+                credentials: s3_ext.credentials.clone(),
+            },
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use ctor::ctor;
+
+    use miette::Result;
+
+    use super::*;
+
+    #[ctor]
+    fn prepare() {
+        let _ = crate::try_init_tracing();
+    }
+
+    #[test]
+    fn try_cast_op_succ() -> Result<()> {
+        let op = Box::new(s3s::ops::GetObject);
+        // lazy way to make 'static ref
+        let op_ref: &dyn s3s::ops::Operation = Box::leak(op);
+
+        let wrapped = Operation::from(op_ref);
+
+        let _r: &s3s::ops::GetObject = wrapped.try_as_ref()?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn try_cast_op_fail() -> Result<()> {
+        let op = Box::new(s3s::ops::GetObject);
+        // lazy way to make 'static ref
+        let op_ref: &dyn s3s::ops::Operation = Box::leak(op);
+
+        let wrapped = Operation::from(op_ref);
+
+        let r: Result<&s3s::ops::PutObject, _> = wrapped.try_as_ref();
+
+        assert!(r.is_err());
+
+        Ok(())
     }
 }
