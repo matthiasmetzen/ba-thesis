@@ -1,5 +1,5 @@
 use super::*;
-use crate::request::*;
+use crate::req::*;
 
 use http::{HeaderValue, Method, StatusCode};
 use hyper::body::Bytes;

@@ -64,7 +64,7 @@ mod tests {
     use crate::{
         client::s3::S3Client,
         middleware::{Chain, Identity},
-        request::{Request, Response},
+        req::{Request, Response},
         server::{Handler, S3ServerBuilder, Server},
     };
     use ctor::ctor;

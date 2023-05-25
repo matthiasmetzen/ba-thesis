@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc, task::Poll};
 
-use crate::request::{Request, Response, S3Extension};
+use crate::req::{Request, Response, S3Extension};
 use aws_credential_types::{provider::SharedCredentialsProvider, Credentials};
 use aws_sdk_s3::config::Region;
 use futures::Future;

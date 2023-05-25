@@ -1,4 +1,4 @@
-use crate::request::{Request, Response};
+use crate::req::{Request, Response};
 use miette::Result;
 
 pub mod cache;

@@ -10,7 +10,7 @@
 mod client;
 mod middleware;
 mod pipeline;
-mod request;
+mod req;
 mod server;
 
 use client::s3::S3Client;

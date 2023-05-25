@@ -1,4 +1,4 @@
-use crate::request::{Request, Response};
+use crate::req::{Request, Response};
 use futures::Future;
 use miette::{ErrReport, Result};
 use tower::Service;
