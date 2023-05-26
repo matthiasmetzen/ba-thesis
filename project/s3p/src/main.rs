@@ -15,6 +15,8 @@ mod pipeline;
 mod req;
 mod server;
 
+use std::time::Duration;
+
 use client::s3::S3Client;
 use middleware::{CacheLayer, Chain, Identity};
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -78,7 +80,10 @@ async fn main() -> Result<()> {
         )));
     }
 
-    let middleware = Chain::new(CacheLayer::new(4192), Identity);
+    let middleware = Chain::new(
+        CacheLayer::new(4192, Duration::from_secs(10), None),
+        Identity,
+    );
     let client = S3Client::builder()
         .endpoint_url(endpoint_url.as_str())
         .credentials_from_single(access_key_id.as_str(), secret_access_key.as_str())
