@@ -1,4 +1,8 @@
-use std::time::{Duration, Instant};
+use std::{
+    borrow::BorrowMut,
+    ops::Deref,
+    time::{Duration, Instant},
+};
 
 use super::*;
 use crate::req::{s3::S3RequestExt, *};
@@ -8,6 +12,8 @@ use hyper::body::Bytes;
 use miette::{miette, IntoDiagnostic};
 use moka::future::Cache;
 use moka::Expiry;
+use multi_index_map::MultiIndexMap;
+use parking_lot::RwLock;
 use s3s::ops;
 use s3s::ops::Operation;
 use s3s::Body;
@@ -18,12 +24,14 @@ use tracing::{debug, warn};
 
 type Key = String;
 type Data = CachedResponse;
+type ETag = String;
 
 #[derive(Debug, Clone, Default)]
 struct CachedResponse {
     ttl: Option<Duration>,
     tti: Option<Duration>,
     status_code: StatusCode,
+    etag: Option<String>,
     body: Option<Bytes>,
 }
 
@@ -37,9 +45,17 @@ impl CachedResponse {
             None => Body::default(),
         };
 
+        let etag = resp
+            .headers
+            .get("ETag")
+            .map(|header| header.to_str().ok())
+            .flatten()
+            .map(|s| s.to_string());
+
         Self {
             status_code: resp.status,
             body: bytes,
+            etag,
             ..Default::default()
         }
     }
@@ -100,8 +116,17 @@ impl Expiry<Key, Data> for PerItemExpiration {
 
 pub struct CacheLayerConfig;
 
+#[derive(MultiIndexMap, Clone, Debug)]
+pub struct ETagEntry {
+    #[multi_index(hashed_unique)]
+    key: Key,
+    #[multi_index(hashed_unique)]
+    etag: ETag,
+}
+
 pub struct CacheLayer {
     cache: Arc<Cache<Key, Data>>,
+    lut: Arc<RwLock<MultiIndexETagEntryMap>>,
     config: CacheLayerConfig,
     rx_abort: Option<AbortHandle>,
 }
@@ -112,12 +137,23 @@ impl CacheLayer {
         ttl: impl Into<Option<Duration>>,
         tti: impl Into<Option<Duration>>,
     ) -> Self {
+        let lut = Arc::new(RwLock::new(MultiIndexETagEntryMap::default()));
+
         let mut cache = Cache::builder()
             .max_capacity(capacity)
             .weigher(|_k: &Key, v: &CachedResponse| -> u32 {
                 v.len().try_into().unwrap_or(u32::MAX)
             })
             .expire_after(PerItemExpiration);
+
+        cache = {
+            let lut = lut.clone();
+
+            cache.eviction_listener_with_queued_delivery_mode(move |k, _v, _cause| {
+                let mut lut_w = lut.write();
+                lut_w.remove_by_key(k.deref());
+            })
+        };
 
         if let Some(ttl) = ttl.into() {
             cache = cache.time_to_live(ttl)
@@ -129,6 +165,7 @@ impl CacheLayer {
 
         Self {
             cache: Arc::new(cache.build()),
+            lut,
             config: CacheLayerConfig,
             rx_abort: None,
         }
@@ -144,11 +181,14 @@ impl CacheLayer {
         let mut resp = Response::default();
         resp.status = data.status_code;
 
+        if let Some(etag) = data.etag {
+            resp.headers.append(
+                "ETag",
+                HeaderValue::from_str(etag.as_str()).into_diagnostic()?,
+            );
+        }
+
         // TODO: proper headers
-        resp.headers.append(
-            "Etag",
-            HeaderValue::from_str(key.as_str()).into_diagnostic()?,
-        );
 
         resp.headers.append(
             "cache-control",
@@ -233,7 +273,15 @@ impl Layer for CacheLayer {
                 .time_to_live(intent.ttl.map(|t| Duration::from_millis(t)))
                 .time_to_idle(intent.tti.map(|t| Duration::from_millis(t)));
 
+            let ee = ETagEntry {
+                key: key.clone(),
+                etag: resp
+                    .headers
+                    .get("ETag")
+                    .map_or_else(|| key.clone(), |h| h.to_str().unwrap().to_string()),
+            };
             self.cache.insert(key, cr).await;
+            self.lut.write().insert(ee);
         }
 
         Ok(resp)

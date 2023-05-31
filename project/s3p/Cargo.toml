@@ -18,6 +18,7 @@ http = "0.2.9"
 hyper = { version = "0.14", features = ["full"] }
 miette = { version = "5.7", features = ["fancy"] }
 moka = { version = "0.11", features = ["future"] }
+multi_index_map = "0.5.0"
 parking_lot = { version = "0.12", features = ["send_guard"] }
 s3s = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s" }
 s3s-aws = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s-aws" }
@@ -29,6 +30,10 @@ tracing-subscriber = { version = "0.3", features = [
     "env-filter",
     "tracing-log",
 ] }
+
+# required by multi_index_map
+slab = { version = "0.4" }
+rustc-hash = { version = "1.1" }
 
 [dev-dependencies]
 ctor = "0.2"
