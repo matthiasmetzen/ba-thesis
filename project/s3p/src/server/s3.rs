@@ -1,10 +1,15 @@
 use futures::{future::BoxFuture, FutureExt};
+use http::StatusCode;
 use hyper::service::{make_service_fn, service_fn};
 use miette::{miette, Result};
 use s3s::auth::S3Auth;
+use tokio::sync::broadcast::Sender;
 
 use super::{Handler, Server, ServerBuilder};
-use crate::req::{Request, S3Extension};
+use crate::{
+    middleware::Event,
+    req::{Request, S3Extension},
+};
 
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -26,11 +31,13 @@ impl<'a> Server for S3Server<'a> {
     }
 }
 
+#[derive(Default)]
 pub struct S3ServerBuilder {
     pub host: String,
     pub port: u16,
     pub auth: Option<Arc<Box<dyn S3Auth>>>,
     pub base_domain: Option<String>,
+    pub broadcast_tx: Option<Sender<Event>>,
 }
 
 #[allow(unused)]
@@ -39,8 +46,7 @@ impl S3ServerBuilder {
         Self {
             host,
             port,
-            auth: None,
-            base_domain: None,
+            ..Default::default()
         }
     }
 
@@ -56,10 +62,18 @@ impl S3ServerBuilder {
 }
 
 impl ServerBuilder for S3ServerBuilder {
+    fn broadcast(self, tx: &Sender<Event>) -> Self {
+        let mut this = self;
+        this.broadcast_tx = Some(tx.clone());
+        this
+    }
+
     fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
         let h = Arc::new(handler);
         let auth = self.auth.clone();
         let base_domain = Arc::new(self.base_domain.clone());
+
+        let mut broadcast = self.broadcast_tx.clone();
 
         let svc_fn = move |req: hyper::Request<hyper::Body>| {
             let h = h.clone();
@@ -119,9 +133,21 @@ impl ServerBuilder for S3ServerBuilder {
             .map_err(|e| miette::miette!(e))?
             .serve(make_svc);
 
+        let webhook = match broadcast.as_ref() {
+            Some(tx) => Some(S3WebhookServer::new(
+                self.host.as_str(),
+                self.port + 1,
+                tx.clone(),
+            )?),
+            None => None,
+        };
+
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let server = server.with_graceful_shutdown(async {
             rx.await.ok();
+            if let Some(hook) = webhook {
+                let _ = hook.stop().await;
+            }
         });
 
         let task = tokio::spawn(server);
@@ -130,12 +156,72 @@ impl ServerBuilder for S3ServerBuilder {
         let srv = S3Server {
             fut: Box::pin(async move {
                 let _ = task.await.map_err(|e| miette::miette!(e))?;
+                // Ensure broadcast channel lives until the server stops
+                // TODO: Send Shutdown message?
+                broadcast.take().map(|t| drop(t));
                 Ok(())
             }),
             term_sig: tx,
         };
 
         Ok(srv)
+    }
+}
+
+#[allow(dead_code)]
+struct S3WebhookServer<'a> {
+    tx: Sender<Event>,
+    fut: BoxFuture<'a, Result<()>>,
+    term_sig: tokio::sync::oneshot::Sender<()>,
+}
+
+impl S3WebhookServer<'_> {
+    fn new(host: &str, port: u16, tx: Sender<Event>) -> Result<Self> {
+        let make_svc = {
+            let tx = tx.clone();
+            make_service_fn(move |_| {
+                let tx = tx.clone();
+                std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| {
+                    let _ = tx.send(req.uri().to_string().trim_start_matches('/').to_string());
+
+                    async move {
+                        hyper::Response::builder()
+                            .status(StatusCode::NOT_IMPLEMENTED)
+                            .body(hyper::Body::default())
+                    }
+                })))
+            })
+        };
+
+        let listener = TcpListener::bind((host, port)).map_err(|e| miette::miette!(e))?;
+        let server = hyper::Server::from_tcp(listener)
+            .map_err(|e| miette::miette!(e))?
+            .serve(make_svc);
+
+        let (term_sig_tx, term_sig_rx) = tokio::sync::oneshot::channel::<()>();
+        let server = server.with_graceful_shutdown(async {
+            term_sig_rx.await.ok();
+        });
+
+        let task = tokio::spawn(server);
+        info!("Webhook is running at http://{}:{}/", host, port);
+
+        Ok(Self {
+            tx,
+            term_sig: term_sig_tx,
+            fut: Box::pin(async move {
+                let _ = task.await.map_err(|e| miette::miette!(e))?;
+                Ok(())
+            }),
+        })
+    }
+
+    async fn stop(self) -> Result<()> {
+        self.term_sig
+            .send(())
+            .map_err(|_| miette!("Failed to send stop signal"))?;
+        self.fut.await.ok();
+        Ok(())
     }
 }
 

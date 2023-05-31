@@ -11,7 +11,10 @@ use moka::Expiry;
 use s3s::ops;
 use s3s::ops::Operation;
 use s3s::Body;
-use tracing::debug;
+use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::broadcast::Sender;
+use tokio::task::AbortHandle;
+use tracing::{debug, warn};
 
 type Key = String;
 type Data = CachedResponse;
@@ -98,8 +101,9 @@ impl Expiry<Key, Data> for PerItemExpiration {
 pub struct CacheLayerConfig;
 
 pub struct CacheLayer {
-    cache: Cache<Key, Data>,
+    cache: Arc<Cache<Key, Data>>,
     config: CacheLayerConfig,
+    rx_abort: Option<AbortHandle>,
 }
 
 impl CacheLayer {
@@ -124,8 +128,9 @@ impl CacheLayer {
         }
 
         Self {
-            cache: cache.build(),
+            cache: Arc::new(cache.build()),
             config: CacheLayerConfig,
+            rx_abort: None,
         }
     }
 
@@ -155,6 +160,40 @@ impl CacheLayer {
         }
 
         Ok(resp)
+    }
+
+    fn event_handler(&self, mut rx: Receiver<Event>) -> impl Future<Output = ()> {
+        let cache = self.cache.clone();
+
+        async move {
+            loop {
+                let event = rx.recv().await;
+                match event {
+                    Ok(msg) => {
+                        debug!("CacheLayer received message: {}", msg);
+
+                        tokio::spawn({
+                            let cache = cache.clone();
+                            async move {
+                                match msg.as_str() {
+                                    "delete" => {
+                                        let _ = cache.remove("foo").await;
+                                    }
+                                    _ => {}
+                                };
+                            }
+                        });
+                    }
+                    Err(RecvError::Lagged(skipped)) => {
+                        warn!("Lag while handling events: {} events were skipped", skipped);
+                    }
+                    Err(RecvError::Closed) => {
+                        debug!("Event channel was closed");
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -198,6 +237,22 @@ impl Layer for CacheLayer {
         }
 
         Ok(resp)
+    }
+
+    fn subscribe(&mut self, tx: &Sender<Event>) {
+        // Abort previously started tasks
+        self.unsubscribe();
+
+        let rx = tx.subscribe();
+
+        let handle = tokio::spawn(self.event_handler(rx));
+
+        self.rx_abort = Some(handle.abort_handle());
+    }
+
+    fn unsubscribe(&mut self) {
+        self.rx_abort.as_mut().map(|h| h.abort());
+        self.rx_abort = None;
     }
 }
 

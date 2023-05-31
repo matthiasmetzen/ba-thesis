@@ -1,16 +1,26 @@
 use crate::req::{Request, Response};
 use miette::Result;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 pub mod cache;
 pub use self::cache::CacheLayer;
 
 use crate::{client::Client, server::Handler};
 
-use std::{future::Future, sync::Arc};
+use std::{
+    future::Future,
+    sync::{Arc, Weak},
+};
+
+pub type Event = String;
 
 #[async_trait::async_trait]
 pub trait Layer: Send + Sync {
     async fn call(&self, req: Request, next: impl NextLayer) -> Result<Response>;
+
+    fn subscribe(&mut self, tx: &Sender<Event>) {}
+
+    fn unsubscribe(&mut self) {}
 }
 
 // based on https://github.com/tower-rs/tower/blob/master/tower-layer/src/stack.rs#L5
@@ -52,6 +62,16 @@ impl<C: Layer, N: Layer> Layer for Chain<C, N> {
     async fn call(&self, req: Request, next: impl NextLayer) -> Result<Response> {
         let then = |req| self.next.call(req, next);
         self.current.call(req, then).await
+    }
+
+    fn subscribe(&mut self, tx: &Sender<Event>) {
+        self.current.subscribe(tx);
+        self.next.subscribe(tx);
+    }
+
+    fn unsubscribe(&mut self) {
+        self.current.unsubscribe();
+        self.next.unsubscribe();
     }
 }
 
@@ -111,19 +131,31 @@ impl<C: Client, L: Layer> RequestProcessor<C, L> {
         self.layer.call(req, send).await
     }
 
+    pub fn subscribe(self, tx: &Sender<Event>) -> Self {
+        let mut this = self;
+        this.layer.subscribe(tx);
+        this
+    }
+
+    pub fn unsubscribe(&mut self) {
+        self.layer.unsubscribe();
+    }
+
     pub fn into_handler(self) -> impl Handler {
-        let client = Arc::new(self.client);
-        let layer = Arc::new(self.layer);
+        //let client = Arc::new(self.client);
+        //let layer = Arc::new(self.layer);
+        let this = Arc::new(self);
 
         move |req: Request| {
-            let client = client.clone();
-            let layer = layer.clone();
+            let t1 = this.clone();
+            let t2 = this.clone();
 
-            let send = move |req| client.send(req);
-            async move { layer.call(req, send).await }
+            let send = move |req| t1.client.send(req);
+            async move { t2.layer.call(req, send).await }
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;

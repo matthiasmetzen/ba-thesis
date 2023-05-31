@@ -2,7 +2,7 @@ use miette::Result;
 
 use crate::{
     client::Client,
-    middleware::{Layer, RequestProcessor},
+    middleware::{Event, Layer, RequestProcessor},
     server::{Server, ServerBuilder},
 };
 
@@ -33,25 +33,13 @@ where
 
     #[allow(unused)]
     pub async fn run(self) -> Result<impl Server> {
-        /*let middleware = Arc::new(self.middleware);
-        let client = Arc::new(self.client);
+        let (tx, _) = tokio::sync::broadcast::channel::<Event>(100);
 
-        let handler = move |req: Request| {
-            let middleware = middleware.clone();
-            let client = client.clone();
-            async move {
-                let res = middleware.process_request(req).await;
-                match res {
-                    Ok(MiddlewareAction::Forward(req)) => client.send(req).await,
-                    Ok(MiddlewareAction::Reply(res)) => Ok(res),
-                    Err(e) => Err(e),
-                }
-            }
-        };*/
+        let handler = RequestProcessor::new(self.client, self.middleware)
+            .subscribe(&tx)
+            .into_handler();
 
-        let handler = RequestProcessor::new(self.client, self.middleware).into_handler();
-
-        let server = self.server.serve(handler)?;
+        let server = self.server.broadcast(&tx).serve(handler)?;
 
         Ok(server)
     }
@@ -116,6 +104,10 @@ mod tests {
     impl ServerBuilder for StubServerBuilder {
         fn serve(&self, _handler: impl Handler) -> Result<impl Server> {
             Ok(StubServer)
+        }
+
+        fn broadcast(self, _tx: &tokio::sync::broadcast::Sender<Event>) -> Self {
+            self
         }
     }
 
