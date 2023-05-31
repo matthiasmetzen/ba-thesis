@@ -158,7 +158,7 @@ impl ServerBuilder for S3ServerBuilder {
                 let _ = task.await.map_err(|e| miette::miette!(e))?;
                 // Ensure broadcast channel lives until the server stops
                 // TODO: Send Shutdown message?
-                broadcast.take().map(|t| drop(t));
+                if let Some(a) = broadcast.take() { drop(a) }
                 Ok(())
             }),
             term_sig: tx,

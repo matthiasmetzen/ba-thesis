@@ -9,7 +9,7 @@ use crate::{client::Client, server::Handler};
 
 use std::{
     future::Future,
-    sync::{Arc, Weak},
+    sync::{Arc},
 };
 
 pub type Event = String;
@@ -18,7 +18,7 @@ pub type Event = String;
 pub trait Layer: Send + Sync {
     async fn call(&self, req: Request, next: impl NextLayer) -> Result<Response>;
 
-    fn subscribe(&mut self, tx: &Sender<Event>) {}
+    fn subscribe(&mut self, _tx: &Sender<Event>) {}
 
     fn unsubscribe(&mut self) {}
 }

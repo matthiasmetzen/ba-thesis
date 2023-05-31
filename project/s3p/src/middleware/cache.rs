@@ -1,5 +1,4 @@
 use std::{
-    borrow::BorrowMut,
     ops::Deref,
     time::{Duration, Instant},
 };
@@ -48,8 +47,7 @@ impl CachedResponse {
         let etag = resp
             .headers
             .get("ETag")
-            .map(|header| header.to_str().ok())
-            .flatten()
+            .and_then(|header| header.to_str().ok())
             .map(|s| s.to_string());
 
         Self {
@@ -270,8 +268,8 @@ impl Layer for CacheLayer {
         if resp.status == StatusCode::OK {
             let cr = CachedResponse::new(&mut resp)
                 .await
-                .time_to_live(intent.ttl.map(|t| Duration::from_millis(t)))
-                .time_to_idle(intent.tti.map(|t| Duration::from_millis(t)));
+                .time_to_live(intent.ttl.map(Duration::from_millis))
+                .time_to_idle(intent.tti.map(Duration::from_millis));
 
             let ee = ETagEntry {
                 key: key.clone(),
@@ -299,7 +297,9 @@ impl Layer for CacheLayer {
     }
 
     fn unsubscribe(&mut self) {
-        self.rx_abort.as_mut().map(|h| h.abort());
+        if let Some(h) = self.rx_abort.as_mut() {
+            h.abort()
+        }
         self.rx_abort = None;
     }
 }
