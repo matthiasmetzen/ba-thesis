@@ -1,9 +1,8 @@
 use crate::{
-    pipeline::{BroadcastSend, Event},
+    pipeline::BroadcastSend,
     req::{Request, Response},
 };
 use miette::Result;
-use tokio::sync::broadcast::{Receiver, Sender};
 
 pub mod cache;
 pub use self::cache::CacheLayer;

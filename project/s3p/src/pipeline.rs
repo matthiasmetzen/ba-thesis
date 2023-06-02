@@ -1,15 +1,6 @@
-use std::{
-    ops::{Deref, DerefMut},
-    pin::{pin, Pin},
-    task::{Context, Poll},
-};
-
-use async_broadcast::{broadcast, Receiver, Recv, RecvError};
-use futures::{
-    pin_mut, poll, ready, Future, FutureExt, Stream, StreamExt, TryStream, TryStreamExt,
-};
+use async_broadcast::{broadcast, Receiver, RecvError};
+use futures::Stream;
 use miette::Result;
-use tracing::debug;
 
 use crate::{
     client::Client,
@@ -72,7 +63,7 @@ pub(crate) trait ReceiverExt<T: Clone> {
 
 impl<T: Clone> ReceiverExt<T> for Receiver<T> {
     fn recv_stream(self) -> impl Stream<Item = Result<T, RecvError>> {
-        let s = futures::stream::unfold(self, |mut this| async move {
+        futures::stream::unfold(self, |mut this| async move {
             let res = this.recv().await;
 
             match res {
@@ -80,9 +71,7 @@ impl<T: Clone> ReceiverExt<T> for Receiver<T> {
                 Err(RecvError::Overflowed(_)) => Some((res, this)),
                 Err(RecvError::Closed) => None,
             }
-        });
-
-        s
+        })
     }
 }
 

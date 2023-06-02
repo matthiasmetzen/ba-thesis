@@ -179,8 +179,10 @@ impl CacheLayer {
             .ok_or_else(|| miette!("No cache entry found"))?;
 
         debug!("found cache entry for {}", key);
-        let mut resp = Response::default();
-        resp.status = data.status_code;
+        let mut resp = Response {
+            status: data.status_code,
+            ..Default::default()
+        };
 
         if let Some(etag) = data.etag {
             resp.headers.append(
@@ -206,8 +208,7 @@ impl CacheLayer {
     fn event_handler(&self, rx: BroadcastRecv) -> impl Future<Output = ()> {
         let cache = self.cache.clone();
 
-        let fut = rx
-            .recv_stream()
+        rx.recv_stream()
             .inspect_err(|e| match e {
                 // Log on lag, no error handling
                 RecvError::Overflowed(skipped) => {
@@ -226,12 +227,11 @@ impl CacheLayer {
                         "delete" => {
                             let _ = cache.remove("foo").await;
                         }
+                        "foo" => {}
                         _ => {}
                     };
                 }
-            });
-
-        fut
+            })
     }
 }
 
