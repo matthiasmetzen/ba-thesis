@@ -1,7 +1,6 @@
 use miette::Result;
-use tokio::sync::broadcast::Sender;
 
-use crate::middleware::Event;
+use crate::pipeline::BroadcastSend;
 use crate::req::{Request, Response};
 
 use std::future::Future;
@@ -12,7 +11,7 @@ pub mod s3;
 pub use s3::S3ServerBuilder;
 
 pub trait ServerBuilder {
-    fn broadcast(self, tx: &Sender<Event>) -> Self;
+    fn broadcast(self, tx: &BroadcastSend) -> Self;
     fn serve(&self, handler: impl Handler) -> Result<impl Server>;
 }
 

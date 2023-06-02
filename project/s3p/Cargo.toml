@@ -9,6 +9,7 @@ edition = "2021"
 aws-credential-types = { version = "0.55", features = [
     "hardcoded-credentials",
 ] }
+async-broadcast = "0.5"
 async-trait = "0.1"
 aws-sdk-s3 = "0.26" # needs to match aws-sdk-s3 of s3s-aws
 clap = { version = "4.2.4", features = ["derive"] }

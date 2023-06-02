@@ -1,20 +1,19 @@
-use futures::{future::BoxFuture, FutureExt};
+use super::{Handler, Server, ServerBuilder};
+use crate::{
+    pipeline::BroadcastSend,
+    req::{Request, S3Extension},
+};
+use futures::{future::BoxFuture, FutureExt, TryFutureExt};
 use http::StatusCode;
 use hyper::service::{make_service_fn, service_fn};
 use miette::{miette, Result};
 use s3s::auth::S3Auth;
-use tokio::sync::broadcast::Sender;
+use tower::timeout::Timeout;
 
-use super::{Handler, Server, ServerBuilder};
-use crate::{
-    middleware::Event,
-    req::{Request, S3Extension},
-};
-
-use std::net::TcpListener;
 use std::sync::Arc;
+use std::{net::TcpListener, time::Duration};
 
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 struct S3Server<'a> {
     fut: BoxFuture<'a, Result<()>>,
@@ -37,7 +36,7 @@ pub struct S3ServerBuilder {
     pub port: u16,
     pub auth: Option<Arc<Box<dyn S3Auth>>>,
     pub base_domain: Option<String>,
-    pub broadcast_tx: Option<Sender<Event>>,
+    pub broadcast_tx: Option<BroadcastSend>,
 }
 
 #[allow(unused)]
@@ -62,7 +61,7 @@ impl S3ServerBuilder {
 }
 
 impl ServerBuilder for S3ServerBuilder {
-    fn broadcast(self, tx: &Sender<Event>) -> Self {
+    fn broadcast(self, tx: &BroadcastSend) -> Self {
         let mut this = self;
         this.broadcast_tx = Some(tx.clone());
         this
@@ -158,7 +157,9 @@ impl ServerBuilder for S3ServerBuilder {
                 let _ = task.await.map_err(|e| miette::miette!(e))?;
                 // Ensure broadcast channel lives until the server stops
                 // TODO: Send Shutdown message?
-                if let Some(a) = broadcast.take() { drop(a) }
+                if let Some(a) = broadcast.take() {
+                    drop(a)
+                }
                 Ok(())
             }),
             term_sig: tx,
@@ -170,28 +171,41 @@ impl ServerBuilder for S3ServerBuilder {
 
 #[allow(dead_code)]
 struct S3WebhookServer<'a> {
-    tx: Sender<Event>,
+    tx: BroadcastSend,
     fut: BoxFuture<'a, Result<()>>,
     term_sig: tokio::sync::oneshot::Sender<()>,
 }
 
 impl S3WebhookServer<'_> {
-    fn new(host: &str, port: u16, tx: Sender<Event>) -> Result<Self> {
+    fn new(host: &str, port: u16, tx: BroadcastSend) -> Result<Self> {
         let make_svc = {
             let tx = tx.clone();
             make_service_fn(move |_| {
                 let tx = tx.clone();
                 std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| {
-                    let _ = tx.send(req.uri().to_string().trim_start_matches('/').to_string());
-
+                    let tx = tx.clone();
                     async move {
+                        let res = tx
+                            .broadcast(req.uri().to_string().trim_start_matches('/').to_string())
+                            .inspect_err(|e| {
+                                error!("{:?}", e);
+                            })
+                            .await;
+
+                        let status = match res {
+                            Ok(_) => StatusCode::NOT_IMPLEMENTED,
+                            Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                        };
+
                         hyper::Response::builder()
-                            .status(StatusCode::NOT_IMPLEMENTED)
+                            .status(status)
                             .body(hyper::Body::default())
                     }
                 })))
             })
         };
+
+        let make_svc = Timeout::new(make_svc, Duration::from_secs(1));
 
         let listener = TcpListener::bind((host, port)).map_err(|e| miette::miette!(e))?;
         let server = hyper::Server::from_tcp(listener)

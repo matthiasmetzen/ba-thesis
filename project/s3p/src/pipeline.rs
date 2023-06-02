@@ -1,10 +1,25 @@
+use std::{
+    ops::{Deref, DerefMut},
+    pin::{pin, Pin},
+    task::{Context, Poll},
+};
+
+use async_broadcast::{broadcast, Receiver, Recv, RecvError};
+use futures::{
+    pin_mut, poll, ready, Future, FutureExt, Stream, StreamExt, TryStream, TryStreamExt,
+};
 use miette::Result;
+use tracing::debug;
 
 use crate::{
     client::Client,
-    middleware::{Event, Layer, RequestProcessor},
+    middleware::{Layer, RequestProcessor},
     server::{Server, ServerBuilder},
 };
+
+pub type Event = String;
+pub type BroadcastRecv = async_broadcast::Receiver<Event>;
+pub type BroadcastSend = async_broadcast::Sender<Event>;
 
 pub struct Pipeline<S, M, C>
 where
@@ -33,7 +48,10 @@ where
 
     #[allow(unused)]
     pub async fn run(self) -> Result<impl Server> {
-        let (tx, _) = tokio::sync::broadcast::channel::<Event>(100);
+        let (mut tx, rx) = broadcast(256);
+        let rx = rx.deactivate();
+
+        tx.set_await_active(false);
 
         let handler = RequestProcessor::new(self.client, self.middleware)
             .subscribe(&tx)
@@ -41,7 +59,30 @@ where
 
         let server = self.server.broadcast(&tx).serve(handler)?;
 
+        // drop rx late so the channel doesn't close
+        drop(rx);
+
         Ok(server)
+    }
+}
+
+pub(crate) trait ReceiverExt<T: Clone> {
+    fn recv_stream(self) -> impl Stream<Item = Result<T, RecvError>>;
+}
+
+impl<T: Clone> ReceiverExt<T> for Receiver<T> {
+    fn recv_stream(self) -> impl Stream<Item = Result<T, RecvError>> {
+        let s = futures::stream::unfold(self, |mut this| async move {
+            let res = this.recv().await;
+
+            match res {
+                Ok(_) => Some((res, this)),
+                Err(RecvError::Overflowed(_)) => Some((res, this)),
+                Err(RecvError::Closed) => None,
+            }
+        });
+
+        s
     }
 }
 
@@ -106,7 +147,7 @@ mod tests {
             Ok(StubServer)
         }
 
-        fn broadcast(self, _tx: &tokio::sync::broadcast::Sender<Event>) -> Self {
+        fn broadcast(self, _tx: &BroadcastSend) -> Self {
             self
         }
     }

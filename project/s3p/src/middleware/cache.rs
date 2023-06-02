@@ -4,8 +4,13 @@ use std::{
 };
 
 use super::*;
-use crate::req::{s3::S3RequestExt, *};
+use crate::{
+    pipeline::{BroadcastRecv, ReceiverExt},
+    req::{s3::S3RequestExt, *},
+};
 
+use async_broadcast::RecvError;
+use futures::{StreamExt, TryStreamExt};
 use http::{HeaderValue, StatusCode};
 use hyper::body::Bytes;
 use miette::{miette, IntoDiagnostic};
@@ -16,8 +21,6 @@ use parking_lot::RwLock;
 use s3s::ops;
 use s3s::ops::Operation;
 use s3s::Body;
-use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Sender;
 use tokio::task::AbortHandle;
 use tracing::{debug, warn};
 
@@ -200,38 +203,35 @@ impl CacheLayer {
         Ok(resp)
     }
 
-    fn event_handler(&self, mut rx: Receiver<Event>) -> impl Future<Output = ()> {
+    fn event_handler(&self, rx: BroadcastRecv) -> impl Future<Output = ()> {
         let cache = self.cache.clone();
 
-        async move {
-            loop {
-                let event = rx.recv().await;
-                match event {
-                    Ok(msg) => {
-                        debug!("CacheLayer received message: {}", msg);
-
-                        tokio::spawn({
-                            let cache = cache.clone();
-                            async move {
-                                match msg.as_str() {
-                                    "delete" => {
-                                        let _ = cache.remove("foo").await;
-                                    }
-                                    _ => {}
-                                };
-                            }
-                        });
-                    }
-                    Err(RecvError::Lagged(skipped)) => {
-                        warn!("Lag while handling events: {} events were skipped", skipped);
-                    }
-                    Err(RecvError::Closed) => {
-                        debug!("Event channel was closed");
-                        break;
-                    }
+        let fut = rx
+            .recv_stream()
+            .inspect_err(|e| match e {
+                // Log on lag, no error handling
+                RecvError::Overflowed(skipped) => {
+                    warn!("Lag while handling events: {} events were skipped", skipped)
                 }
-            }
-        }
+                _ => unreachable!(),
+            })
+            // discard errors
+            .filter_map(|e| futures::future::ready(e.ok()))
+            // TODO: Investigate: Concurrent handling could become a problem here if events are processed out of order
+            .for_each_concurrent(None, move |event| {
+                debug!("CacheLayer received message: {}", event);
+                let cache = cache.clone();
+                async move {
+                    match event.as_str() {
+                        "delete" => {
+                            let _ = cache.remove("foo").await;
+                        }
+                        _ => {}
+                    };
+                }
+            });
+
+        fut
     }
 }
 
@@ -279,17 +279,19 @@ impl Layer for CacheLayer {
                     .map_or_else(|| key.clone(), |h| h.to_str().unwrap().to_string()),
             };
             self.cache.insert(key, cr).await;
-            self.lut.write().insert(ee);
+            let mut lut = self.lut.write();
+            lut.remove_by_key(&ee.key);
+            lut.insert(ee);
         }
 
         Ok(resp)
     }
 
-    fn subscribe(&mut self, tx: &Sender<Event>) {
+    fn subscribe(&mut self, tx: &BroadcastSend) {
         // Abort previously started tasks
         self.unsubscribe();
 
-        let rx = tx.subscribe();
+        let rx = tx.new_receiver();
 
         let handle = tokio::spawn(self.event_handler(rx));
 
