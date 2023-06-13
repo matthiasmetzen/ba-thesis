@@ -11,7 +11,7 @@ aws-credential-types = { version = "0.55", features = [
 ] }
 async-broadcast = "0.5"
 async-trait = "0.1"
-aws-sdk-s3 = "0.26" # needs to match aws-sdk-s3 of s3s-aws
+aws-sdk-s3 = "0.28.0" # needs to match aws-sdk-s3 of s3s-aws
 clap = { version = "4.2.4", features = ["derive"] }
 dotenvy = "0.15"
 futures = { version = "0.3.28" }
@@ -21,8 +21,10 @@ miette = { version = "5.7", features = ["fancy"] }
 moka = { version = "0.11", features = ["future"] }
 multi_index_map = "0.5.0"
 parking_lot = { version = "0.12", features = ["send_guard"] }
-s3s = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s" }
-s3s-aws = { version = "0.5.0-dev", path = "./deps/s3s/crates/s3s-aws" }
+# modified from: https://github.com/Nugine/s3s/tree/e8bba54/crates/s3s
+s3s = { version = "0.6.1-dev", path = "./deps/s3s/crates/s3s" }
+# modified from: https://github.com/Nugine/s3s/tree/e8bba54/crates/s3s-aws
+s3s-aws = { version = "0.6.1-dev", path = "./deps/s3s/crates/s3s-aws" }
 serde = "1.0"
 serde_json = "1.0"
 strum = "0.24"
