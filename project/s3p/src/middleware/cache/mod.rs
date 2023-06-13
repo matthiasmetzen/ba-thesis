@@ -25,7 +25,9 @@ use s3s::Body;
 use tokio::task::AbortHandle;
 use tracing::{debug, warn};
 
+mod index;
 mod logic;
+pub use index::*;
 pub use logic::*;
 
 type Key = String;
