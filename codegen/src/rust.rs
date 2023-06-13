@@ -1,8 +1,7 @@
-use crate::f;
-use crate::gen::Codegen;
-
 use std::fmt;
+use std::format as f;
 
+use codegen_writer::g;
 use serde_json::Value;
 
 #[derive(Debug, Clone)]
@@ -130,7 +129,7 @@ impl Type {
     }
 }
 
-pub fn codegen_doc(doc: Option<&str>, g: &mut Codegen) {
+pub fn codegen_doc(doc: Option<&str>) {
     let Some(doc) = doc else { return };
 
     for line in doc.lines() {
@@ -177,7 +176,7 @@ pub fn codegen_doc(doc: Option<&str>, g: &mut Codegen) {
             line = line.replace("OK</code>", "OK");
         }
 
-        g.ln(f!("/// {line}"));
+        g!("/// {line}");
     }
 }
 

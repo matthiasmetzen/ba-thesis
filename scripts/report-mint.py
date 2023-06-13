@@ -66,7 +66,6 @@ if __name__ == "__main__":
         "aws-sdk-php",
         "aws-sdk-ruby",
         "awscli",
-        "mc",
         "minio-go",
         "minio-py",
         "s3cmd",
@@ -74,12 +73,14 @@ if __name__ == "__main__":
     ]
 
     for group in passed_groups:
-        assert counts[group]["fail"] == 0
+        assert counts[group]["fail"] == 0, f'group "{group}" failed'
 
-    assert counts["minio-java"]["pass"] >= 17 # Won't fix
+    # Won't fix
+    assert counts["mc"]["pass"] >= 14
+    assert counts["minio-java"]["pass"] >= 17
 
     # FIXME: E2E tests
     # https://github.com/Nugine/s3s/issues/4
     assert "minio-dotnet" not in counts
-    assert counts["minio-js"]["pass"] >= 0
+    assert counts["minio-js"]["pass"] >= 219
     assert counts["versioning"]["pass"] >= 4

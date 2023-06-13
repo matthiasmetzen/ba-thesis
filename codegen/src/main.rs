@@ -1,11 +1,17 @@
 #![forbid(unsafe_code)]
 #![deny(
     clippy::all, //
-    clippy::must_use_candidate, //
-    clippy::semicolon_if_nothing_returned, //
+    clippy::pedantic, //
 )]
-
-mod gen;
+#![warn(
+    clippy::dbg_macro, //
+)]
+#![allow(
+    clippy::single_match_else, //
+    clippy::wildcard_imports,
+    clippy::match_same_arms,
+    clippy::let_underscore_untyped,
+)]
 
 mod rust;
 mod smithy;
@@ -20,16 +26,10 @@ mod xml;
 mod aws_conv;
 mod aws_proxy;
 
-use crate::gen::Codegen;
-
-use std::format as f;
+use codegen_writer::Codegen;
 
 fn o<T: ToOwned + ?Sized>(x: &T) -> T::Owned {
     x.to_owned()
-}
-
-fn default<T: Default>() -> T {
-    T::default()
 }
 
 fn main() {
@@ -38,56 +38,56 @@ fn main() {
         let json_file = std::fs::read(json_path).unwrap();
         serde_json::from_slice(&json_file).unwrap()
     };
-    assert!(model.smithy == "2.0");
+    assert_eq!(model.smithy, "2.0");
 
     let ops = ops::collect_operations(&model);
     let rust_types = dto::collect_rust_types(&model, &ops);
 
     {
         let path = "crates/s3s/src/dto/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        dto::codegen(&rust_types, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || dto::codegen(&rust_types, &ops));
     }
 
     {
         let path = "crates/s3s/src/header/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        headers::codegen(&model, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || headers::codegen(&model));
     }
 
     {
         let path = "crates/s3s/src/error/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        error::codegen(&model, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || error::codegen(&model));
     }
 
     {
         let path = "crates/s3s/src/xml/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        xml::codegen(&ops, &rust_types, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || xml::codegen(&ops, &rust_types));
     }
 
     {
         let path = "crates/s3s/src/s3_trait.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        s3_trait::codegen(&ops, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || s3_trait::codegen(&ops));
     }
 
     {
         let path = "crates/s3s/src/ops/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        ops::codegen(&ops, &rust_types, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || ops::codegen(&ops, &rust_types));
     }
 
     {
         let path = "crates/s3s-aws/src/conv/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        aws_conv::codegen(&ops, &rust_types, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || aws_conv::codegen(&ops, &rust_types));
     }
 
     {
         let path = "crates/s3s-aws/src/proxy/generated.rs";
-        let mut gen = Codegen::create_file(path).unwrap();
-        aws_proxy::codegen(&ops, &rust_types, &mut gen);
+        let gen = Codegen::create_file(path).unwrap();
+        codegen_writer::scoped(gen, || aws_proxy::codegen(&ops, &rust_types));
     }
 }

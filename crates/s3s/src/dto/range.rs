@@ -1,13 +1,13 @@
 //! HTTP Range header
 
 use crate::http;
-use crate::utils::from_ascii;
 use crate::S3Error;
 use crate::S3ErrorCode;
 
 use std::ops;
 
 use atoi::FromRadix10Checked;
+use rust_utils::str::StrExt;
 
 /// HTTP Range header
 ///
@@ -102,6 +102,10 @@ impl Range {
         }
     }
 
+    /// Checks if the range is satisfiable
+    /// # Errors
+    /// Returns an error if the range is not satisfiable
+    #[allow(clippy::range_plus_one)] // cannot be fixed
     pub fn check(&self, full_length: u64) -> Result<ops::Range<u64>, RangeNotSatisfiable> {
         let err = || RangeNotSatisfiable { _priv: () };
         match *self {
@@ -141,7 +145,7 @@ impl http::TryFromHeaderValue for Range {
     type Error = ParseRangeError;
 
     fn try_from_header_value(val: &http::HeaderValue) -> Result<Self, Self::Error> {
-        let header = from_ascii(val.as_bytes()).ok_or(ParseRangeError { _priv: () })?;
+        let header = str::from_ascii_simd(val.as_bytes()).ok_or(ParseRangeError { _priv: () })?;
         Self::parse(header)
     }
 }
@@ -191,7 +195,7 @@ mod tests {
             ("bytes=-1000000000000000000000000", Err(())),
         ];
 
-        for (input, expected) in cases.iter() {
+        for (input, expected) in &cases {
             let output = Range::parse(input);
             match expected {
                 Ok(expected) => assert_eq!(output.unwrap(), *expected),
