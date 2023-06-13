@@ -1,5 +1,4 @@
-use async_broadcast::{broadcast, Receiver, RecvError};
-use futures::Stream;
+use async_broadcast::broadcast;
 use miette::Result;
 
 use crate::{
@@ -7,10 +6,6 @@ use crate::{
     middleware::{Layer, RequestProcessor},
     server::{Server, ServerBuilder},
 };
-
-pub type Event = String;
-pub type BroadcastRecv = async_broadcast::Receiver<Event>;
-pub type BroadcastSend = async_broadcast::Sender<Event>;
 
 pub struct Pipeline<S, M, C>
 where
@@ -57,24 +52,6 @@ where
     }
 }
 
-pub(crate) trait ReceiverExt<T: Clone> {
-    fn recv_stream(self) -> impl Stream<Item = Result<T, RecvError>>;
-}
-
-impl<T: Clone> ReceiverExt<T> for Receiver<T> {
-    fn recv_stream(self) -> impl Stream<Item = Result<T, RecvError>> {
-        futures::stream::unfold(self, |mut this| async move {
-            let res = this.recv().await;
-
-            match res {
-                Ok(_) => Some((res, this)),
-                Err(RecvError::Overflowed(_)) => Some((res, this)),
-                Err(RecvError::Closed) => None,
-            }
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::pin::Pin;
@@ -84,6 +61,7 @@ mod tests {
         middleware::{Chain, Identity},
         req::{Request, Response},
         server::{Handler, S3ServerBuilder, Server},
+        webhook::BroadcastSend,
     };
     use ctor::ctor;
     use futures::Future;

@@ -14,6 +14,7 @@ mod middleware;
 mod pipeline;
 mod req;
 mod server;
+mod webhook;
 
 use std::time::Duration;
 

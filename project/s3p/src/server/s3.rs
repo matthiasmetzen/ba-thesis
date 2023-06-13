@@ -1,19 +1,17 @@
 use super::{Handler, Server, ServerBuilder};
 use crate::{
-    pipeline::BroadcastSend,
     req::{Request, S3Extension},
+    webhook::{s3::S3WebhookServerBuilder, BroadcastSend, WebhookServer, WebhookServerBuilder},
 };
-use futures::{future::BoxFuture, FutureExt, TryFutureExt};
-use http::StatusCode;
+use futures::{future::BoxFuture, FutureExt};
 use hyper::service::{make_service_fn, service_fn};
 use miette::{miette, Result};
 use s3s::auth::S3Auth;
-use tower::timeout::Timeout;
 
+use std::net::TcpListener;
 use std::sync::Arc;
-use std::{net::TcpListener, time::Duration};
 
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 struct S3Server<'a> {
     fut: BoxFuture<'a, Result<()>>,
@@ -133,11 +131,9 @@ impl ServerBuilder for S3ServerBuilder {
             .serve(make_svc);
 
         let webhook = match broadcast.as_ref() {
-            Some(tx) => Some(S3WebhookServer::new(
-                self.host.as_str(),
-                self.port + 1,
-                tx.clone(),
-            )?),
+            Some(tx) => {
+                Some(S3WebhookServerBuilder::new(self.host.clone(), self.port + 1).serve(&tx)?)
+            }
             None => None,
         };
 
@@ -166,76 +162,6 @@ impl ServerBuilder for S3ServerBuilder {
         };
 
         Ok(srv)
-    }
-}
-
-#[allow(dead_code)]
-struct S3WebhookServer<'a> {
-    tx: BroadcastSend,
-    fut: BoxFuture<'a, Result<()>>,
-    term_sig: tokio::sync::oneshot::Sender<()>,
-}
-
-impl S3WebhookServer<'_> {
-    fn new(host: &str, port: u16, tx: BroadcastSend) -> Result<Self> {
-        let make_svc = {
-            let tx = tx.clone();
-            make_service_fn(move |_| {
-                let tx = tx.clone();
-                std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| {
-                    let tx = tx.clone();
-                    async move {
-                        let res = tx
-                            .broadcast(req.uri().to_string().trim_start_matches('/').to_string())
-                            .inspect_err(|e| {
-                                error!("{:?}", e);
-                            })
-                            .await;
-
-                        let status = match res {
-                            Ok(_) => StatusCode::NOT_IMPLEMENTED,
-                            Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
-                        };
-
-                        hyper::Response::builder()
-                            .status(status)
-                            .body(hyper::Body::default())
-                    }
-                })))
-            })
-        };
-
-        let make_svc = Timeout::new(make_svc, Duration::from_secs(1));
-
-        let listener = TcpListener::bind((host, port)).map_err(|e| miette::miette!(e))?;
-        let server = hyper::Server::from_tcp(listener)
-            .map_err(|e| miette::miette!(e))?
-            .serve(make_svc);
-
-        let (term_sig_tx, term_sig_rx) = tokio::sync::oneshot::channel::<()>();
-        let server = server.with_graceful_shutdown(async {
-            term_sig_rx.await.ok();
-        });
-
-        let task = tokio::spawn(server);
-        info!("Webhook is running at http://{}:{}/", host, port);
-
-        Ok(Self {
-            tx,
-            term_sig: term_sig_tx,
-            fut: Box::pin(async move {
-                let _ = task.await.map_err(|e| miette::miette!(e))?;
-                Ok(())
-            }),
-        })
-    }
-
-    async fn stop(self) -> Result<()> {
-        self.term_sig
-            .send(())
-            .map_err(|_| miette!("Failed to send stop signal"))?;
-        self.fut.await.ok();
-        Ok(())
     }
 }
 

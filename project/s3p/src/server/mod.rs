@@ -1,7 +1,7 @@
 use miette::Result;
 
-use crate::pipeline::BroadcastSend;
 use crate::req::{Request, Response};
+use crate::webhook::BroadcastSend;
 
 use std::future::Future;
 use std::ops::Deref;
