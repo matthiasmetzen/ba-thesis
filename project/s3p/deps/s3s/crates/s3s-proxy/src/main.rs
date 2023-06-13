@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![deny(clippy::all)]
+#![deny(clippy::all, clippy::pedantic)]
 
 use s3s::auth::SimpleAuth;
 use s3s::service::S3ServiceBuilder;
@@ -31,10 +31,15 @@ struct Opt {
 fn setup_tracing() {
     use tracing_subscriber::EnvFilter;
 
+    let env_filter = EnvFilter::from_default_env();
+    // let enable_color = std::io::stdout().is_terminal(); // TODO
+    let enable_color = false;
+
     tracing_subscriber::fmt()
         .pretty()
-        .with_env_filter(EnvFilter::from_default_env())
-        .init()
+        .with_env_filter(env_filter)
+        .with_ansi(enable_color)
+        .init();
 }
 
 #[tokio::main]

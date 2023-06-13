@@ -3,7 +3,7 @@
 #![deny(
     clippy::all, //
     clippy::cargo, //
-    clippy::must_use_candidate, //
+    clippy::pedantic, //
     clippy::self_named_module_files, //
 )]
 #![warn(
@@ -12,6 +12,11 @@
 #![allow(
     clippy::bool_assert_comparison,  // I don't like `assert!(!expression)`. It's very misleading.
     clippy::multiple_crate_versions, // Sometimes not fixable
+    clippy::module_name_repetitions,
+    clippy::single_match_else,
+    clippy::wildcard_imports,
+    clippy::let_underscore_untyped,
+    clippy::inline_always,
 )]
 
 #[macro_use]
@@ -24,6 +29,7 @@ mod header;
 pub mod http;
 pub mod ops;
 mod request;
+mod response;
 mod s3_trait;
 mod sig_v2;
 mod sig_v4;
@@ -38,4 +44,5 @@ pub mod stream;
 pub use self::error::*;
 pub use self::http::Body;
 pub use self::request::S3Request;
+pub use self::response::S3Response;
 pub use self::s3_trait::S3;

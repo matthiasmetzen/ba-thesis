@@ -5,8 +5,11 @@ edition = "2021"
 publish = false
 
 [dependencies]
+codegen-writer = "0.2.0"
 heck = "0.4.1"
-regex = "1.7.3"
-serde = { version = "1.0.159", features = ["derive"] }
-serde_json = { version = "1.0.95", features = ["preserve_order"] }
+nugine-rust-utils = "0.3.1"
+numeric_cast = "0.2.1"
+regex = "1.8.3"
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = { version = "1.0.96", features = ["preserve_order"] }
 serde_urlencoded = "0.7.1"

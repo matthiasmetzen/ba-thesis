@@ -9,6 +9,7 @@ use std::fmt;
 
 use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Reader;
+use rust_utils::str::StrExt;
 
 /// A data type that can be deserialized with AWS restXml deserializer
 pub trait Deserialize<'xml>: Sized {
@@ -301,7 +302,7 @@ impl<'xml> Deserializer<'xml> {
 
     pub fn timestamp(&mut self, fmt: TimestampFormat) -> DeResult<Timestamp> {
         self.text(|t| {
-            let string = crate::utils::from_ascii(t.as_ref()).ok_or(DeError::InvalidContent)?;
+            let string = str::from_ascii_simd(t.as_ref()).ok_or(DeError::InvalidContent)?;
             Timestamp::parse(fmt, string).map_err(|_| DeError::InvalidContent)
         })
     }
@@ -341,10 +342,8 @@ const fn unexpected_start() -> DeError {
 impl<'xml> DeserializeContent<'xml> for bool {
     fn deserialize_content(d: &mut Deserializer<'xml>) -> DeResult<Self> {
         d.text(|t| match t.as_ref() {
-            b"true" => Ok(true),
-            b"false" => Ok(false),
-            b"TRUE" => Ok(true),
-            b"FALSE" => Ok(false),
+            b"true" | b"TRUE" => Ok(true),
+            b"false" | b"FALSE" => Ok(false),
             _ => Err(DeError::InvalidContent),
         })
     }

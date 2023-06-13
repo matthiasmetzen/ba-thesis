@@ -10,10 +10,12 @@ doc:
     RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --open --no-deps --all-features
 
 download-model:
-    ./scripts/download-model.sh
+    ./scripts/download-model.py --force codegen/s3.json
 
 codegen:
-    ./scripts/codegen.sh
+    ./scripts/download-model.py codegen/s3.json
+    cargo run -p s3s-codegen -- codegen/s3.json
+    cargo fmt
 
 install-s3s-fs:
     cargo install --offline --path crates/s3s-fs --features binary
@@ -26,13 +28,11 @@ install:
     just install-s3s-proxy
 
 sync-version:
-    cargo set-version -p s3s-codegen    0.0.0
-    cargo set-version -p s3s            0.5.0-dev
-    cargo set-version -p s3s-aws        0.5.0-dev
-    cargo set-version -p s3s-fs         0.5.0-dev
-    cargo set-version -p s3s-proxy      0.0.0
+    cargo set-version -p s3s            0.6.1-dev
+    cargo set-version -p s3s-aws        0.6.1-dev
+    cargo set-version -p s3s-fs         0.6.1-dev
 
 publish:
-    cargo publish -p s3s
-    cargo publish -p s3s-aws
-    cargo publish -p s3s-fs
+    # cargo publish -p s3s
+    # cargo publish -p s3s-aws
+    # cargo publish -p s3s-fs
