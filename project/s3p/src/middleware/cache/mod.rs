@@ -5,36 +5,128 @@ use std::{
 
 use super::*;
 use crate::{
-    pipeline::{BroadcastRecv, ReceiverExt},
-    req::{s3::S3RequestExt, *},
+    req::*,
+    webhook::{
+        event_types::{LifecycleExpirationEvent, ObjectCreatedEvent, S3EventType},
+        BroadcastRecv, ReceiverExt, WebhookEvent,
+    },
 };
 
 use async_broadcast::RecvError;
 use futures::{StreamExt, TryStreamExt};
-use http::{HeaderValue, StatusCode};
+use http::{HeaderMap, HeaderValue, StatusCode};
 use hyper::body::Bytes;
 use miette::{miette, IntoDiagnostic};
 use moka::future::Cache;
 use moka::Expiry;
 use multi_index_map::MultiIndexMap;
 use parking_lot::RwLock;
-use s3s::ops;
-use s3s::ops::Operation;
 use s3s::Body;
 use tokio::task::AbortHandle;
 use tracing::{debug, warn};
+
+mod logic;
+pub use logic::*;
 
 type Key = String;
 type Data = CachedResponse;
 type ETag = String;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 struct CachedResponse {
     ttl: Option<Duration>,
     tti: Option<Duration>,
     status_code: StatusCode,
+    updated_at: Instant,
+    data: CacheData,
+}
+
+#[derive(Debug, Clone)]
+enum CacheData {
+    Object(Object),
+    ListObjects(ListObjects),
+    Bucket(Bucket),
+    ListBuckets(ListBuckets),
+}
+
+impl TryFrom<CachedResponse> for Response {
+    type Error = miette::Report;
+
+    fn try_from(value: CachedResponse) -> Result<Self> {
+        let mut resp: Response = Response {
+            status: value.status_code,
+            ..Default::default()
+        };
+
+        match value.data {
+            CacheData::Object(obj) => {
+                if let Some(etag) = obj.etag {
+                    resp.headers.append(
+                        "ETag",
+                        HeaderValue::from_str(etag.as_str()).into_diagnostic()?,
+                    );
+                }
+
+                // TODO: proper headers
+
+                resp.headers.append(
+                    "cache-control",
+                    HeaderValue::from_str("no-cache").into_diagnostic()?,
+                );
+
+                if let Some(bytes) = obj.bytes {
+                    resp.body = Body::from(bytes);
+                }
+            }
+            _ => todo!(),
+        }
+
+        Ok(resp)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Owner {
+    id: String,
+    display_name: String,
+}
+
+#[derive(Debug, Clone)]
+struct Object {
     etag: Option<String>,
-    body: Option<Bytes>,
+    last_modified: Instant,
+    bucket_owner: Owner,
+    bytes: Option<Bytes>,
+}
+
+#[derive(Debug, Clone)]
+struct ListObjects {
+    name: String,
+    prefix: Option<String>,
+    marker: Option<String>,
+    max_keys: u64,
+    delimiter: Option<String>,
+    is_truncated: bool,
+    content: Vec<Object>,
+}
+
+#[derive(Debug, Clone)]
+struct Bucket {
+    bucket_owner: String,
+    name: String,
+    creation_date: Instant,
+}
+
+#[derive(Debug, Clone)]
+struct ListBuckets {
+    owner: String,
+    buckets: Vec<ListBucketsEntry>,
+}
+
+#[derive(Debug, Clone)]
+struct ListBucketsEntry {
+    name: String,
+    creation_date: Instant,
 }
 
 impl CachedResponse {
@@ -55,9 +147,18 @@ impl CachedResponse {
 
         Self {
             status_code: resp.status,
-            body: bytes,
-            etag,
-            ..Default::default()
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: Instant::now(),
+            data: CacheData::Object(Object {
+                etag,
+                last_modified: Instant::now(),
+                bucket_owner: Owner {
+                    id: "".into(),
+                    display_name: "".into(),
+                },
+                bytes,
+            }),
         }
     }
 
@@ -75,7 +176,10 @@ impl CachedResponse {
 
     fn len(&self) -> usize {
         // +8 for size of status code + padding
-        self.body.as_ref().map_or(0, |b| b.len()) + 8
+        if let CacheData::Object(obj) = &self.data {
+            return obj.bytes.as_ref().map_or(0, |b| b.len()) + 8;
+        }
+        return 1;
     }
 }
 
@@ -179,34 +283,12 @@ impl CacheLayer {
             .ok_or_else(|| miette!("No cache entry found"))?;
 
         debug!("found cache entry for {}", key);
-        let mut resp = Response {
-            status: data.status_code,
-            ..Default::default()
-        };
-
-        if let Some(etag) = data.etag {
-            resp.headers.append(
-                "ETag",
-                HeaderValue::from_str(etag.as_str()).into_diagnostic()?,
-            );
-        }
-
-        // TODO: proper headers
-
-        resp.headers.append(
-            "cache-control",
-            HeaderValue::from_str("no-cache").into_diagnostic()?,
-        );
-
-        if let Some(bytes) = data.body {
-            resp.body = Body::from(bytes);
-        }
-
-        Ok(resp)
+        data.try_into()
     }
 
     fn event_handler(&self, rx: BroadcastRecv) -> impl Future<Output = ()> {
         let cache = self.cache.clone();
+        let lut = self.lut.clone();
 
         rx.recv_stream()
             .inspect_err(|e| match e {
@@ -219,17 +301,39 @@ impl CacheLayer {
             // discard errors
             .filter_map(|e| futures::future::ready(e.ok()))
             // TODO: Investigate: Concurrent handling could become a problem here if events are processed out of order
+            .filter_map(|event| {
+                futures::future::ready(match event {
+                    WebhookEvent::S3(event) => Some(event),
+                    _ => None,
+                })
+            })
             .for_each_concurrent(None, move |event| {
-                debug!("CacheLayer received message: {}", event);
+                debug!("CacheLayer received message: {:?}", event);
                 let cache = cache.clone();
+
                 async move {
-                    match event.as_str() {
-                        "delete" => {
-                            let _ = cache.remove("foo").await;
+                    for record in event.records {
+                        debug!("{:?}", record);
+                        match record.event_type {
+                            S3EventType::ObjectCreated(ev) => match ev {
+                                ObjectCreatedEvent::Post => {
+                                    // Existing object was updated
+                                    let key = format!(
+                                        "op=GetObject, {}, {}, {}",
+                                        record.s3.bucket.name, record.s3.object.key, ""
+                                    );
+                                    cache.invalidate(key.as_str());
+                                }
+                                _ => continue,
+                            },
+                            S3EventType::ObjectRemoved(_) => {}
+                            S3EventType::LifecycleExpiration(ev) => match ev {
+                                LifecycleExpirationEvent::Delete => {}
+                                _ => continue,
+                            },
+                            _ => continue,
                         }
-                        "foo" => {}
-                        _ => {}
-                    };
+                    }
                 }
             })
     }
@@ -299,10 +403,9 @@ impl Layer for CacheLayer {
     }
 
     fn unsubscribe(&mut self) {
-        if let Some(h) = self.rx_abort.as_mut() {
+        if let Some(h) = self.rx_abort.take() {
             h.abort()
         }
-        self.rx_abort = None;
     }
 }
 
@@ -332,201 +435,5 @@ impl CacheIntent {
         let mut this = self;
         this.tti = tti.into();
         this
-    }
-}
-
-pub trait CacheLogic {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        config: &CacheLayerConfig,
-    ) -> Option<CacheIntent>;
-}
-
-impl CacheLogic for S3Extension {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let op = self.op.as_ref()?;
-
-        if let Ok(op) = op.try_as_ref::<ops::GetObject>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::HeadBucket>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListBuckets>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListObjects>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListObjectsV2>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListObjectVersions>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        None
-    }
-}
-
-impl CacheLogic for ops::GetObject {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
-
-        if des.range.is_some() || des.part_number.is_some() {
-            return None;
-        }
-
-        let key = format!(
-            "op={}, {}:{}:{}",
-            self.name(),
-            des.bucket,
-            des.key,
-            des.version_id.unwrap_or("".to_string())
-        );
-
-        Some(CacheIntent::new(key))
-    }
-}
-
-impl CacheLogic for ops::HeadBucket {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
-
-        if des.expected_bucket_owner.is_some() {
-            return None;
-        }
-
-        let key = format!("op={}, {}", self.name(), des.bucket);
-
-        Some(CacheIntent::new(key))
-    }
-}
-
-impl CacheLogic for ops::HeadObject {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
-
-        if des.expected_bucket_owner.is_some() || des.range.is_some() {
-            return None;
-        }
-
-        let key = format!(
-            "op={}, {}, {}",
-            self.name(),
-            des.bucket,
-            des.version_id.unwrap_or_default()
-        );
-
-        Some(CacheIntent::new(key))
-    }
-}
-
-impl CacheLogic for ops::ListBuckets {
-    fn make_cache_intent(
-        &self,
-        _request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let key = format!("op={}", self.name());
-
-        Some(CacheIntent::new(key))
-    }
-}
-
-impl CacheLogic for ops::ListObjects {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
-
-        if des.expected_bucket_owner.is_some() {
-            return None;
-        }
-
-        let key = format!("op={}, {}", self.name(), des.bucket);
-
-        Some(CacheIntent::new(key))
-    }
-}
-
-impl CacheLogic for ops::ListObjectsV2 {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
-
-        if des.expected_bucket_owner.is_some()
-            || des.max_keys.is_some()
-            || des.start_after.is_some()
-        {
-            return None;
-        }
-
-        let key = format!(
-            "op={}, {}, {}",
-            self.name(),
-            des.bucket,
-            des.prefix.unwrap_or_default()
-        );
-
-        Some(CacheIntent::new(key))
-    }
-}
-
-impl CacheLogic for ops::ListObjectVersions {
-    fn make_cache_intent(
-        &self,
-        request: &Request,
-        _config: &CacheLayerConfig,
-    ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
-
-        if des.expected_bucket_owner.is_some() || des.key_marker.is_some() || des.max_keys.is_some()
-        {
-            return None;
-        }
-
-        let key = format!(
-            "op={}, {}, {}, {}",
-            self.name(),
-            des.bucket,
-            des.prefix.unwrap_or_default(),
-            des.delimiter.unwrap_or_default()
-        );
-
-        Some(CacheIntent::new(key))
     }
 }
