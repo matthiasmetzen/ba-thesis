@@ -5,7 +5,7 @@ use std::{
 
 use super::*;
 use crate::{
-    req::{s3::S3RequestExt, s3::S3ResponseExt, *},
+    req::{response::RawResponse, s3::S3RequestExt, s3::S3ResponseExt, *},
     webhook::{
         event_types::{LifecycleExpirationEvent, ObjectCreatedEvent, S3EventType},
         BroadcastRecv, ReceiverExt, WebhookEvent,
@@ -55,11 +55,9 @@ enum Either<L, R> {
     Right(R),
 }
 
-type GetObjectOutputW = (HeadObjectOutput, Bytes);
-
 #[derive(Debug, Clone)]
 enum CacheData {
-    GetObject(GetObjectOutputMeta, Bytes),
+    GetObject(GetObjectOutputMeta, RawResponse),
     HeadObject(HeadObjectOutput),
     ListObjects(Either<ListObjectsOutput, ListObjectsV2Output>),
     Bucket(HeadBucketOutput),
@@ -69,27 +67,12 @@ enum CacheData {
 impl TryFrom<CachedResponse> for Response {
     type Error = miette::Report;
 
+    #[tracing::instrument]
     fn try_from(value: CachedResponse) -> Result<Self> {
         match value.data {
-            CacheData::GetObject(meta, bytes) => {
-                let resp = {
-                    let mut output: GetObjectOutput = meta.into();
-                    let body = s3s::http::Body::from(bytes);
-                    output.set_data(Some(body.into()));
-
-                    debug!("{:#?}", output);
-
-                    let res: s3s::http::Response = output
-                        .try_into()
-                        .into_diagnostic()
-                        .wrap_err("Failed to cast to response")?;
-
-                    debug!("Constructed s3s::http::Response");
-                    res
-                };
-
+            CacheData::GetObject(_meta, raw) => {
                 // TODO: proper headers
-                let mut resp: Response = resp.into();
+                let mut resp: Response = raw.into();
 
                 resp.headers.append(
                     "cache-control",
@@ -135,6 +118,7 @@ impl TryFrom<CachedResponse> for Response {
 }
 
 impl CachedResponse {
+    #[tracing::instrument]
     async fn new(resp: &mut Response) -> Result<Self> {
         let s3_ext = resp
             .extensions
@@ -153,12 +137,18 @@ impl CachedResponse {
                 let mut body = std::mem::take(&mut resp.body);
                 let bytes = body.store_all_unlimited().await.ok();
 
+                let raw = RawResponse {
+                    status: resp.status.clone(),
+                    headers: resp.headers.clone(),
+                    bytes,
+                };
+
                 Ok(Self {
                     status_code: resp.status,
                     ttl: Default::default(),
                     tti: Default::default(),
                     updated_at: Instant::now(),
-                    data: CacheData::GetObject(output.deref().clone(), bytes.unwrap()),
+                    data: CacheData::GetObject(output.deref().clone(), raw),
                 })
             }
             _ => unimplemented!(),
@@ -206,8 +196,8 @@ impl CachedResponse {
 
     fn len(&self) -> usize {
         // +8 for size of status code + padding
-        if let CacheData::GetObject(obj, bytes) = &self.data {
-            return bytes.len();
+        if let CacheData::GetObject(obj, raw) = &self.data {
+            return raw.bytes.as_ref().map_or(1, |b| b.len());
         }
         return 1;
     }
