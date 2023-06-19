@@ -1,4 +1,5 @@
-use http::{HeaderMap, HeaderValue, StatusCode};
+use http::{Extensions, HeaderMap, HeaderValue, StatusCode};
+use hyper::body::Bytes;
 use miette::Report;
 use s3s::Body;
 
@@ -7,6 +8,14 @@ pub struct Response {
     pub status: StatusCode,
     pub headers: HeaderMap<HeaderValue>,
     pub body: Body,
+    pub extensions: Extensions,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct RawResponse {
+    pub status: StatusCode,
+    pub headers: HeaderMap<HeaderValue>,
+    pub bytes: Option<Bytes>,
 }
 
 impl From<Report> for Response {
@@ -32,6 +41,7 @@ impl From<s3s::http::Response> for Response {
             status: value.status,
             headers: value.headers,
             body: value.body,
+            extensions: value.extensions,
         }
     }
 }
@@ -39,5 +49,29 @@ impl From<s3s::http::Response> for Response {
 impl From<hyper::Request<hyper::Body>> for Response {
     fn from(_value: hyper::Request<hyper::Body>) -> Self {
         todo!()
+    }
+}
+
+impl From<Response> for RawResponse {
+    fn from(value: Response) -> Self {
+        Self {
+            status: value.status,
+            headers: value.headers,
+            bytes: value.body.bytes(),
+        }
+    }
+}
+
+impl From<RawResponse> for Response {
+    fn from(value: RawResponse) -> Self {
+        Self {
+            status: value.status,
+            headers: value.headers,
+            body: match value.bytes {
+                Some(b) => Body::from(b),
+                None => Body::default(),
+            },
+            extensions: Extensions::new(),
+        }
     }
 }

@@ -5,7 +5,7 @@ use std::{
 
 use super::*;
 use crate::{
-    req::*,
+    req::{s3::S3RequestExt, s3::S3ResponseExt, *},
     webhook::{
         event_types::{LifecycleExpirationEvent, ObjectCreatedEvent, S3EventType},
         BroadcastRecv, ReceiverExt, WebhookEvent,
@@ -16,14 +16,22 @@ use async_broadcast::RecvError;
 use futures::{StreamExt, TryStreamExt};
 use http::{HeaderMap, HeaderValue, StatusCode};
 use hyper::body::Bytes;
-use miette::{miette, IntoDiagnostic};
+use miette::{miette, Context, IntoDiagnostic};
 use moka::future::Cache;
 use moka::Expiry;
 use multi_index_map::MultiIndexMap;
 use parking_lot::RwLock;
-use s3s::Body;
+use s3s::{
+    dto::{
+        GetObjectOutput, GetObjectOutputMeta, HeadBucketOutput, HeadObjectOutput,
+        ListBucketsOutput, ListObjectsOutput, ListObjectsV2Output, SplitMetadata, StreamingBlob,
+    },
+    ops,
+    ops::OperationType,
+    Body,
+};
 use tokio::task::AbortHandle;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 mod logic;
 pub use logic::*;
@@ -42,99 +50,121 @@ struct CachedResponse {
 }
 
 #[derive(Debug, Clone)]
+enum Either<L, R> {
+    Left(L),
+    Right(R),
+}
+
+type GetObjectOutputW = (HeadObjectOutput, Bytes);
+
+#[derive(Debug, Clone)]
 enum CacheData {
-    Object(Object),
-    ListObjects(ListObjects),
-    Bucket(Bucket),
-    ListBuckets(ListBuckets),
+    GetObject(GetObjectOutputMeta, Bytes),
+    HeadObject(HeadObjectOutput),
+    ListObjects(Either<ListObjectsOutput, ListObjectsV2Output>),
+    Bucket(HeadBucketOutput),
+    ListBuckets(ListBucketsOutput),
 }
 
 impl TryFrom<CachedResponse> for Response {
     type Error = miette::Report;
 
     fn try_from(value: CachedResponse) -> Result<Self> {
-        let mut resp: Response = Response {
-            status: value.status_code,
-            ..Default::default()
-        };
-
         match value.data {
-            CacheData::Object(obj) => {
-                if let Some(etag) = obj.etag {
-                    resp.headers.append(
-                        "ETag",
-                        HeaderValue::from_str(etag.as_str()).into_diagnostic()?,
-                    );
-                }
+            CacheData::GetObject(meta, bytes) => {
+                let resp = {
+                    let mut output: GetObjectOutput = meta.into();
+                    let body = s3s::http::Body::from(bytes);
+                    output.set_data(Some(body.into()));
+
+                    debug!("{:#?}", output);
+
+                    let res: s3s::http::Response = output
+                        .try_into()
+                        .into_diagnostic()
+                        .wrap_err("Failed to cast to response")?;
+
+                    debug!("Constructed s3s::http::Response");
+                    res
+                };
 
                 // TODO: proper headers
+                let mut resp: Response = resp.into();
 
                 resp.headers.append(
                     "cache-control",
                     HeaderValue::from_str("no-cache").into_diagnostic()?,
                 );
 
-                if let Some(bytes) = obj.bytes {
-                    resp.body = Body::from(bytes);
-                }
+                Ok(resp)
             }
-            _ => todo!(),
-        }
+            CacheData::HeadObject(meta) => {
+                let resp: s3s::http::Response = meta
+                    .try_into()
+                    .into_diagnostic()
+                    .wrap_err("Failed to cast to response")?;
+                Ok(resp.into())
+            }
+            CacheData::ListObjects(lst) => {
+                let resp: s3s::http::Response = match lst {
+                    Either::Left(l) => l
+                        .try_into()
+                        .into_diagnostic()
+                        .wrap_err("Failed to cast to response")?,
+                    Either::Right(l) => l
+                        .try_into()
+                        .into_diagnostic()
+                        .wrap_err("Failed to cast to response")?,
+                };
 
-        Ok(resp)
+                Ok(resp.into())
+            }
+            CacheData::Bucket(bckt) => {
+                let resp: s3s::http::Response = bckt.try_into().into_diagnostic()?;
+
+                Ok(resp.into())
+            }
+            CacheData::ListBuckets(lst) => {
+                let resp: s3s::http::Response = lst.try_into().into_diagnostic()?;
+
+                Ok(resp.into())
+            }
+            _ => unimplemented!(),
+        }
     }
 }
 
-#[derive(Debug, Clone)]
-struct Owner {
-    id: String,
-    display_name: String,
-}
-
-#[derive(Debug, Clone)]
-struct Object {
-    etag: Option<String>,
-    last_modified: Instant,
-    bucket_owner: Owner,
-    bytes: Option<Bytes>,
-}
-
-#[derive(Debug, Clone)]
-struct ListObjects {
-    name: String,
-    prefix: Option<String>,
-    marker: Option<String>,
-    max_keys: u64,
-    delimiter: Option<String>,
-    is_truncated: bool,
-    content: Vec<Object>,
-}
-
-#[derive(Debug, Clone)]
-struct Bucket {
-    bucket_owner: String,
-    name: String,
-    creation_date: Instant,
-}
-
-#[derive(Debug, Clone)]
-struct ListBuckets {
-    owner: String,
-    buckets: Vec<ListBucketsEntry>,
-}
-
-#[derive(Debug, Clone)]
-struct ListBucketsEntry {
-    name: String,
-    creation_date: Instant,
-}
-
 impl CachedResponse {
-    async fn new(resp: &mut Response) -> Self {
-        let mut body = std::mem::take(&mut resp.body);
-        let bytes = body.store_all_unlimited().await.ok();
+    async fn new(resp: &mut Response) -> Result<Self> {
+        let s3_ext = resp
+            .extensions
+            .get::<S3Extension>()
+            .ok_or_else(|| miette!("Result is missing S3 Extension"))?;
+        let op = s3_ext
+            .op
+            .as_ref()
+            .ok_or_else(|| miette!("Operation type not set"))?;
 
-        resp.body = match bytes.clone() {
+        return match op {
+            OperationType::GetObject(_op) => {
+                let output = resp
+                    .try_get_output::<ops::GetObject>()
+                    .ok_or_else(|| miette!("Missing response metadata"))?;
+                let mut body = std::mem::take(&mut resp.body);
+                let bytes = body.store_all_unlimited().await.ok();
+
+                Ok(Self {
+                    status_code: resp.status,
+                    ttl: Default::default(),
+                    tti: Default::default(),
+                    updated_at: Instant::now(),
+                    data: CacheData::GetObject(output.deref().clone(), bytes.unwrap()),
+                })
+            }
+            _ => unimplemented!(),
+        };
+
+        /*resp.body = match bytes.clone() {
             Some(b) => Body::from(b),
             None => Body::default(),
         };
@@ -159,7 +189,7 @@ impl CachedResponse {
                 },
                 bytes,
             }),
-        }
+        }*/
     }
 
     fn time_to_live(self, ttl: impl Into<Option<Duration>>) -> Self {
@@ -176,8 +206,8 @@ impl CachedResponse {
 
     fn len(&self) -> usize {
         // +8 for size of status code + padding
-        if let CacheData::Object(obj) = &self.data {
-            return obj.bytes.as_ref().map_or(0, |b| b.len()) + 8;
+        if let CacheData::GetObject(obj, bytes) = &self.data {
+            return bytes.len();
         }
         return 1;
     }
@@ -372,6 +402,7 @@ impl Layer for CacheLayer {
         if resp.status == StatusCode::OK {
             let cr = CachedResponse::new(&mut resp)
                 .await
+                .wrap_err("Failed to construct cached response")?
                 .time_to_live(intent.ttl.map(Duration::from_millis))
                 .time_to_idle(intent.tti.map(Duration::from_millis));
 

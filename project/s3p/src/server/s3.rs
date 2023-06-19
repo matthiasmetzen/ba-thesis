@@ -94,7 +94,7 @@ impl ServerBuilder for S3ServerBuilder {
                     .extensions
                     .get_mut::<S3Extension>()
                     .ok_or_else(|| miette!("Could not find S3Extension"))?;
-                s3_ext.op = Some(op.into());
+                s3_ext.op = Some(op);
 
                 debug!("{:#?}", req);
 

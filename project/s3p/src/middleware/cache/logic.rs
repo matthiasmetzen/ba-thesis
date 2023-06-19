@@ -1,8 +1,8 @@
 use super::*;
 use crate::req::s3::S3RequestExt;
 
-use s3s::ops;
 use s3s::ops::Operation;
+use s3s::ops::{self, OperationType};
 
 pub trait CacheLogic {
     fn make_cache_intent(
@@ -18,33 +18,19 @@ impl CacheLogic for S3Extension {
         request: &Request,
         config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let op = self.op.as_ref()?;
+        let Some(op) = self.op.as_ref() else {
+            return None;
+        };
 
-        if let Ok(op) = op.try_as_ref::<ops::GetObject>() {
-            return op.make_cache_intent(request, config);
+        match op {
+            OperationType::GetObject(op) => op.make_cache_intent(request, config),
+            OperationType::HeadBucket(op) => op.make_cache_intent(request, config),
+            OperationType::ListBuckets(op) => op.make_cache_intent(request, config),
+            OperationType::ListObjects(op) => op.make_cache_intent(request, config),
+            OperationType::ListObjectsV2(op) => op.make_cache_intent(request, config),
+            OperationType::ListObjectVersions(op) => op.make_cache_intent(request, config),
+            _ => None,
         }
-
-        if let Ok(op) = op.try_as_ref::<ops::HeadBucket>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListBuckets>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListObjects>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListObjectsV2>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        if let Ok(op) = op.try_as_ref::<ops::ListObjectVersions>() {
-            return op.make_cache_intent(request, config);
-        }
-
-        None
     }
 }
 
@@ -54,8 +40,7 @@ impl CacheLogic for ops::GetObject {
         request: &Request,
         _config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
+        let des = request.try_get_input::<Self>()?;
 
         if des.range.is_some() || des.part_number.is_some() {
             return None;
@@ -66,7 +51,7 @@ impl CacheLogic for ops::GetObject {
             self.name(),
             des.bucket,
             des.key,
-            des.version_id.unwrap_or("".to_string())
+            des.version_id.as_ref().unwrap_or(&"".to_string())
         );
 
         Some(CacheIntent::new(key))
@@ -79,8 +64,7 @@ impl CacheLogic for ops::HeadBucket {
         request: &Request,
         _config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
+        let des = request.try_get_input::<Self>()?;
 
         if des.expected_bucket_owner.is_some() {
             return None;
@@ -98,8 +82,7 @@ impl CacheLogic for ops::HeadObject {
         request: &Request,
         _config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
+        let des = request.try_get_input::<Self>()?;
 
         if des.expected_bucket_owner.is_some() || des.range.is_some() {
             return None;
@@ -109,7 +92,7 @@ impl CacheLogic for ops::HeadObject {
             "op={}, {}, {}",
             self.name(),
             des.bucket,
-            des.version_id.unwrap_or_default()
+            des.version_id.as_deref().unwrap_or_default()
         );
 
         Some(CacheIntent::new(key))
@@ -134,8 +117,7 @@ impl CacheLogic for ops::ListObjects {
         request: &Request,
         _config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
+        let des = request.try_get_input::<Self>()?;
 
         if des.expected_bucket_owner.is_some() {
             return None;
@@ -153,8 +135,7 @@ impl CacheLogic for ops::ListObjectsV2 {
         request: &Request,
         _config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
+        let des = request.try_get_input::<Self>()?;
 
         if des.expected_bucket_owner.is_some()
             || des.max_keys.is_some()
@@ -167,7 +148,7 @@ impl CacheLogic for ops::ListObjectsV2 {
             "op={}, {}, {}",
             self.name(),
             des.bucket,
-            des.prefix.unwrap_or_default()
+            des.prefix.as_deref().unwrap_or_default()
         );
 
         Some(CacheIntent::new(key))
@@ -180,8 +161,7 @@ impl CacheLogic for ops::ListObjectVersions {
         request: &Request,
         _config: &CacheLayerConfig,
     ) -> Option<CacheIntent> {
-        let mut req: s3s::http::Request = request.try_as_s3_request().ok()?;
-        let des = Self::deserialize_http(&mut req).ok()?;
+        let des = request.try_get_input::<Self>()?;
 
         if des.expected_bucket_owner.is_some() || des.key_marker.is_some() || des.max_keys.is_some()
         {
@@ -192,8 +172,8 @@ impl CacheLogic for ops::ListObjectVersions {
             "op={}, {}, {}, {}",
             self.name(),
             des.bucket,
-            des.prefix.unwrap_or_default(),
-            des.delimiter.unwrap_or_default()
+            des.prefix.as_deref().unwrap_or_default(),
+            des.delimiter.as_deref().unwrap_or_default()
         );
 
         Some(CacheIntent::new(key))
