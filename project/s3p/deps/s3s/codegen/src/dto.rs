@@ -383,11 +383,22 @@ pub fn codegen(rust_types: &RustTypes, ops: &Operations) {
 
 fn codegen_struct(ty: &rust::Struct, rust_types: &RustTypes, ops: &Operations) {
     codegen_doc(ty.doc.as_deref());
+
+    let mut derives = vec![];
     if can_derive_default(ty, rust_types) {
-        g!("#[derive(Default)]");
+        derives.push("Default");
+        //g!("#[derive(Default)]");
+    }
+
+    let can_clone = can_derive_clone(ty, rust_types);
+    if can_clone {
+        derives.push("Clone");
+    }
+
+    if !derives.is_empty() {
+        g!("#[derive({})]", derives.join(", "));
     }
     // g!("#[non_exhaustive]"); // TODO: builder?
-
     g!("pub struct {} {{", ty.name);
     for field in &ty.fields {
         codegen_doc(field.doc.as_deref());
@@ -426,6 +437,113 @@ fn codegen_struct(ty: &rust::Struct, rust_types: &RustTypes, ops: &Operations) {
         g!("}}");
 
         g!("}}");
+    }
+
+    if !can_clone {
+        let target = ty
+            .fields
+            .iter()
+            .find(|f| !is_cloneable(&f.type_, rust_types))
+            .expect(format!("Found no uncloneable field in {:#?}", ty).as_str());
+
+        derives.push("Clone");
+        g!("#[derive({})]", derives.join(", "));
+        g!("pub struct {}Meta {{", ty.name);
+        for field in &ty.fields {
+            if field.name == target.name {
+                continue;
+            }
+
+            codegen_doc(field.doc.as_deref());
+
+            if field.option_type {
+                g!("    pub {}: Option<{}>,", field.name, field.type_);
+            } else {
+                g!("    pub {}: {},", field.name, field.type_);
+            }
+        }
+        g!("}}");
+        g!();
+
+        g!("impl fmt::Debug for {}Meta {{", ty.name);
+        g!("fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {{");
+        g!("let mut d = f.debug_struct(\"{}Meta\");", ty.name);
+        for field in &ty.fields {
+            if field.name == target.name {
+                continue;
+            }
+
+            if field.option_type {
+                g!("if let Some(ref val) = self.{} {{", field.name);
+                g!("d.field(\"{}\", val);", field.name);
+                g!("}}");
+            } else {
+                g!("d.field(\"{0}\", &self.{0});", field.name);
+            }
+        }
+        g!("d.finish_non_exhaustive()");
+        g!("}}");
+        g!("}}");
+        g!();
+
+        g!("impl From<{}> for {}Meta {{", ty.name, ty.name);
+        g!("fn from(value: {}) -> Self {{", ty.name);
+        g!("Self {{");
+        for field in &ty.fields {
+            if field.name == target.name {
+                continue;
+            }
+
+            g!("{}: value.{},", field.name, field.name);
+        }
+        g!("}}");
+        g!("}}");
+        g!("}}");
+        g!();
+
+        g!("impl From<{}Meta> for {} {{", ty.name, ty.name);
+        g!("fn from(value: {}Meta) -> Self {{", ty.name);
+        g!("Self {{");
+        for field in &ty.fields {
+            if field.name == target.name {
+                if target.option_type {
+                    g!("{}: None,", target.name);
+                } else {
+                    panic!("Expected Option for {}.{}", ty.name, target.name)
+                };
+            } else {
+                g!("{}: value.{},", field.name, field.name);
+            }
+        }
+        g!("}}");
+        g!("}}");
+        g!("}}");
+        g!();
+
+        g!("impl SplitMetadata for {} {{", ty.name);
+        g!("type Meta = {}Meta;", ty.name);
+        g!("type Data = Option<{}>;", target.type_);
+        g!("fn split_metadata(self) -> (Self::Meta, Self::Data) {{");
+        g!("let mut this = self;");
+        g!("let data = this.{}.take();", target.name);
+        g!("let meta = Self::Meta::from(this);");
+        g!("(meta, data)");
+        g!("}}");
+        g!();
+        g!("fn set_data(&mut self, data: Self::Data) {{");
+        g!("self.{} = data;", target.name);
+        g!("}}");
+        g!("}}");
+        g!();
+    } else {
+        g!("impl SplitMetadata for {} {{", ty.name);
+        g!("type Meta = Self;");
+        g!("type Data = ();");
+        g!("fn split_metadata(self) -> (Self::Meta, Self::Data) {{");
+        g!("(self, ())");
+        g!("}}");
+        g!("}}");
+        g!();
     }
 }
 
@@ -486,7 +604,7 @@ fn codegen_str_enum(ty: &rust::StrEnum, _rust_types: &RustTypes) {
 
 fn codegen_struct_enum(ty: &rust::StructEnum, _rust_types: &RustTypes) {
     codegen_doc(ty.doc.as_deref());
-    g!("#[derive(Debug)]");
+    g!("#[derive(Debug, Clone)]");
     g!("#[non_exhaustive]");
     g!("pub enum {} {{", ty.name);
 
@@ -524,6 +642,10 @@ fn can_derive_default(ty: &rust::Struct, rust_types: &RustTypes) -> bool {
     ty.fields.iter().all(|field| is_default_field(field, rust_types))
 }
 
+fn can_derive_clone(ty: &rust::Struct, rust_types: &RustTypes) -> bool {
+    ty.fields.iter().all(|field| is_cloneable(&field.type_, rust_types))
+}
+
 fn is_rust_default(v: &Value) -> bool {
     match v {
         Value::Bool(x) => !x,
@@ -543,6 +665,29 @@ fn is_default_field(field: &rust::StructField, rust_types: &RustTypes) -> bool {
     }
 
     field.default_value.as_ref().map_or(false, is_rust_default)
+}
+
+fn is_cloneable(type_name: &String, rust_types: &RustTypes) -> bool {
+    let Some(type_) = &rust_types.get(type_name) else {
+        return match type_name.as_str() {
+            "String" | "i64" | "i32" | "bool" => true,
+            _ => false
+        }
+    };
+    match type_ {
+        rust::Type::Provided(ty) => match ty.name.as_str() {
+            "StreamingBlob" => false,
+            "Body" | "Event" | "CopySource" | "Range" | "ContentType" => true,
+            _ => false,
+        },
+        rust::Type::StrEnum(_ty) => true,
+        rust::Type::Timestamp(_ty) => true,
+        rust::Type::Alias(ty) => is_cloneable(&ty.type_, rust_types),
+        rust::Type::List(ty) => is_cloneable(&ty.member.type_, rust_types),
+        rust::Type::Map(ty) => is_cloneable(&ty.key_type, rust_types) && is_cloneable(&ty.value_type, rust_types),
+        rust::Type::Struct(ty) => ty.fields.iter().all(|v| is_cloneable(&v.type_, rust_types)),
+        rust::Type::StructEnum(ty) => ty.variants.iter().all(|v| is_cloneable(&v.type_, rust_types)),
+    }
 }
 
 fn codegen_builders(rust_types: &RustTypes, ops: &Operations) {

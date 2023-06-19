@@ -17,7 +17,7 @@ pub type AbortDate = Timestamp;
 /// wait before permanently removing all parts of the upload. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config">
 /// Aborting Incomplete Multipart Uploads Using a Bucket Lifecycle Configuration</a> in the
 /// <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AbortIncompleteMultipartUpload {
     /// <p>Specifies the number of days after which Amazon S3 aborts an incomplete multipart
     /// upload.</p>
@@ -32,6 +32,15 @@ impl fmt::Debug for AbortIncompleteMultipartUpload {
     }
 }
 
+impl SplitMetadata for AbortIncompleteMultipartUpload {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct AbortMultipartUploadInput {
     /// <p>The bucket name to which the upload was taking place. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -69,8 +78,15 @@ impl AbortMultipartUploadInput {
         default()
     }
 }
+impl SplitMetadata for AbortMultipartUploadInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AbortMultipartUploadOutput {
     pub request_charged: Option<RequestCharged>,
 }
@@ -85,12 +101,20 @@ impl fmt::Debug for AbortMultipartUploadOutput {
     }
 }
 
+impl SplitMetadata for AbortMultipartUploadOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type AbortRuleId = String;
 
 /// <p>Configures the transfer acceleration state for an Amazon S3 bucket. For more information, see
 /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html">Amazon S3
 /// Transfer Acceleration</a> in the <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AccelerateConfiguration {
     /// <p>Specifies the transfer acceleration status of the bucket.</p>
     pub status: Option<BucketAccelerateStatus>,
@@ -106,10 +130,18 @@ impl fmt::Debug for AccelerateConfiguration {
     }
 }
 
+impl SplitMetadata for AccelerateConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type AcceptRanges = String;
 
 /// <p>Contains the elements that set the ACL permissions for an object per grantee.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AccessControlPolicy {
     /// <p>A list of grants.</p>
     pub grants: Option<Grants>,
@@ -130,7 +162,16 @@ impl fmt::Debug for AccessControlPolicy {
     }
 }
 
+impl SplitMetadata for AccessControlPolicy {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A container for information about access control for replicas.</p>
+#[derive(Clone)]
 pub struct AccessControlTranslation {
     /// <p>Specifies the replica ownership. For default and valid values, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTreplication.html">PUT bucket
     /// replication</a> in the <i>Amazon S3 API Reference</i>.</p>
@@ -142,6 +183,14 @@ impl fmt::Debug for AccessControlTranslation {
         let mut d = f.debug_struct("AccessControlTranslation");
         d.field("owner", &self.owner);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for AccessControlTranslation {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -166,7 +215,7 @@ pub type AllowedOrigins = List<AllowedOrigin>;
 /// <p>A conjunction (logical AND) of predicates, which is used in evaluating a metrics filter.
 /// The operator must have at least two predicates in any combination, and an object must match
 /// all of the predicates for the filter to apply.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct AnalyticsAndOperator {
     /// <p>The prefix to use when evaluating an AND predicate: The prefix that an object must have
     /// to be included in the metrics results.</p>
@@ -188,8 +237,17 @@ impl fmt::Debug for AnalyticsAndOperator {
     }
 }
 
+impl SplitMetadata for AnalyticsAndOperator {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the configuration and any analyses for the analytics filter of an Amazon S3
 /// bucket.</p>
+#[derive(Clone)]
 pub struct AnalyticsConfiguration {
     /// <p>The filter used to describe a set of objects for analyses. A filter must have exactly
     /// one prefix, one tag, or one conjunction (AnalyticsAndOperator). If no filter is provided,
@@ -214,9 +272,18 @@ impl fmt::Debug for AnalyticsConfiguration {
     }
 }
 
+impl SplitMetadata for AnalyticsConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type AnalyticsConfigurationList = List<AnalyticsConfiguration>;
 
 /// <p>Where to publish the analytics results.</p>
+#[derive(Clone)]
 pub struct AnalyticsExportDestination {
     /// <p>A destination signifying output to an S3 bucket.</p>
     pub s3_bucket_destination: AnalyticsS3BucketDestination,
@@ -230,10 +297,18 @@ impl fmt::Debug for AnalyticsExportDestination {
     }
 }
 
+impl SplitMetadata for AnalyticsExportDestination {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The filter used to describe a set of objects for analyses. A filter must have exactly
 /// one prefix, one tag, or one conjunction (AnalyticsAndOperator). If no filter is provided,
 /// all objects will be considered in any analysis.</p>
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum AnalyticsFilter {
     /// <p>A conjunction (logical AND) of predicates, which is used in evaluating an analytics
@@ -248,6 +323,7 @@ pub enum AnalyticsFilter {
 pub type AnalyticsId = String;
 
 /// <p>Contains information about where to publish the analytics results.</p>
+#[derive(Clone)]
 pub struct AnalyticsS3BucketDestination {
     /// <p>The Amazon Resource Name (ARN) of the bucket to which data is exported.</p>
     pub bucket: BucketName,
@@ -276,6 +352,14 @@ impl fmt::Debug for AnalyticsS3BucketDestination {
             d.field("prefix", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for AnalyticsS3BucketDestination {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -355,7 +439,7 @@ impl FromStr for ArchiveStatus {
 
 /// <p> In terms of implementation, a Bucket is a resource. An Amazon S3 bucket name is globally
 /// unique, and the namespace is shared by all Amazon Web Services accounts. </p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Bucket {
     /// <p>Date the bucket was created. This date can change when making changes to your bucket,
     /// such as editing its bucket policy.</p>
@@ -374,6 +458,14 @@ impl fmt::Debug for Bucket {
             d.field("name", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for Bucket {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -417,7 +509,7 @@ impl FromStr for BucketAccelerateStatus {
 
 /// <p>The requested bucket name is not available. The bucket namespace is shared by all users
 /// of the system. Select a different name and try again.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BucketAlreadyExists {}
 
 impl fmt::Debug for BucketAlreadyExists {
@@ -427,17 +519,33 @@ impl fmt::Debug for BucketAlreadyExists {
     }
 }
 
+impl SplitMetadata for BucketAlreadyExists {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The bucket you tried to create already exists, and you own it. Amazon S3 returns this error
 /// in all Amazon Web Services Regions except in the North Virginia Region. For legacy compatibility, if you
 /// re-create an existing bucket that you already own in the North Virginia Region, Amazon S3
 /// returns 200 OK and resets the bucket access control lists (ACLs).</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BucketAlreadyOwnedByYou {}
 
 impl fmt::Debug for BucketAlreadyOwnedByYou {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("BucketAlreadyOwnedByYou");
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for BucketAlreadyOwnedByYou {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -488,7 +596,7 @@ pub type BucketKeyEnabled = bool;
 /// <p>Specifies the lifecycle configuration for objects in an Amazon S3 bucket. For more
 /// information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html">Object Lifecycle Management</a>
 /// in the <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BucketLifecycleConfiguration {
     /// <p>A lifecycle rule for individual objects in an Amazon S3 bucket.</p>
     pub rules: LifecycleRules,
@@ -499,6 +607,14 @@ impl fmt::Debug for BucketLifecycleConfiguration {
         let mut d = f.debug_struct("BucketLifecycleConfiguration");
         d.field("rules", &self.rules);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for BucketLifecycleConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -589,7 +705,7 @@ impl FromStr for BucketLocationConstraint {
 }
 
 /// <p>Container for logging status information.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct BucketLoggingStatus {
     pub logging_enabled: Option<LoggingEnabled>,
 }
@@ -601,6 +717,14 @@ impl fmt::Debug for BucketLoggingStatus {
             d.field("logging_enabled", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for BucketLoggingStatus {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -698,7 +822,7 @@ pub type BytesScanned = i64;
 /// information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html">Enabling
 /// Cross-Origin Resource Sharing</a> in the
 /// <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CORSConfiguration {
     /// <p>A set of origins and methods (cross-origin access that you want to allow). You can add
     /// up to 100 rules to the configuration.</p>
@@ -713,8 +837,16 @@ impl fmt::Debug for CORSConfiguration {
     }
 }
 
+impl SplitMetadata for CORSConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies a cross-origin access rule for an Amazon S3 bucket.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CORSRule {
     /// <p>Headers that are specified in the <code>Access-Control-Request-Headers</code> header.
     /// These headers are allowed in a preflight OPTIONS request. In response to any preflight
@@ -755,11 +887,19 @@ impl fmt::Debug for CORSRule {
     }
 }
 
+impl SplitMetadata for CORSRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type CORSRules = List<CORSRule>;
 
 /// <p>Describes how an uncompressed comma-separated values (CSV)-formatted input object is
 /// formatted.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CSVInput {
     /// <p>Specifies that CSV field values may contain quoted record delimiters and such records
     /// should be allowed. Default value is FALSE. Setting this value to TRUE may lower
@@ -837,9 +977,17 @@ impl fmt::Debug for CSVInput {
     }
 }
 
+impl SplitMetadata for CSVInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Describes how uncompressed comma-separated values (CSV)-formatted results are
 /// formatted.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CSVOutput {
     /// <p>The value used to separate individual fields in a record. You can specify an arbitrary
     /// delimiter.</p>
@@ -890,10 +1038,18 @@ impl fmt::Debug for CSVOutput {
     }
 }
 
+impl SplitMetadata for CSVOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type CacheControl = String;
 
 /// <p>Contains all the possible checksum or digest values for an object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Checksum {
     /// <p>The base64-encoded, 32-bit CRC32 checksum of the object. This will only be present if it was uploaded
     /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
@@ -933,6 +1089,14 @@ impl fmt::Debug for Checksum {
             d.field("checksum_sha256", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for Checksum {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -1032,7 +1196,7 @@ pub type Comments = String;
 /// string specified by a delimiter. CommonPrefixes lists keys that act like subdirectories in
 /// the directory specified by Prefix. For example, if the prefix is notes/ and the delimiter
 /// is a slash (/) as in notes/summer/july, the common prefix is notes/summer/. </p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CommonPrefix {
     /// <p>Container for the specified common prefix.</p>
     pub prefix: Option<Prefix>,
@@ -1048,8 +1212,17 @@ impl fmt::Debug for CommonPrefix {
     }
 }
 
+impl SplitMetadata for CommonPrefix {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type CommonPrefixList = List<CommonPrefix>;
 
+#[derive(Clone)]
 pub struct CompleteMultipartUploadInput {
     /// <p>Name of the bucket to which the multipart upload was initiated.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -1148,8 +1321,15 @@ impl CompleteMultipartUploadInput {
         default()
     }
 }
+impl SplitMetadata for CompleteMultipartUploadInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CompleteMultipartUploadOutput {
     /// <p>The name of the bucket that contains the newly created object. Does not return the access point
     /// ARN or access point alias if used.</p>
@@ -1255,8 +1435,16 @@ impl fmt::Debug for CompleteMultipartUploadOutput {
     }
 }
 
+impl SplitMetadata for CompleteMultipartUploadOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The container for the completed multipart upload details.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CompletedMultipartUpload {
     /// <p>Array of CompletedPart data types.</p>
     /// <p>If you do not supply a valid <code>Part</code> with your request, the service sends back
@@ -1274,8 +1462,16 @@ impl fmt::Debug for CompletedMultipartUpload {
     }
 }
 
+impl SplitMetadata for CompletedMultipartUpload {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Details of the parts that were uploaded.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CompletedPart {
     /// <p>The base64-encoded, 32-bit CRC32 checksum of the object. This will only be present if it was uploaded
     /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
@@ -1327,6 +1523,14 @@ impl fmt::Debug for CompletedPart {
     }
 }
 
+impl SplitMetadata for CompletedPart {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type CompletedPartList = List<CompletedPart>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1373,7 +1577,7 @@ impl FromStr for CompressionType {
 /// apply. For example, 1. If request is for pages in the <code>/docs</code> folder, redirect
 /// to the <code>/documents</code> folder. 2. If request results in HTTP error 4xx, redirect
 /// request to another host where you might process the error.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Condition {
     /// <p>The HTTP error code when the redirect is applied. In the event of an error, if the error
     /// code equals this value, then the specified redirect is applied. Required when parent
@@ -1410,6 +1614,14 @@ impl fmt::Debug for Condition {
     }
 }
 
+impl SplitMetadata for Condition {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ConfirmRemoveSelfBucketAccess = bool;
 
 pub type ContentDisposition = String;
@@ -1425,7 +1637,7 @@ pub type ContentMD5 = String;
 pub type ContentRange = String;
 
 /// <p></p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ContinuationEvent {}
 
 impl fmt::Debug for ContinuationEvent {
@@ -1435,6 +1647,15 @@ impl fmt::Debug for ContinuationEvent {
     }
 }
 
+impl SplitMetadata for ContinuationEvent {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct CopyObjectInput {
     /// <p>The canned ACL to apply to the object.</p>
     /// <p>This action is not supported by Amazon S3 on Outposts.</p>
@@ -1718,8 +1939,15 @@ impl CopyObjectInput {
         default()
     }
 }
+impl SplitMetadata for CopyObjectInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CopyObjectOutput {
     /// <p>Indicates whether the copied object uses an S3 Bucket Key for server-side encryption
     /// with Amazon Web Services KMS (SSE-KMS).</p>
@@ -1790,8 +2018,16 @@ impl fmt::Debug for CopyObjectOutput {
     }
 }
 
+impl SplitMetadata for CopyObjectOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for all response elements.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CopyObjectResult {
     /// <p>The base64-encoded, 32-bit CRC32 checksum of the object. This will only be present if it was uploaded
     /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
@@ -1845,8 +2081,16 @@ impl fmt::Debug for CopyObjectResult {
     }
 }
 
+impl SplitMetadata for CopyObjectResult {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for all response elements.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CopyPartResult {
     /// <p>The base64-encoded, 32-bit CRC32 checksum of the object. This will only be present if it was uploaded
     /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
@@ -1899,6 +2143,14 @@ impl fmt::Debug for CopyPartResult {
     }
 }
 
+impl SplitMetadata for CopyPartResult {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type CopySourceIfMatch = String;
 
 pub type CopySourceIfModifiedSince = Timestamp;
@@ -1918,7 +2170,7 @@ pub type CopySourceSSECustomerKeyMD5 = String;
 pub type CopySourceVersionId = String;
 
 /// <p>The configuration information for the bucket.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CreateBucketConfiguration {
     /// <p>Specifies the Region where the bucket will be created. If you don't specify a Region,
     /// the bucket is created in the US East (N. Virginia) Region (us-east-1).</p>
@@ -1935,6 +2187,15 @@ impl fmt::Debug for CreateBucketConfiguration {
     }
 }
 
+impl SplitMetadata for CreateBucketConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct CreateBucketInput {
     /// <p>The canned ACL to apply to the bucket.</p>
     pub acl: Option<BucketCannedACL>,
@@ -2001,8 +2262,15 @@ impl CreateBucketInput {
         default()
     }
 }
+impl SplitMetadata for CreateBucketInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CreateBucketOutput {
     /// <p>A forward slash followed by the name of the bucket.</p>
     pub location: Option<Location>,
@@ -2018,6 +2286,15 @@ impl fmt::Debug for CreateBucketOutput {
     }
 }
 
+impl SplitMetadata for CreateBucketOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct CreateMultipartUploadInput {
     /// <p>The canned ACL to apply to the object.</p>
     /// <p>This action is not supported by Amazon S3 on Outposts.</p>
@@ -2214,8 +2491,15 @@ impl CreateMultipartUploadInput {
         default()
     }
 }
+impl SplitMetadata for CreateMultipartUploadInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CreateMultipartUploadOutput {
     /// <p>If the bucket has a lifecycle rule configured with an action to abort incomplete
     /// multipart uploads and the prefix in the lifecycle rule matches the object name in the
@@ -2308,6 +2592,14 @@ impl fmt::Debug for CreateMultipartUploadOutput {
     }
 }
 
+impl SplitMetadata for CreateMultipartUploadOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type CreationDate = Timestamp;
 
 pub type Date = Timestamp;
@@ -2331,7 +2623,7 @@ pub type DaysAfterInitiation = i32;
 /// </li>
 /// </ul>
 /// </note>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DefaultRetention {
     /// <p>The number of days that you want to specify for the default retention period. Must be
     /// used with <code>Mode</code>.</p>
@@ -2356,8 +2648,16 @@ impl fmt::Debug for DefaultRetention {
     }
 }
 
+impl SplitMetadata for DefaultRetention {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for the objects to delete.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Delete {
     /// <p>The objects to delete.</p>
     pub objects: ObjectIdentifierList,
@@ -2375,6 +2675,15 @@ impl fmt::Debug for Delete {
     }
 }
 
+impl SplitMetadata for Delete {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketAnalyticsConfigurationInput {
     /// <p>The name of the bucket from which an analytics configuration is deleted.</p>
     pub bucket: BucketName,
@@ -2402,8 +2711,15 @@ impl DeleteBucketAnalyticsConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketAnalyticsConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketAnalyticsConfigurationOutput {}
 
 impl fmt::Debug for DeleteBucketAnalyticsConfigurationOutput {
@@ -2413,6 +2729,15 @@ impl fmt::Debug for DeleteBucketAnalyticsConfigurationOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketAnalyticsConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketCorsInput {
     /// <p>Specifies the bucket whose <code>cors</code> configuration is being deleted.</p>
     pub bucket: BucketName,
@@ -2437,8 +2762,15 @@ impl DeleteBucketCorsInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketCorsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketCorsOutput {}
 
 impl fmt::Debug for DeleteBucketCorsOutput {
@@ -2448,6 +2780,15 @@ impl fmt::Debug for DeleteBucketCorsOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketCorsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketEncryptionInput {
     /// <p>The name of the bucket containing the server-side encryption configuration to
     /// delete.</p>
@@ -2473,8 +2814,15 @@ impl DeleteBucketEncryptionInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketEncryptionInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketEncryptionOutput {}
 
 impl fmt::Debug for DeleteBucketEncryptionOutput {
@@ -2484,6 +2832,15 @@ impl fmt::Debug for DeleteBucketEncryptionOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketEncryptionOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketInput {
     /// <p>Specifies the bucket being deleted.</p>
     pub bucket: BucketName,
@@ -2508,7 +2865,15 @@ impl DeleteBucketInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
+#[derive(Clone)]
 pub struct DeleteBucketIntelligentTieringConfigurationInput {
     /// <p>The name of the Amazon S3 bucket whose configuration you want to modify or retrieve.</p>
     pub bucket: BucketName,
@@ -2531,8 +2896,15 @@ impl DeleteBucketIntelligentTieringConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketIntelligentTieringConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketIntelligentTieringConfigurationOutput {}
 
 impl fmt::Debug for DeleteBucketIntelligentTieringConfigurationOutput {
@@ -2542,6 +2914,15 @@ impl fmt::Debug for DeleteBucketIntelligentTieringConfigurationOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketIntelligentTieringConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketInventoryConfigurationInput {
     /// <p>The name of the bucket containing the inventory configuration to delete.</p>
     pub bucket: BucketName,
@@ -2569,8 +2950,15 @@ impl DeleteBucketInventoryConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketInventoryConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketInventoryConfigurationOutput {}
 
 impl fmt::Debug for DeleteBucketInventoryConfigurationOutput {
@@ -2580,6 +2968,15 @@ impl fmt::Debug for DeleteBucketInventoryConfigurationOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketInventoryConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketLifecycleInput {
     /// <p>The bucket name of the lifecycle to delete.</p>
     pub bucket: BucketName,
@@ -2604,8 +3001,15 @@ impl DeleteBucketLifecycleInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketLifecycleInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketLifecycleOutput {}
 
 impl fmt::Debug for DeleteBucketLifecycleOutput {
@@ -2615,6 +3019,15 @@ impl fmt::Debug for DeleteBucketLifecycleOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketLifecycleOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketMetricsConfigurationInput {
     /// <p>The name of the bucket containing the metrics configuration to delete.</p>
     pub bucket: BucketName,
@@ -2643,8 +3056,15 @@ impl DeleteBucketMetricsConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketMetricsConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketMetricsConfigurationOutput {}
 
 impl fmt::Debug for DeleteBucketMetricsConfigurationOutput {
@@ -2654,7 +3074,15 @@ impl fmt::Debug for DeleteBucketMetricsConfigurationOutput {
     }
 }
 
-#[derive(Default)]
+impl SplitMetadata for DeleteBucketMetricsConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct DeleteBucketOutput {}
 
 impl fmt::Debug for DeleteBucketOutput {
@@ -2664,6 +3092,15 @@ impl fmt::Debug for DeleteBucketOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketOwnershipControlsInput {
     /// <p>The Amazon S3 bucket whose <code>OwnershipControls</code> you want to delete. </p>
     pub bucket: BucketName,
@@ -2688,8 +3125,15 @@ impl DeleteBucketOwnershipControlsInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketOwnershipControlsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketOwnershipControlsOutput {}
 
 impl fmt::Debug for DeleteBucketOwnershipControlsOutput {
@@ -2699,6 +3143,15 @@ impl fmt::Debug for DeleteBucketOwnershipControlsOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketOwnershipControlsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketPolicyInput {
     /// <p>The bucket name.</p>
     pub bucket: BucketName,
@@ -2723,8 +3176,15 @@ impl DeleteBucketPolicyInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketPolicyInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketPolicyOutput {}
 
 impl fmt::Debug for DeleteBucketPolicyOutput {
@@ -2734,6 +3194,15 @@ impl fmt::Debug for DeleteBucketPolicyOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketPolicyOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketReplicationInput {
     /// <p> The bucket name. </p>
     pub bucket: BucketName,
@@ -2758,8 +3227,15 @@ impl DeleteBucketReplicationInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketReplicationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketReplicationOutput {}
 
 impl fmt::Debug for DeleteBucketReplicationOutput {
@@ -2769,6 +3245,15 @@ impl fmt::Debug for DeleteBucketReplicationOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketReplicationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketTaggingInput {
     /// <p>The bucket that has the tag set to be removed.</p>
     pub bucket: BucketName,
@@ -2793,8 +3278,15 @@ impl DeleteBucketTaggingInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketTaggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketTaggingOutput {}
 
 impl fmt::Debug for DeleteBucketTaggingOutput {
@@ -2804,6 +3296,15 @@ impl fmt::Debug for DeleteBucketTaggingOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketTaggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteBucketWebsiteInput {
     /// <p>The bucket name for which you want to remove the website configuration. </p>
     pub bucket: BucketName,
@@ -2828,8 +3329,15 @@ impl DeleteBucketWebsiteInput {
         default()
     }
 }
+impl SplitMetadata for DeleteBucketWebsiteInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteBucketWebsiteOutput {}
 
 impl fmt::Debug for DeleteBucketWebsiteOutput {
@@ -2839,10 +3347,18 @@ impl fmt::Debug for DeleteBucketWebsiteOutput {
     }
 }
 
+impl SplitMetadata for DeleteBucketWebsiteOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type DeleteMarker = bool;
 
 /// <p>Information about the delete marker.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteMarkerEntry {
     /// <p>Specifies whether the object is (true) or is not (false) the latest version of an
     /// object.</p>
@@ -2877,6 +3393,14 @@ impl fmt::Debug for DeleteMarkerEntry {
     }
 }
 
+impl SplitMetadata for DeleteMarkerEntry {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies whether Amazon S3 replicates delete markers. If you specify a <code>Filter</code>
 /// in your replication configuration, you must also include a
 /// <code>DeleteMarkerReplication</code> element. If your <code>Filter</code> includes a
@@ -2889,7 +3413,7 @@ impl fmt::Debug for DeleteMarkerEntry {
 /// <p>If you are using an earlier version of the replication configuration, Amazon S3 handles
 /// replication of delete markers differently. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations">Backward Compatibility</a>.</p>
 /// </note>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteMarkerReplication {
     /// <p>Indicates whether to replicate delete markers.</p>
     /// <note>
@@ -2905,6 +3429,14 @@ impl fmt::Debug for DeleteMarkerReplication {
             d.field("status", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for DeleteMarkerReplication {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -2950,6 +3482,7 @@ pub type DeleteMarkerVersionId = String;
 
 pub type DeleteMarkers = List<DeleteMarkerEntry>;
 
+#[derive(Clone)]
 pub struct DeleteObjectInput {
     /// <p>The bucket name of the bucket containing the object. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -3003,8 +3536,15 @@ impl DeleteObjectInput {
         default()
     }
 }
+impl SplitMetadata for DeleteObjectInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteObjectOutput {
     /// <p>Specifies whether the versioned object that was permanently deleted was (true) or was
     /// not (false) a delete marker.</p>
@@ -3029,6 +3569,15 @@ impl fmt::Debug for DeleteObjectOutput {
     }
 }
 
+impl SplitMetadata for DeleteObjectOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteObjectTaggingInput {
     /// <p>The bucket name containing the objects from which to remove the tags. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -3064,8 +3613,15 @@ impl DeleteObjectTaggingInput {
         default()
     }
 }
+impl SplitMetadata for DeleteObjectTaggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteObjectTaggingOutput {
     /// <p>The versionId of the object the tag-set was removed from.</p>
     pub version_id: Option<ObjectVersionId>,
@@ -3081,6 +3637,15 @@ impl fmt::Debug for DeleteObjectTaggingOutput {
     }
 }
 
+impl SplitMetadata for DeleteObjectTaggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeleteObjectsInput {
     /// <p>The bucket name containing the objects to delete. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -3142,8 +3707,15 @@ impl DeleteObjectsInput {
         default()
     }
 }
+impl SplitMetadata for DeleteObjectsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeleteObjectsOutput {
     /// <p>Container element for a successful delete. It identifies the object that was
     /// successfully deleted.</p>
@@ -3170,6 +3742,15 @@ impl fmt::Debug for DeleteObjectsOutput {
     }
 }
 
+impl SplitMetadata for DeleteObjectsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct DeletePublicAccessBlockInput {
     /// <p>The Amazon S3 bucket whose <code>PublicAccessBlock</code> configuration you want to delete.
     /// </p>
@@ -3195,8 +3776,15 @@ impl DeletePublicAccessBlockInput {
         default()
     }
 }
+impl SplitMetadata for DeletePublicAccessBlockInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeletePublicAccessBlockOutput {}
 
 impl fmt::Debug for DeletePublicAccessBlockOutput {
@@ -3206,8 +3794,16 @@ impl fmt::Debug for DeletePublicAccessBlockOutput {
     }
 }
 
+impl SplitMetadata for DeletePublicAccessBlockOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Information about the deleted object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DeletedObject {
     /// <p>Specifies whether the versioned object that was permanently deleted was (true) or was
     /// not (false) a delete marker. In a simple DELETE, this header indicates whether (true) or
@@ -3240,6 +3836,14 @@ impl fmt::Debug for DeletedObject {
     }
 }
 
+impl SplitMetadata for DeletedObject {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type DeletedObjects = List<DeletedObject>;
 
 pub type Delimiter = String;
@@ -3248,6 +3852,7 @@ pub type Description = String;
 
 /// <p>Specifies information about where to publish analysis or configuration results for an
 /// Amazon S3 bucket and S3 Replication Time Control (S3 RTC).</p>
+#[derive(Clone)]
 pub struct Destination {
     /// <p>Specify this only in a cross-account scenario (where source and destination bucket
     /// owners are not the same), and you want to change replica ownership to the Amazon Web Services account
@@ -3309,6 +3914,14 @@ impl fmt::Debug for Destination {
     }
 }
 
+impl SplitMetadata for Destination {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type DisplayName = String;
 
 pub type ETag = String;
@@ -3359,6 +3972,7 @@ impl FromStr for EncodingType {
 }
 
 /// <p>Contains the type of server-side encryption used.</p>
+#[derive(Clone)]
 pub struct Encryption {
     /// <p>The server-side encryption algorithm used when storing job results in Amazon S3 (for example,
     /// AES256, <code>aws:kms</code>).</p>
@@ -3387,9 +4001,17 @@ impl fmt::Debug for Encryption {
     }
 }
 
+impl SplitMetadata for Encryption {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies encryption-related information for an Amazon S3 bucket that is a destination for
 /// replicated objects.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EncryptionConfiguration {
     /// <p>Specifies the ID (Key ARN or Alias ARN) of the customer managed Amazon Web Services KMS key stored in
     /// Amazon Web Services Key Management Service (KMS) for the destination bucket. Amazon S3 uses this key to
@@ -3410,12 +4032,20 @@ impl fmt::Debug for EncryptionConfiguration {
     }
 }
 
+impl SplitMetadata for EncryptionConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type End = i64;
 
 /// <p>A message that indicates the request is complete and no more messages will be sent. You
 /// should not assume that the request is complete until the client receives an
 /// <code>EndEvent</code>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EndEvent {}
 
 impl fmt::Debug for EndEvent {
@@ -3425,8 +4055,16 @@ impl fmt::Debug for EndEvent {
     }
 }
 
+impl SplitMetadata for EndEvent {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for all error elements.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Error {
     /// <p>The error code is a string that uniquely identifies an error condition. It is meant to
     /// be read and understood by programs that detect and handle errors by type. The following is
@@ -5324,9 +5962,18 @@ impl fmt::Debug for Error {
     }
 }
 
+impl SplitMetadata for Error {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ErrorCode = String;
 
 /// <p>The error information.</p>
+#[derive(Clone)]
 pub struct ErrorDocument {
     /// <p>The object key name to use when a 4XX class error occurs.</p>
     /// <important>
@@ -5345,12 +5992,20 @@ impl fmt::Debug for ErrorDocument {
     }
 }
 
+impl SplitMetadata for ErrorDocument {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ErrorMessage = String;
 
 pub type Errors = List<Error>;
 
 /// <p>A container for specifying the configuration for Amazon EventBridge.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EventBridgeConfiguration {}
 
 impl fmt::Debug for EventBridgeConfiguration {
@@ -5360,11 +6015,20 @@ impl fmt::Debug for EventBridgeConfiguration {
     }
 }
 
+impl SplitMetadata for EventBridgeConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type EventList = List<Event>;
 
 /// <p>Optional configuration to replicate existing source bucket objects. For more
 /// information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication">Replicating Existing Objects</a> in the <i>Amazon S3 User Guide</i>.
 /// </p>
+#[derive(Clone)]
 pub struct ExistingObjectReplication {
     /// <p>Specifies whether Amazon S3 replicates existing source bucket objects. </p>
     pub status: ExistingObjectReplicationStatus,
@@ -5375,6 +6039,14 @@ impl fmt::Debug for ExistingObjectReplication {
         let mut d = f.debug_struct("ExistingObjectReplication");
         d.field("status", &self.status);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ExistingObjectReplication {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -5548,7 +6220,7 @@ impl FromStr for FileHeaderInfo {
 
 /// <p>Specifies the Amazon S3 object key name to filter on and whether to filter on the suffix or
 /// prefix of the key name.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FilterRule {
     /// <p>The object key name prefix or suffix identifying one or more objects to which the
     /// filtering rule applies. The maximum length is 1,024 characters. Overlapping prefixes and
@@ -5569,6 +6241,14 @@ impl fmt::Debug for FilterRule {
             d.field("value", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for FilterRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -5616,6 +6296,7 @@ impl FromStr for FilterRuleName {
 
 pub type FilterRuleValue = String;
 
+#[derive(Clone)]
 pub struct GetBucketAccelerateConfigurationInput {
     /// <p>The name of the bucket for which the accelerate configuration is retrieved.</p>
     pub bucket: BucketName,
@@ -5640,8 +6321,15 @@ impl GetBucketAccelerateConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketAccelerateConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketAccelerateConfigurationOutput {
     /// <p>The accelerate configuration of the bucket.</p>
     pub status: Option<BucketAccelerateStatus>,
@@ -5657,6 +6345,15 @@ impl fmt::Debug for GetBucketAccelerateConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketAccelerateConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketAclInput {
     /// <p>Specifies the S3 bucket whose ACL is being requested.</p>
     /// <p>To use this API operation against an access point, provide the alias of the access point in place of the bucket name.</p>
@@ -5686,8 +6383,15 @@ impl GetBucketAclInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketAclInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketAclOutput {
     /// <p>A list of grants.</p>
     pub grants: Option<Grants>,
@@ -5708,6 +6412,15 @@ impl fmt::Debug for GetBucketAclOutput {
     }
 }
 
+impl SplitMetadata for GetBucketAclOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketAnalyticsConfigurationInput {
     /// <p>The name of the bucket from which an analytics configuration is retrieved.</p>
     pub bucket: BucketName,
@@ -5735,8 +6448,15 @@ impl GetBucketAnalyticsConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketAnalyticsConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketAnalyticsConfigurationOutput {
     /// <p>The configuration and any analyses for the analytics filter.</p>
     pub analytics_configuration: Option<AnalyticsConfiguration>,
@@ -5752,6 +6472,15 @@ impl fmt::Debug for GetBucketAnalyticsConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketAnalyticsConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketCorsInput {
     /// <p>The bucket name for which to get the cors configuration.</p>
     /// <p>To use this API operation against an access point, provide the alias of the access point in place of the bucket name.</p>
@@ -5781,8 +6510,15 @@ impl GetBucketCorsInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketCorsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketCorsOutput {
     /// <p>A set of origins and methods (cross-origin access that you want to allow). You can add
     /// up to 100 rules to the configuration.</p>
@@ -5799,6 +6535,15 @@ impl fmt::Debug for GetBucketCorsOutput {
     }
 }
 
+impl SplitMetadata for GetBucketCorsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketEncryptionInput {
     /// <p>The name of the bucket from which the server-side encryption configuration is
     /// retrieved.</p>
@@ -5824,8 +6569,15 @@ impl GetBucketEncryptionInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketEncryptionInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketEncryptionOutput {
     pub server_side_encryption_configuration: Option<ServerSideEncryptionConfiguration>,
 }
@@ -5840,6 +6592,15 @@ impl fmt::Debug for GetBucketEncryptionOutput {
     }
 }
 
+impl SplitMetadata for GetBucketEncryptionOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketIntelligentTieringConfigurationInput {
     /// <p>The name of the Amazon S3 bucket whose configuration you want to modify or retrieve.</p>
     pub bucket: BucketName,
@@ -5862,8 +6623,15 @@ impl GetBucketIntelligentTieringConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketIntelligentTieringConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketIntelligentTieringConfigurationOutput {
     /// <p>Container for S3 Intelligent-Tiering configuration.</p>
     pub intelligent_tiering_configuration: Option<IntelligentTieringConfiguration>,
@@ -5879,6 +6647,15 @@ impl fmt::Debug for GetBucketIntelligentTieringConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketIntelligentTieringConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketInventoryConfigurationInput {
     /// <p>The name of the bucket containing the inventory configuration to retrieve.</p>
     pub bucket: BucketName,
@@ -5906,8 +6683,15 @@ impl GetBucketInventoryConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketInventoryConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketInventoryConfigurationOutput {
     /// <p>Specifies the inventory configuration.</p>
     pub inventory_configuration: Option<InventoryConfiguration>,
@@ -5923,6 +6707,15 @@ impl fmt::Debug for GetBucketInventoryConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketInventoryConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketLifecycleConfigurationInput {
     /// <p>The name of the bucket for which to get the lifecycle information.</p>
     pub bucket: BucketName,
@@ -5947,8 +6740,15 @@ impl GetBucketLifecycleConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketLifecycleConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketLifecycleConfigurationOutput {
     /// <p>Container for a lifecycle rule.</p>
     pub rules: Option<LifecycleRules>,
@@ -5964,6 +6764,15 @@ impl fmt::Debug for GetBucketLifecycleConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketLifecycleConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketLocationInput {
     /// <p>The name of the bucket for which to get the location.</p>
     /// <p>To use this API operation against an access point, provide the alias of the access point in place of the bucket name.</p>
@@ -5993,8 +6802,15 @@ impl GetBucketLocationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketLocationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketLocationOutput {
     /// <p>Specifies the Region where the bucket resides. For a list of all the Amazon S3 supported
     /// location constraints by Region, see <a href="https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region">Regions and Endpoints</a>. Buckets in
@@ -6012,6 +6828,15 @@ impl fmt::Debug for GetBucketLocationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketLocationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketLoggingInput {
     /// <p>The bucket name for which to get the logging information.</p>
     pub bucket: BucketName,
@@ -6036,8 +6861,15 @@ impl GetBucketLoggingInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketLoggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketLoggingOutput {
     pub logging_enabled: Option<LoggingEnabled>,
 }
@@ -6052,6 +6884,15 @@ impl fmt::Debug for GetBucketLoggingOutput {
     }
 }
 
+impl SplitMetadata for GetBucketLoggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketMetricsConfigurationInput {
     /// <p>The name of the bucket containing the metrics configuration to retrieve.</p>
     pub bucket: BucketName,
@@ -6080,8 +6921,15 @@ impl GetBucketMetricsConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketMetricsConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketMetricsConfigurationOutput {
     /// <p>Specifies the metrics configuration.</p>
     pub metrics_configuration: Option<MetricsConfiguration>,
@@ -6097,6 +6945,15 @@ impl fmt::Debug for GetBucketMetricsConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketMetricsConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketNotificationConfigurationInput {
     /// <p>The name of the bucket for which to get the notification configuration.</p>
     /// <p>To use this API operation against an access point, provide the alias of the access point in place of the bucket name.</p>
@@ -6126,10 +6983,17 @@ impl GetBucketNotificationConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketNotificationConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
 /// <p>A container for specifying the notification configuration of the bucket. If this element
 /// is empty, notifications are turned off for the bucket.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketNotificationConfigurationOutput {
     /// <p>Enables delivery of events to Amazon EventBridge.</p>
     pub event_bridge_configuration: Option<EventBridgeConfiguration>,
@@ -6163,6 +7027,15 @@ impl fmt::Debug for GetBucketNotificationConfigurationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketNotificationConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketOwnershipControlsInput {
     /// <p>The name of the Amazon S3 bucket whose <code>OwnershipControls</code> you want to retrieve.
     /// </p>
@@ -6188,8 +7061,15 @@ impl GetBucketOwnershipControlsInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketOwnershipControlsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketOwnershipControlsOutput {
     /// <p>The <code>OwnershipControls</code> (BucketOwnerEnforced, BucketOwnerPreferred, or
     /// ObjectWriter) currently in effect for this Amazon S3 bucket.</p>
@@ -6206,6 +7086,15 @@ impl fmt::Debug for GetBucketOwnershipControlsOutput {
     }
 }
 
+impl SplitMetadata for GetBucketOwnershipControlsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketPolicyInput {
     /// <p>The bucket name for which to get the bucket policy.</p>
     /// <p>To use this API operation against an access point, provide the alias of the access point in place of the bucket name.</p>
@@ -6235,8 +7124,15 @@ impl GetBucketPolicyInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketPolicyInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketPolicyOutput {
     /// <p>The bucket policy as a JSON document.</p>
     pub policy: Option<Policy>,
@@ -6252,6 +7148,15 @@ impl fmt::Debug for GetBucketPolicyOutput {
     }
 }
 
+impl SplitMetadata for GetBucketPolicyOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketPolicyStatusInput {
     /// <p>The name of the Amazon S3 bucket whose policy status you want to retrieve.</p>
     pub bucket: BucketName,
@@ -6276,8 +7181,15 @@ impl GetBucketPolicyStatusInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketPolicyStatusInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketPolicyStatusOutput {
     /// <p>The policy status for the specified bucket.</p>
     pub policy_status: Option<PolicyStatus>,
@@ -6293,6 +7205,15 @@ impl fmt::Debug for GetBucketPolicyStatusOutput {
     }
 }
 
+impl SplitMetadata for GetBucketPolicyStatusOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketReplicationInput {
     /// <p>The bucket name for which to get the replication information.</p>
     pub bucket: BucketName,
@@ -6317,8 +7238,15 @@ impl GetBucketReplicationInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketReplicationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketReplicationOutput {
     pub replication_configuration: Option<ReplicationConfiguration>,
 }
@@ -6333,6 +7261,15 @@ impl fmt::Debug for GetBucketReplicationOutput {
     }
 }
 
+impl SplitMetadata for GetBucketReplicationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketRequestPaymentInput {
     /// <p>The name of the bucket for which to get the payment request configuration</p>
     pub bucket: BucketName,
@@ -6357,8 +7294,15 @@ impl GetBucketRequestPaymentInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketRequestPaymentInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketRequestPaymentOutput {
     /// <p>Specifies who pays for the download and request fees.</p>
     pub payer: Option<Payer>,
@@ -6374,6 +7318,15 @@ impl fmt::Debug for GetBucketRequestPaymentOutput {
     }
 }
 
+impl SplitMetadata for GetBucketRequestPaymentOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketTaggingInput {
     /// <p>The name of the bucket for which to get the tagging information.</p>
     pub bucket: BucketName,
@@ -6398,8 +7351,15 @@ impl GetBucketTaggingInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketTaggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketTaggingOutput {
     /// <p>Contains the tag set.</p>
     pub tag_set: TagSet,
@@ -6413,6 +7373,15 @@ impl fmt::Debug for GetBucketTaggingOutput {
     }
 }
 
+impl SplitMetadata for GetBucketTaggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketVersioningInput {
     /// <p>The name of the bucket for which to get the versioning information.</p>
     pub bucket: BucketName,
@@ -6437,8 +7406,15 @@ impl GetBucketVersioningInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketVersioningInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketVersioningOutput {
     /// <p>Specifies whether MFA delete is enabled in the bucket versioning configuration. This
     /// element is only returned if the bucket has been configured with MFA delete. If the bucket
@@ -6461,6 +7437,15 @@ impl fmt::Debug for GetBucketVersioningOutput {
     }
 }
 
+impl SplitMetadata for GetBucketVersioningOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetBucketWebsiteInput {
     /// <p>The bucket name for which to get the website configuration.</p>
     pub bucket: BucketName,
@@ -6485,8 +7470,15 @@ impl GetBucketWebsiteInput {
         default()
     }
 }
+impl SplitMetadata for GetBucketWebsiteInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetBucketWebsiteOutput {
     /// <p>The object key name of the website error document to use for 4XX class errors.</p>
     pub error_document: Option<ErrorDocument>,
@@ -6519,6 +7511,15 @@ impl fmt::Debug for GetBucketWebsiteOutput {
     }
 }
 
+impl SplitMetadata for GetBucketWebsiteOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetObjectAclInput {
     /// <p>The bucket name that contains the object for which to get the ACL information. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -6556,8 +7557,15 @@ impl GetObjectAclInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectAclInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectAclOutput {
     /// <p>A list of grants.</p>
     pub grants: Option<Grants>,
@@ -6582,6 +7590,15 @@ impl fmt::Debug for GetObjectAclOutput {
     }
 }
 
+impl SplitMetadata for GetObjectAclOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetObjectAttributesInput {
     /// <p>The name of the bucket that contains the object.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -6656,8 +7673,15 @@ impl GetObjectAttributesInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectAttributesInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectAttributesOutput {
     /// <p>The checksum or digest of the object.</p>
     pub checksum: Option<Checksum>,
@@ -6713,8 +7737,16 @@ impl fmt::Debug for GetObjectAttributesOutput {
     }
 }
 
+impl SplitMetadata for GetObjectAttributesOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A collection of parts associated with a multipart upload.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectAttributesParts {
     /// <p>Indicates whether the returned list of parts is truncated. A value of <code>true</code>
     /// indicates that the list was truncated. A list can be truncated if the number of parts
@@ -6754,6 +7786,15 @@ impl fmt::Debug for GetObjectAttributesParts {
     }
 }
 
+impl SplitMetadata for GetObjectAttributesParts {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetObjectInput {
     /// <p>The bucket name containing the object. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -6891,7 +7932,15 @@ impl GetObjectInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
+#[derive(Clone)]
 pub struct GetObjectLegalHoldInput {
     /// <p>The bucket name containing the object whose legal hold status you want to retrieve. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -6929,8 +7978,15 @@ impl GetObjectLegalHoldInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectLegalHoldInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectLegalHoldOutput {
     /// <p>The current legal hold status for the specified object.</p>
     pub legal_hold: Option<ObjectLockLegalHold>,
@@ -6946,6 +8002,15 @@ impl fmt::Debug for GetObjectLegalHoldOutput {
     }
 }
 
+impl SplitMetadata for GetObjectLegalHoldOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetObjectLockConfigurationInput {
     /// <p>The bucket whose Object Lock configuration you want to retrieve.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -6971,8 +8036,15 @@ impl GetObjectLockConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectLockConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectLockConfigurationOutput {
     /// <p>The specified bucket's Object Lock configuration.</p>
     pub object_lock_configuration: Option<ObjectLockConfiguration>,
@@ -6985,6 +8057,14 @@ impl fmt::Debug for GetObjectLockConfigurationOutput {
             d.field("object_lock_configuration", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for GetObjectLockConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -7202,8 +8282,318 @@ impl fmt::Debug for GetObjectOutput {
     }
 }
 
+#[derive(Default, Clone)]
+pub struct GetObjectOutputMeta {
+    /// <p>Indicates that a range of bytes was specified.</p>
+    pub accept_ranges: Option<AcceptRanges>,
+    /// <p>Indicates whether the object uses an S3 Bucket Key for server-side encryption with Amazon Web Services
+    /// KMS (SSE-KMS).</p>
+    pub bucket_key_enabled: BucketKeyEnabled,
+    /// <p>Specifies caching behavior along the request/reply chain.</p>
+    pub cache_control: Option<CacheControl>,
+    /// <p>The base64-encoded, 32-bit CRC32 checksum of the object. This will only be present if it was uploaded
+    /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
+    /// with multipart uploads, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums">
+    /// Checking object integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_crc32: Option<ChecksumCRC32>,
+    /// <p>The base64-encoded, 32-bit CRC32C checksum of the object. This will only be present if it was uploaded
+    /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
+    /// with multipart uploads, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums">
+    /// Checking object integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_crc32c: Option<ChecksumCRC32C>,
+    /// <p>The base64-encoded, 160-bit SHA-1 digest of the object. This will only be present if it was uploaded
+    /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
+    /// with multipart uploads, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums">
+    /// Checking object integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_sha1: Option<ChecksumSHA1>,
+    /// <p>The base64-encoded, 256-bit SHA-256 digest of the object. This will only be present if it was uploaded
+    /// with the object. With multipart uploads, this may not be a checksum value of the object. For more information about how checksums are calculated
+    /// with multipart uploads, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums">
+    /// Checking object integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_sha256: Option<ChecksumSHA256>,
+    /// <p>Specifies presentational information for the object.</p>
+    pub content_disposition: Option<ContentDisposition>,
+    /// <p>Specifies what content encodings have been applied to the object and thus what decoding
+    /// mechanisms must be applied to obtain the media-type referenced by the Content-Type header
+    /// field.</p>
+    pub content_encoding: Option<ContentEncoding>,
+    /// <p>The language the content is in.</p>
+    pub content_language: Option<ContentLanguage>,
+    /// <p>Size of the body in bytes.</p>
+    pub content_length: ContentLength,
+    /// <p>The portion of the object returned in the response.</p>
+    pub content_range: Option<ContentRange>,
+    /// <p>A standard MIME type describing the format of the object data.</p>
+    pub content_type: Option<ContentType>,
+    /// <p>Specifies whether the object retrieved was (true) or was not (false) a Delete Marker. If
+    /// false, this response header does not appear in the response.</p>
+    pub delete_marker: DeleteMarker,
+    /// <p>An entity tag (ETag) is an opaque identifier assigned by a web server to a specific
+    /// version of a resource found at a URL.</p>
+    pub e_tag: Option<ETag>,
+    /// <p>If the object expiration is configured (see PUT Bucket lifecycle), the response includes
+    /// this header. It includes the <code>expiry-date</code> and <code>rule-id</code> key-value
+    /// pairs providing object expiration information. The value of the <code>rule-id</code> is
+    /// URL-encoded.</p>
+    pub expiration: Option<Expiration>,
+    /// <p>The date and time at which the object is no longer cacheable.</p>
+    pub expires: Option<Expires>,
+    /// <p>Creation date of the object.</p>
+    pub last_modified: Option<LastModified>,
+    /// <p>A map of metadata to store with the object in S3.</p>
+    pub metadata: Option<Metadata>,
+    /// <p>This is set to the number of metadata entries not returned in <code>x-amz-meta</code>
+    /// headers. This can happen if you create metadata using an API like SOAP that supports more
+    /// flexible metadata than the REST API. For example, using SOAP, you can create metadata whose
+    /// values are not legal HTTP headers.</p>
+    pub missing_meta: MissingMeta,
+    /// <p>Indicates whether this object has an active legal hold. This field is only returned if
+    /// you have permission to view an object's legal hold status. </p>
+    pub object_lock_legal_hold_status: Option<ObjectLockLegalHoldStatus>,
+    /// <p>The Object Lock mode currently in place for this object.</p>
+    pub object_lock_mode: Option<ObjectLockMode>,
+    /// <p>The date and time when this object's Object Lock will expire.</p>
+    pub object_lock_retain_until_date: Option<ObjectLockRetainUntilDate>,
+    /// <p>The count of parts this object has. This value is only returned if you specify
+    /// <code>partNumber</code> in your request and the object was uploaded as a multipart
+    /// upload.</p>
+    pub parts_count: PartsCount,
+    /// <p>Amazon S3 can return this if your request involves a bucket that is either a source or
+    /// destination in a replication rule.</p>
+    pub replication_status: Option<ReplicationStatus>,
+    pub request_charged: Option<RequestCharged>,
+    /// <p>Provides information about object restoration action and expiration time of the restored
+    /// object copy.</p>
+    pub restore: Option<Restore>,
+    /// <p>If server-side encryption with a customer-provided encryption key was requested, the
+    /// response will include this header confirming the encryption algorithm used.</p>
+    pub sse_customer_algorithm: Option<SSECustomerAlgorithm>,
+    /// <p>If server-side encryption with a customer-provided encryption key was requested, the
+    /// response will include this header to provide round-trip message integrity verification of
+    /// the customer-provided encryption key.</p>
+    pub sse_customer_key_md5: Option<SSECustomerKeyMD5>,
+    /// <p>If present, specifies the ID of the Amazon Web Services Key Management Service (Amazon Web Services KMS) symmetric
+    /// encryption customer managed key that was used for the object.</p>
+    pub ssekms_key_id: Option<SSEKMSKeyId>,
+    /// <p>The server-side encryption algorithm used when storing this object in Amazon S3 (for example,
+    /// AES256, <code>aws:kms</code>).</p>
+    pub server_side_encryption: Option<ServerSideEncryption>,
+    /// <p>Provides storage class information of the object. Amazon S3 returns this header for all
+    /// objects except for S3 Standard storage class objects.</p>
+    pub storage_class: Option<StorageClass>,
+    /// <p>The number of tags, if any, on the object.</p>
+    pub tag_count: TagCount,
+    /// <p>Version of the object.</p>
+    pub version_id: Option<ObjectVersionId>,
+    /// <p>If the bucket is configured as a website, redirects requests for this object to another
+    /// object in the same bucket or to an external URL. Amazon S3 stores the value of this header in
+    /// the object metadata.</p>
+    pub website_redirect_location: Option<WebsiteRedirectLocation>,
+}
+
+impl fmt::Debug for GetObjectOutputMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("GetObjectOutputMeta");
+        if let Some(ref val) = self.accept_ranges {
+            d.field("accept_ranges", val);
+        }
+        d.field("bucket_key_enabled", &self.bucket_key_enabled);
+        if let Some(ref val) = self.cache_control {
+            d.field("cache_control", val);
+        }
+        if let Some(ref val) = self.checksum_crc32 {
+            d.field("checksum_crc32", val);
+        }
+        if let Some(ref val) = self.checksum_crc32c {
+            d.field("checksum_crc32c", val);
+        }
+        if let Some(ref val) = self.checksum_sha1 {
+            d.field("checksum_sha1", val);
+        }
+        if let Some(ref val) = self.checksum_sha256 {
+            d.field("checksum_sha256", val);
+        }
+        if let Some(ref val) = self.content_disposition {
+            d.field("content_disposition", val);
+        }
+        if let Some(ref val) = self.content_encoding {
+            d.field("content_encoding", val);
+        }
+        if let Some(ref val) = self.content_language {
+            d.field("content_language", val);
+        }
+        d.field("content_length", &self.content_length);
+        if let Some(ref val) = self.content_range {
+            d.field("content_range", val);
+        }
+        if let Some(ref val) = self.content_type {
+            d.field("content_type", val);
+        }
+        d.field("delete_marker", &self.delete_marker);
+        if let Some(ref val) = self.e_tag {
+            d.field("e_tag", val);
+        }
+        if let Some(ref val) = self.expiration {
+            d.field("expiration", val);
+        }
+        if let Some(ref val) = self.expires {
+            d.field("expires", val);
+        }
+        if let Some(ref val) = self.last_modified {
+            d.field("last_modified", val);
+        }
+        if let Some(ref val) = self.metadata {
+            d.field("metadata", val);
+        }
+        d.field("missing_meta", &self.missing_meta);
+        if let Some(ref val) = self.object_lock_legal_hold_status {
+            d.field("object_lock_legal_hold_status", val);
+        }
+        if let Some(ref val) = self.object_lock_mode {
+            d.field("object_lock_mode", val);
+        }
+        if let Some(ref val) = self.object_lock_retain_until_date {
+            d.field("object_lock_retain_until_date", val);
+        }
+        d.field("parts_count", &self.parts_count);
+        if let Some(ref val) = self.replication_status {
+            d.field("replication_status", val);
+        }
+        if let Some(ref val) = self.request_charged {
+            d.field("request_charged", val);
+        }
+        if let Some(ref val) = self.restore {
+            d.field("restore", val);
+        }
+        if let Some(ref val) = self.sse_customer_algorithm {
+            d.field("sse_customer_algorithm", val);
+        }
+        if let Some(ref val) = self.sse_customer_key_md5 {
+            d.field("sse_customer_key_md5", val);
+        }
+        if let Some(ref val) = self.ssekms_key_id {
+            d.field("ssekms_key_id", val);
+        }
+        if let Some(ref val) = self.server_side_encryption {
+            d.field("server_side_encryption", val);
+        }
+        if let Some(ref val) = self.storage_class {
+            d.field("storage_class", val);
+        }
+        d.field("tag_count", &self.tag_count);
+        if let Some(ref val) = self.version_id {
+            d.field("version_id", val);
+        }
+        if let Some(ref val) = self.website_redirect_location {
+            d.field("website_redirect_location", val);
+        }
+        d.finish_non_exhaustive()
+    }
+}
+
+impl From<GetObjectOutput> for GetObjectOutputMeta {
+    fn from(value: GetObjectOutput) -> Self {
+        Self {
+            accept_ranges: value.accept_ranges,
+            bucket_key_enabled: value.bucket_key_enabled,
+            cache_control: value.cache_control,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_disposition: value.content_disposition,
+            content_encoding: value.content_encoding,
+            content_language: value.content_language,
+            content_length: value.content_length,
+            content_range: value.content_range,
+            content_type: value.content_type,
+            delete_marker: value.delete_marker,
+            e_tag: value.e_tag,
+            expiration: value.expiration,
+            expires: value.expires,
+            last_modified: value.last_modified,
+            metadata: value.metadata,
+            missing_meta: value.missing_meta,
+            object_lock_legal_hold_status: value.object_lock_legal_hold_status,
+            object_lock_mode: value.object_lock_mode,
+            object_lock_retain_until_date: value.object_lock_retain_until_date,
+            parts_count: value.parts_count,
+            replication_status: value.replication_status,
+            request_charged: value.request_charged,
+            restore: value.restore,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            ssekms_key_id: value.ssekms_key_id,
+            server_side_encryption: value.server_side_encryption,
+            storage_class: value.storage_class,
+            tag_count: value.tag_count,
+            version_id: value.version_id,
+            website_redirect_location: value.website_redirect_location,
+        }
+    }
+}
+
+impl From<GetObjectOutputMeta> for GetObjectOutput {
+    fn from(value: GetObjectOutputMeta) -> Self {
+        Self {
+            accept_ranges: value.accept_ranges,
+            body: None,
+            bucket_key_enabled: value.bucket_key_enabled,
+            cache_control: value.cache_control,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_disposition: value.content_disposition,
+            content_encoding: value.content_encoding,
+            content_language: value.content_language,
+            content_length: value.content_length,
+            content_range: value.content_range,
+            content_type: value.content_type,
+            delete_marker: value.delete_marker,
+            e_tag: value.e_tag,
+            expiration: value.expiration,
+            expires: value.expires,
+            last_modified: value.last_modified,
+            metadata: value.metadata,
+            missing_meta: value.missing_meta,
+            object_lock_legal_hold_status: value.object_lock_legal_hold_status,
+            object_lock_mode: value.object_lock_mode,
+            object_lock_retain_until_date: value.object_lock_retain_until_date,
+            parts_count: value.parts_count,
+            replication_status: value.replication_status,
+            request_charged: value.request_charged,
+            restore: value.restore,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            ssekms_key_id: value.ssekms_key_id,
+            server_side_encryption: value.server_side_encryption,
+            storage_class: value.storage_class,
+            tag_count: value.tag_count,
+            version_id: value.version_id,
+            website_redirect_location: value.website_redirect_location,
+        }
+    }
+}
+
+impl SplitMetadata for GetObjectOutput {
+    type Meta = GetObjectOutputMeta;
+    type Data = Option<StreamingBlob>;
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        let mut this = self;
+        let data = this.body.take();
+        let meta = Self::Meta::from(this);
+        (meta, data)
+    }
+
+    fn set_data(&mut self, data: Self::Data) {
+        self.body = data;
+    }
+}
+
 pub type GetObjectResponseStatusCode = i32;
 
+#[derive(Clone)]
 pub struct GetObjectRetentionInput {
     /// <p>The bucket name containing the object whose retention settings you want to retrieve. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -7241,8 +8631,15 @@ impl GetObjectRetentionInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectRetentionInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectRetentionOutput {
     /// <p>The container element for an object's retention settings.</p>
     pub retention: Option<ObjectLockRetention>,
@@ -7258,6 +8655,15 @@ impl fmt::Debug for GetObjectRetentionOutput {
     }
 }
 
+impl SplitMetadata for GetObjectRetentionOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetObjectTaggingInput {
     /// <p>The bucket name containing the object for which to get the tagging information. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -7297,8 +8703,15 @@ impl GetObjectTaggingInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectTaggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetObjectTaggingOutput {
     /// <p>Contains the tag set.</p>
     pub tag_set: TagSet,
@@ -7317,6 +8730,15 @@ impl fmt::Debug for GetObjectTaggingOutput {
     }
 }
 
+impl SplitMetadata for GetObjectTaggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct GetObjectTorrentInput {
     /// <p>The name of the bucket containing the object for which to get the torrent files.</p>
     pub bucket: BucketName,
@@ -7348,6 +8770,13 @@ impl GetObjectTorrentInput {
         default()
     }
 }
+impl SplitMetadata for GetObjectTorrentInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
 #[derive(Default)]
 pub struct GetObjectTorrentOutput {
@@ -7369,6 +8798,54 @@ impl fmt::Debug for GetObjectTorrentOutput {
     }
 }
 
+#[derive(Default, Clone)]
+pub struct GetObjectTorrentOutputMeta {
+    pub request_charged: Option<RequestCharged>,
+}
+
+impl fmt::Debug for GetObjectTorrentOutputMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("GetObjectTorrentOutputMeta");
+        if let Some(ref val) = self.request_charged {
+            d.field("request_charged", val);
+        }
+        d.finish_non_exhaustive()
+    }
+}
+
+impl From<GetObjectTorrentOutput> for GetObjectTorrentOutputMeta {
+    fn from(value: GetObjectTorrentOutput) -> Self {
+        Self {
+            request_charged: value.request_charged,
+        }
+    }
+}
+
+impl From<GetObjectTorrentOutputMeta> for GetObjectTorrentOutput {
+    fn from(value: GetObjectTorrentOutputMeta) -> Self {
+        Self {
+            body: None,
+            request_charged: value.request_charged,
+        }
+    }
+}
+
+impl SplitMetadata for GetObjectTorrentOutput {
+    type Meta = GetObjectTorrentOutputMeta;
+    type Data = Option<StreamingBlob>;
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        let mut this = self;
+        let data = this.body.take();
+        let meta = Self::Meta::from(this);
+        (meta, data)
+    }
+
+    fn set_data(&mut self, data: Self::Data) {
+        self.body = data;
+    }
+}
+
+#[derive(Clone)]
 pub struct GetPublicAccessBlockInput {
     /// <p>The name of the Amazon S3 bucket whose <code>PublicAccessBlock</code> configuration you want
     /// to retrieve. </p>
@@ -7394,8 +8871,15 @@ impl GetPublicAccessBlockInput {
         default()
     }
 }
+impl SplitMetadata for GetPublicAccessBlockInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct GetPublicAccessBlockOutput {
     /// <p>The <code>PublicAccessBlock</code> configuration currently in effect for this Amazon S3
     /// bucket.</p>
@@ -7412,7 +8896,16 @@ impl fmt::Debug for GetPublicAccessBlockOutput {
     }
 }
 
+impl SplitMetadata for GetPublicAccessBlockOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for S3 Glacier job parameters.</p>
+#[derive(Clone)]
 pub struct GlacierJobParameters {
     /// <p>Retrieval tier at which the restore will be processed.</p>
     pub tier: Tier,
@@ -7426,8 +8919,16 @@ impl fmt::Debug for GlacierJobParameters {
     }
 }
 
+impl SplitMetadata for GlacierJobParameters {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for grant information.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Grant {
     /// <p>The person being granted permissions.</p>
     pub grantee: Option<Grantee>,
@@ -7448,6 +8949,14 @@ impl fmt::Debug for Grant {
     }
 }
 
+impl SplitMetadata for Grant {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type GrantFullControl = String;
 
 pub type GrantRead = String;
@@ -7459,6 +8968,7 @@ pub type GrantWrite = String;
 pub type GrantWriteACP = String;
 
 /// <p>Container for the person being granted permissions.</p>
+#[derive(Clone)]
 pub struct Grantee {
     /// <p>Screen name of the grantee.</p>
     pub display_name: Option<DisplayName>,
@@ -7522,8 +9032,17 @@ impl fmt::Debug for Grantee {
     }
 }
 
+impl SplitMetadata for Grantee {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type Grants = List<Grant>;
 
+#[derive(Clone)]
 pub struct HeadBucketInput {
     /// <p>The bucket name.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -7555,8 +9074,15 @@ impl HeadBucketInput {
         default()
     }
 }
+impl SplitMetadata for HeadBucketInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct HeadBucketOutput {}
 
 impl fmt::Debug for HeadBucketOutput {
@@ -7566,6 +9092,15 @@ impl fmt::Debug for HeadBucketOutput {
     }
 }
 
+impl SplitMetadata for HeadBucketOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct HeadObjectInput {
     /// <p>The name of the bucket containing the object.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -7672,8 +9207,15 @@ impl HeadObjectInput {
         default()
     }
 }
+impl SplitMetadata for HeadObjectInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct HeadObjectOutput {
     /// <p>Indicates that a range of bytes was specified.</p>
     pub accept_ranges: Option<AcceptRanges>,
@@ -7931,6 +9473,14 @@ impl fmt::Debug for HeadObjectOutput {
     }
 }
 
+impl SplitMetadata for HeadObjectOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type HostName = String;
 
 pub type HttpErrorCodeReturnedEquals = String;
@@ -7948,6 +9498,7 @@ pub type IfNoneMatch = String;
 pub type IfUnmodifiedSince = Timestamp;
 
 /// <p>Container for the <code>Suffix</code> element.</p>
+#[derive(Clone)]
 pub struct IndexDocument {
     /// <p>A suffix that is appended to a request that is for a directory on the website endpoint
     /// (for example,if the suffix is index.html and you make a request to samplebucket/images/ the
@@ -7969,10 +9520,18 @@ impl fmt::Debug for IndexDocument {
     }
 }
 
+impl SplitMetadata for IndexDocument {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type Initiated = Timestamp;
 
 /// <p>Container element that identifies who initiated the multipart upload. </p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Initiator {
     /// <p>Name of the Principal.</p>
     pub display_name: Option<DisplayName>,
@@ -7994,8 +9553,16 @@ impl fmt::Debug for Initiator {
     }
 }
 
+impl SplitMetadata for Initiator {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Describes the serialization format of the object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct InputSerialization {
     /// <p>Describes the serialization of a CSV-encoded object.</p>
     pub csv: Option<CSVInput>,
@@ -8024,6 +9591,14 @@ impl fmt::Debug for InputSerialization {
             d.field("parquet", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for InputSerialization {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -8067,7 +9642,7 @@ impl FromStr for IntelligentTieringAccessTier {
 
 /// <p>A container for specifying S3 Intelligent-Tiering filters. The filters determine the
 /// subset of objects to which the rule applies.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct IntelligentTieringAndOperator {
     /// <p>An object key name prefix that identifies the subset of objects to which the
     /// configuration applies.</p>
@@ -8090,10 +9665,19 @@ impl fmt::Debug for IntelligentTieringAndOperator {
     }
 }
 
+impl SplitMetadata for IntelligentTieringAndOperator {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the S3 Intelligent-Tiering configuration for an Amazon S3 bucket.</p>
 /// <p>For information about the S3 Intelligent-Tiering storage class, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access">Storage class
 /// for automatically optimizing frequently and infrequently accessed
 /// objects</a>.</p>
+#[derive(Clone)]
 pub struct IntelligentTieringConfiguration {
     /// <p>Specifies a bucket filter. The configuration only includes objects that meet the
     /// filter's criteria.</p>
@@ -8119,13 +9703,21 @@ impl fmt::Debug for IntelligentTieringConfiguration {
     }
 }
 
+impl SplitMetadata for IntelligentTieringConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type IntelligentTieringConfigurationList = List<IntelligentTieringConfiguration>;
 
 pub type IntelligentTieringDays = i32;
 
 /// <p>The <code>Filter</code> is used to identify objects that the S3 Intelligent-Tiering
 /// configuration applies to.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct IntelligentTieringFilter {
     /// <p>A conjunction (logical AND) of predicates, which is used in evaluating a metrics filter.
     /// The operator must have at least two predicates, and an object must match all of the
@@ -8155,6 +9747,14 @@ impl fmt::Debug for IntelligentTieringFilter {
             d.field("tag", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for IntelligentTieringFilter {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -8199,7 +9799,7 @@ impl FromStr for IntelligentTieringStatus {
 }
 
 /// <p>Object is archived and inaccessible until restored.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct InvalidObjectState {
     pub access_tier: Option<IntelligentTieringAccessTier>,
     pub storage_class: Option<StorageClass>,
@@ -8218,8 +9818,17 @@ impl fmt::Debug for InvalidObjectState {
     }
 }
 
+impl SplitMetadata for InvalidObjectState {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the inventory configuration for an Amazon S3 bucket. For more information, see
 /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETInventoryConfig.html">GET Bucket inventory</a> in the <i>Amazon S3 API Reference</i>. </p>
+#[derive(Clone)]
 pub struct InventoryConfiguration {
     /// <p>Contains information about where to publish the inventory results.</p>
     pub destination: InventoryDestination,
@@ -8262,9 +9871,18 @@ impl fmt::Debug for InventoryConfiguration {
     }
 }
 
+impl SplitMetadata for InventoryConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type InventoryConfigurationList = List<InventoryConfiguration>;
 
 /// <p>Specifies the inventory configuration for an Amazon S3 bucket.</p>
+#[derive(Clone)]
 pub struct InventoryDestination {
     /// <p>Contains the bucket name, file format, bucket owner (optional), and prefix (optional)
     /// where inventory results are published.</p>
@@ -8279,9 +9897,17 @@ impl fmt::Debug for InventoryDestination {
     }
 }
 
+impl SplitMetadata for InventoryDestination {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Contains the type of server-side encryption used to encrypt the inventory
 /// results.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct InventoryEncryption {
     /// <p>Specifies the use of SSE-KMS to encrypt delivered inventory reports.</p>
     pub ssekms: Option<SSEKMS>,
@@ -8302,8 +9928,17 @@ impl fmt::Debug for InventoryEncryption {
     }
 }
 
+impl SplitMetadata for InventoryEncryption {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies an inventory filter. The inventory only includes objects that meet the
 /// filter's criteria.</p>
+#[derive(Clone)]
 pub struct InventoryFilter {
     /// <p>The prefix that an object must have to be included in the inventory results.</p>
     pub prefix: Prefix,
@@ -8314,6 +9949,14 @@ impl fmt::Debug for InventoryFilter {
         let mut d = f.debug_struct("InventoryFilter");
         d.field("prefix", &self.prefix);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for InventoryFilter {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -8499,6 +10142,7 @@ pub type InventoryOptionalFields = List<InventoryOptionalField>;
 
 /// <p>Contains the bucket name, file format, bucket owner (optional), and prefix (optional)
 /// where inventory results are published.</p>
+#[derive(Clone)]
 pub struct InventoryS3BucketDestination {
     /// <p>The account ID that owns the destination S3 bucket. If no account ID is provided, the
     /// owner is not validated before exporting data. </p>
@@ -8537,7 +10181,16 @@ impl fmt::Debug for InventoryS3BucketDestination {
     }
 }
 
+impl SplitMetadata for InventoryS3BucketDestination {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the schedule for generating inventory results.</p>
+#[derive(Clone)]
 pub struct InventorySchedule {
     /// <p>Specifies how frequently inventory results are produced.</p>
     pub frequency: InventoryFrequency,
@@ -8551,6 +10204,14 @@ impl fmt::Debug for InventorySchedule {
     }
 }
 
+impl SplitMetadata for InventorySchedule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type IsEnabled = bool;
 
 pub type IsLatest = bool;
@@ -8560,7 +10221,7 @@ pub type IsPublic = bool;
 pub type IsTruncated = bool;
 
 /// <p>Specifies JSON as object's input serialization format.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct JSONInput {
     /// <p>The type of JSON. Valid values: Document, Lines.</p>
     pub type_: Option<JSONType>,
@@ -8576,8 +10237,16 @@ impl fmt::Debug for JSONInput {
     }
 }
 
+impl SplitMetadata for JSONInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies JSON as request's output serialization format.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct JSONOutput {
     /// <p>The value used to separate individual records in the output. If no value is specified,
     /// Amazon S3 uses a newline character ('\n').</p>
@@ -8591,6 +10260,14 @@ impl fmt::Debug for JSONOutput {
             d.field("record_delimiter", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for JSONOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -8643,6 +10320,7 @@ pub type KeyPrefixEquals = String;
 pub type LambdaFunctionArn = String;
 
 /// <p>A container for specifying the configuration for Lambda notifications.</p>
+#[derive(Clone)]
 pub struct LambdaFunctionConfiguration {
     /// <p>The Amazon S3 bucket event for which to invoke the Lambda function. For more information,
     /// see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html">Supported
@@ -8670,6 +10348,14 @@ impl fmt::Debug for LambdaFunctionConfiguration {
     }
 }
 
+impl SplitMetadata for LambdaFunctionConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type LambdaFunctionConfigurationList = List<LambdaFunctionConfiguration>;
 
 pub type LastModified = Timestamp;
@@ -8677,7 +10363,7 @@ pub type LastModified = Timestamp;
 /// <p>Container for the expiration for the lifecycle of the object.</p>
 /// <p>For more information see, <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html">Managing your storage
 /// lifecycle</a> in the <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LifecycleExpiration {
     /// <p>Indicates at what date the object is to be moved or deleted. The date value must conform to the ISO 8601 format.
     /// The time is always midnight UTC.</p>
@@ -8707,9 +10393,18 @@ impl fmt::Debug for LifecycleExpiration {
     }
 }
 
+impl SplitMetadata for LifecycleExpiration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A lifecycle rule for individual objects in an Amazon S3 bucket.</p>
 /// <p>For more information see, <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html">Managing your storage
 /// lifecycle</a> in the <i>Amazon S3 User Guide</i>.</p>
+#[derive(Clone)]
 pub struct LifecycleRule {
     pub abort_incomplete_multipart_upload: Option<AbortIncompleteMultipartUpload>,
     /// <p>Specifies the expiration for the lifecycle of the object in the form of date, days and,
@@ -8776,10 +10471,18 @@ impl fmt::Debug for LifecycleRule {
     }
 }
 
+impl SplitMetadata for LifecycleRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>This is used in a Lifecycle Rule Filter to apply a logical AND to two or more
 /// predicates. The Lifecycle Rule will apply to any object matching all of the predicates
 /// configured inside the And operator.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LifecycleRuleAndOperator {
     /// <p>Minimum object size to which the rule applies.</p>
     pub object_size_greater_than: ObjectSizeGreaterThanBytes,
@@ -8807,10 +10510,18 @@ impl fmt::Debug for LifecycleRuleAndOperator {
     }
 }
 
+impl SplitMetadata for LifecycleRuleAndOperator {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The <code>Filter</code> is used to identify objects that a Lifecycle Rule applies to. A
 /// <code>Filter</code> must have exactly one of <code>Prefix</code>, <code>Tag</code>, or
 /// <code>And</code> specified.</p>
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum LifecycleRuleFilter {
     And(LifecycleRuleAndOperator),
@@ -8831,6 +10542,7 @@ pub enum LifecycleRuleFilter {
 
 pub type LifecycleRules = List<LifecycleRule>;
 
+#[derive(Clone)]
 pub struct ListBucketAnalyticsConfigurationsInput {
     /// <p>The name of the bucket from which analytics configurations are retrieved.</p>
     pub bucket: BucketName,
@@ -8861,8 +10573,15 @@ impl ListBucketAnalyticsConfigurationsInput {
         default()
     }
 }
+impl SplitMetadata for ListBucketAnalyticsConfigurationsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListBucketAnalyticsConfigurationsOutput {
     /// <p>The list of analytics configurations for a bucket.</p>
     pub analytics_configuration_list: Option<AnalyticsConfigurationList>,
@@ -8898,6 +10617,15 @@ impl fmt::Debug for ListBucketAnalyticsConfigurationsOutput {
     }
 }
 
+impl SplitMetadata for ListBucketAnalyticsConfigurationsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListBucketIntelligentTieringConfigurationsInput {
     /// <p>The name of the Amazon S3 bucket whose configuration you want to modify or retrieve.</p>
     pub bucket: BucketName,
@@ -8923,8 +10651,15 @@ impl ListBucketIntelligentTieringConfigurationsInput {
         default()
     }
 }
+impl SplitMetadata for ListBucketIntelligentTieringConfigurationsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListBucketIntelligentTieringConfigurationsOutput {
     /// <p>The <code>ContinuationToken</code> that represents a placeholder from where this request
     /// should begin.</p>
@@ -8958,6 +10693,15 @@ impl fmt::Debug for ListBucketIntelligentTieringConfigurationsOutput {
     }
 }
 
+impl SplitMetadata for ListBucketIntelligentTieringConfigurationsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListBucketInventoryConfigurationsInput {
     /// <p>The name of the bucket containing the inventory configurations to retrieve.</p>
     pub bucket: BucketName,
@@ -8989,8 +10733,15 @@ impl ListBucketInventoryConfigurationsInput {
         default()
     }
 }
+impl SplitMetadata for ListBucketInventoryConfigurationsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListBucketInventoryConfigurationsOutput {
     /// <p>If sent in the request, the marker that is used as a starting point for this inventory
     /// configuration list response.</p>
@@ -9024,6 +10775,15 @@ impl fmt::Debug for ListBucketInventoryConfigurationsOutput {
     }
 }
 
+impl SplitMetadata for ListBucketInventoryConfigurationsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListBucketMetricsConfigurationsInput {
     /// <p>The name of the bucket containing the metrics configurations to retrieve.</p>
     pub bucket: BucketName,
@@ -9056,8 +10816,15 @@ impl ListBucketMetricsConfigurationsInput {
         default()
     }
 }
+impl SplitMetadata for ListBucketMetricsConfigurationsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListBucketMetricsConfigurationsOutput {
     /// <p>The marker that is used as a starting point for this metrics configuration list
     /// response. This value is present if it was sent in the request.</p>
@@ -9092,7 +10859,15 @@ impl fmt::Debug for ListBucketMetricsConfigurationsOutput {
     }
 }
 
-#[derive(Default)]
+impl SplitMetadata for ListBucketMetricsConfigurationsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct ListBucketsInput {}
 
 impl fmt::Debug for ListBucketsInput {
@@ -9108,8 +10883,15 @@ impl ListBucketsInput {
         default()
     }
 }
+impl SplitMetadata for ListBucketsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListBucketsOutput {
     /// <p>The list of buckets owned by the requester.</p>
     pub buckets: Option<Buckets>,
@@ -9130,6 +10912,15 @@ impl fmt::Debug for ListBucketsOutput {
     }
 }
 
+impl SplitMetadata for ListBucketsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListMultipartUploadsInput {
     /// <p>The name of the bucket to which the multipart upload was initiated. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -9206,8 +10997,15 @@ impl ListMultipartUploadsInput {
         default()
     }
 }
+impl SplitMetadata for ListMultipartUploadsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListMultipartUploadsOutput {
     /// <p>The name of the bucket to which the multipart upload was initiated. Does not return the
     /// access point ARN or access point alias if used.</p>
@@ -9291,6 +11089,15 @@ impl fmt::Debug for ListMultipartUploadsOutput {
     }
 }
 
+impl SplitMetadata for ListMultipartUploadsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListObjectVersionsInput {
     /// <p>The bucket name that contains the objects. </p>
     pub bucket: BucketName,
@@ -9356,8 +11163,15 @@ impl ListObjectVersionsInput {
         default()
     }
 }
+impl SplitMetadata for ListObjectVersionsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListObjectVersionsOutput {
     /// <p>All of the keys rolled up into a common prefix count as a single return when calculating
     /// the number of returns.</p>
@@ -9447,6 +11261,15 @@ impl fmt::Debug for ListObjectVersionsOutput {
     }
 }
 
+impl SplitMetadata for ListObjectVersionsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListObjectsInput {
     /// <p>The name of the bucket containing the objects.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -9507,8 +11330,15 @@ impl ListObjectsInput {
         default()
     }
 }
+impl SplitMetadata for ListObjectsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListObjectsOutput {
     /// <p>All of the keys (up to 1,000) rolled up in a common prefix count as a single return when
     /// calculating the number of returns. </p>
@@ -9585,6 +11415,15 @@ impl fmt::Debug for ListObjectsOutput {
     }
 }
 
+impl SplitMetadata for ListObjectsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListObjectsV2Input {
     /// <p>Bucket name to list. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -9659,8 +11498,15 @@ impl ListObjectsV2Input {
         default()
     }
 }
+impl SplitMetadata for ListObjectsV2Input {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListObjectsV2Output {
     /// <p>All of the keys (up to 1,000) rolled up into a common prefix count as a single return
     /// when calculating the number of returns.</p>
@@ -9759,6 +11605,15 @@ impl fmt::Debug for ListObjectsV2Output {
     }
 }
 
+impl SplitMetadata for ListObjectsV2Output {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct ListPartsInput {
     /// <p>The name of the bucket to which the parts are being uploaded. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -9831,8 +11686,15 @@ impl ListPartsInput {
         default()
     }
 }
+impl SplitMetadata for ListPartsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ListPartsOutput {
     /// <p>If the bucket has a lifecycle rule configured with an action to abort incomplete
     /// multipart uploads and the prefix in the lifecycle rule matches the object name in the
@@ -9934,6 +11796,14 @@ impl fmt::Debug for ListPartsOutput {
     }
 }
 
+impl SplitMetadata for ListPartsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type Location = String;
 
 pub type LocationPrefix = String;
@@ -9941,6 +11811,7 @@ pub type LocationPrefix = String;
 /// <p>Describes where logs are stored and the prefix that Amazon S3 assigns to all log object keys
 /// for a bucket. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html">PUT Bucket logging</a> in the
 /// <i>Amazon S3 API Reference</i>.</p>
+#[derive(Clone)]
 pub struct LoggingEnabled {
     /// <p>Specifies the bucket where you want Amazon S3 to store server access logs. You can have your
     /// logs delivered to any bucket that you own, including the same bucket that is being logged.
@@ -9968,6 +11839,14 @@ impl fmt::Debug for LoggingEnabled {
         }
         d.field("target_prefix", &self.target_prefix);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for LoggingEnabled {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -10102,7 +11981,7 @@ impl FromStr for MetadataDirective {
 }
 
 /// <p>A metadata key-value pair to store with an object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MetadataEntry {
     /// <p>Name of the Object.</p>
     pub name: Option<MetadataKey>,
@@ -10123,12 +12002,21 @@ impl fmt::Debug for MetadataEntry {
     }
 }
 
+impl SplitMetadata for MetadataEntry {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type MetadataKey = String;
 
 pub type MetadataValue = String;
 
 /// <p> A container specifying replication metrics-related settings enabling replication
 /// metrics and events.</p>
+#[derive(Clone)]
 pub struct Metrics {
     /// <p> A container specifying the time threshold for emitting the
     /// <code>s3:Replication:OperationMissedThreshold</code> event. </p>
@@ -10148,10 +12036,18 @@ impl fmt::Debug for Metrics {
     }
 }
 
+impl SplitMetadata for Metrics {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A conjunction (logical AND) of predicates, which is used in evaluating a metrics filter.
 /// The operator must have at least two predicates, and an object must match all of the
 /// predicates in order for the filter to apply.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MetricsAndOperator {
     /// <p>The access point ARN used when evaluating an <code>AND</code> predicate.</p>
     pub access_point_arn: Option<AccessPointArn>,
@@ -10177,11 +12073,20 @@ impl fmt::Debug for MetricsAndOperator {
     }
 }
 
+impl SplitMetadata for MetricsAndOperator {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies a metrics configuration for the CloudWatch request metrics (specified by the
 /// metrics configuration ID) from an Amazon S3 bucket. If you're updating an existing metrics
 /// configuration, note that this is a full replacement of the existing metrics configuration.
 /// If you don't include the elements you want to keep, they are erased. For more information,
 /// see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTMetricConfiguration.html">PutBucketMetricsConfiguration</a>.</p>
+#[derive(Clone)]
 pub struct MetricsConfiguration {
     /// <p>Specifies a metrics configuration filter. The metrics configuration will only include
     /// objects that meet the filter's criteria. A filter must be a prefix, an object tag, an
@@ -10203,12 +12108,20 @@ impl fmt::Debug for MetricsConfiguration {
     }
 }
 
+impl SplitMetadata for MetricsConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type MetricsConfigurationList = List<MetricsConfiguration>;
 
 /// <p>Specifies a metrics configuration filter. The metrics configuration only includes
 /// objects that meet the filter's criteria. A filter must be a prefix, an object tag, an
 /// access point ARN, or a conjunction (MetricsAndOperator). For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketMetricsConfiguration.html">PutBucketMetricsConfiguration</a>.</p>
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum MetricsFilter {
     /// <p>The access point ARN used when evaluating a metrics filter.</p>
@@ -10268,7 +12181,7 @@ pub type Minutes = i32;
 pub type MissingMeta = i32;
 
 /// <p>Container for the <code>MultipartUpload</code> for the Amazon S3 object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MultipartUpload {
     /// <p>The algorithm that was used to create a checksum of the object.</p>
     pub checksum_algorithm: Option<ChecksumAlgorithm>,
@@ -10314,6 +12227,14 @@ impl fmt::Debug for MultipartUpload {
     }
 }
 
+impl SplitMetadata for MultipartUpload {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type MultipartUploadId = String;
 
 pub type MultipartUploadList = List<MultipartUpload>;
@@ -10331,7 +12252,7 @@ pub type NextUploadIdMarker = String;
 pub type NextVersionIdMarker = String;
 
 /// <p>The specified bucket does not exist.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NoSuchBucket {}
 
 impl fmt::Debug for NoSuchBucket {
@@ -10341,8 +12262,16 @@ impl fmt::Debug for NoSuchBucket {
     }
 }
 
+impl SplitMetadata for NoSuchBucket {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The specified key does not exist.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NoSuchKey {}
 
 impl fmt::Debug for NoSuchKey {
@@ -10352,8 +12281,16 @@ impl fmt::Debug for NoSuchKey {
     }
 }
 
+impl SplitMetadata for NoSuchKey {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The specified multipart upload does not exist.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NoSuchUpload {}
 
 impl fmt::Debug for NoSuchUpload {
@@ -10363,11 +12300,19 @@ impl fmt::Debug for NoSuchUpload {
     }
 }
 
+impl SplitMetadata for NoSuchUpload {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies when noncurrent object versions expire. Upon expiration, Amazon S3 permanently
 /// deletes the noncurrent object versions. You set this lifecycle configuration action on a
 /// bucket that has versioning enabled (or suspended) to request that Amazon S3 delete noncurrent
 /// object versions at a specific period in the object's lifetime.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NoncurrentVersionExpiration {
     /// <p>Specifies how many noncurrent versions Amazon S3 will retain. If there are this many more
     /// recent noncurrent versions, Amazon S3 will take the associated action. For more information
@@ -10391,6 +12336,14 @@ impl fmt::Debug for NoncurrentVersionExpiration {
     }
 }
 
+impl SplitMetadata for NoncurrentVersionExpiration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for the transition rule that describes when noncurrent objects transition to
 /// the <code>STANDARD_IA</code>, <code>ONEZONE_IA</code>, <code>INTELLIGENT_TIERING</code>,
 /// <code>GLACIER_IR</code>, <code>GLACIER</code>, or <code>DEEP_ARCHIVE</code> storage
@@ -10399,7 +12352,7 @@ impl fmt::Debug for NoncurrentVersionExpiration {
 /// <code>STANDARD_IA</code>, <code>ONEZONE_IA</code>, <code>INTELLIGENT_TIERING</code>,
 /// <code>GLACIER_IR</code>, <code>GLACIER</code>, or <code>DEEP_ARCHIVE</code> storage
 /// class at a specific period in the object's lifetime.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NoncurrentVersionTransition {
     /// <p>Specifies how many noncurrent versions Amazon S3 will retain. If there are this many more
     /// recent noncurrent versions, Amazon S3 will take the associated action. For more information
@@ -10427,10 +12380,18 @@ impl fmt::Debug for NoncurrentVersionTransition {
     }
 }
 
+impl SplitMetadata for NoncurrentVersionTransition {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type NoncurrentVersionTransitionList = List<NoncurrentVersionTransition>;
 
 /// <p>The specified content does not exist.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NotFound {}
 
 impl fmt::Debug for NotFound {
@@ -10440,9 +12401,17 @@ impl fmt::Debug for NotFound {
     }
 }
 
+impl SplitMetadata for NotFound {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A container for specifying the notification configuration of the bucket. If this element
 /// is empty, notifications are turned off for the bucket.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NotificationConfiguration {
     /// <p>Enables delivery of events to Amazon EventBridge.</p>
     pub event_bridge_configuration: Option<EventBridgeConfiguration>,
@@ -10476,9 +12445,17 @@ impl fmt::Debug for NotificationConfiguration {
     }
 }
 
+impl SplitMetadata for NotificationConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies object key name filtering rules. For information about key name filtering, see
 /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html">Configuring event notifications using object key name filtering</a> in the <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct NotificationConfigurationFilter {
     pub key: Option<S3KeyFilter>,
 }
@@ -10493,12 +12470,20 @@ impl fmt::Debug for NotificationConfigurationFilter {
     }
 }
 
+impl SplitMetadata for NotificationConfigurationFilter {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>An optional unique identifier for configurations in a notification configuration. If you
 /// don't provide one, Amazon S3 will assign an ID.</p>
 pub type NotificationId = String;
 
 /// <p>An object consists of data and its descriptive metadata.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Object {
     /// <p>The algorithm that was used to create a checksum of the object.</p>
     pub checksum_algorithm: Option<ChecksumAlgorithmList>,
@@ -10564,14 +12549,30 @@ impl fmt::Debug for Object {
     }
 }
 
+impl SplitMetadata for Object {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>This action is not allowed against this storage tier.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectAlreadyInActiveTierError {}
 
 impl fmt::Debug for ObjectAlreadyInActiveTierError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("ObjectAlreadyInActiveTierError");
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ObjectAlreadyInActiveTierError {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -10670,6 +12671,7 @@ impl FromStr for ObjectCannedACL {
 }
 
 /// <p>Object Identifier is unique value to identify objects.</p>
+#[derive(Clone)]
 pub struct ObjectIdentifier {
     /// <p>Key name of the object.</p>
     /// <important>
@@ -10693,6 +12695,14 @@ impl fmt::Debug for ObjectIdentifier {
     }
 }
 
+impl SplitMetadata for ObjectIdentifier {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ObjectIdentifierList = List<ObjectIdentifier>;
 
 pub type ObjectKey = String;
@@ -10700,7 +12710,7 @@ pub type ObjectKey = String;
 pub type ObjectList = List<Object>;
 
 /// <p>The container element for Object Lock configuration parameters.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectLockConfiguration {
     /// <p>Indicates whether this bucket has an Object Lock configuration enabled. Enable
     /// <code>ObjectLockEnabled</code> when you apply <code>ObjectLockConfiguration</code> to a
@@ -10724,6 +12734,14 @@ impl fmt::Debug for ObjectLockConfiguration {
             d.field("rule", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ObjectLockConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -10766,7 +12784,7 @@ impl FromStr for ObjectLockEnabled {
 pub type ObjectLockEnabledForBucket = bool;
 
 /// <p>A legal hold configuration for an object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectLockLegalHold {
     /// <p>Indicates whether the specified object has a legal hold in place.</p>
     pub status: Option<ObjectLockLegalHoldStatus>,
@@ -10779,6 +12797,14 @@ impl fmt::Debug for ObjectLockLegalHold {
             d.field("status", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ObjectLockLegalHold {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -10861,7 +12887,7 @@ impl FromStr for ObjectLockMode {
 pub type ObjectLockRetainUntilDate = Timestamp;
 
 /// <p>A Retention configuration for an object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectLockRetention {
     /// <p>Indicates the Retention mode for the specified object.</p>
     pub mode: Option<ObjectLockRetentionMode>,
@@ -10879,6 +12905,14 @@ impl fmt::Debug for ObjectLockRetention {
             d.field("retain_until_date", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ObjectLockRetention {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -10921,7 +12955,7 @@ impl FromStr for ObjectLockRetentionMode {
 }
 
 /// <p>The container element for an Object Lock rule.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectLockRule {
     /// <p>The default Object Lock retention mode and period that you want to apply to new objects
     /// placed in the specified bucket. Bucket settings require both a mode and a period. The
@@ -10940,17 +12974,33 @@ impl fmt::Debug for ObjectLockRule {
     }
 }
 
+impl SplitMetadata for ObjectLockRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ObjectLockToken = String;
 
 /// <p>The source object of the COPY action is not in the active tier and is only stored in
 /// Amazon S3 Glacier.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectNotInActiveTierError {}
 
 impl fmt::Debug for ObjectNotInActiveTierError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("ObjectNotInActiveTierError");
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ObjectNotInActiveTierError {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -11006,7 +13056,7 @@ impl FromStr for ObjectOwnership {
 }
 
 /// <p>A container for elements related to an individual part.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectPart {
     /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
     /// This header specifies the base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
@@ -11053,6 +13103,14 @@ impl fmt::Debug for ObjectPart {
         d.field("part_number", &self.part_number);
         d.field("size", &self.size);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ObjectPart {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -11117,7 +13175,7 @@ impl FromStr for ObjectStorageClass {
 }
 
 /// <p>The version of an object.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ObjectVersion {
     /// <p>The algorithm that was used to create a checksum of the object.</p>
     pub checksum_algorithm: Option<ChecksumAlgorithmList>,
@@ -11170,6 +13228,14 @@ impl fmt::Debug for ObjectVersion {
     }
 }
 
+impl SplitMetadata for ObjectVersion {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ObjectVersionId = String;
 
 pub type ObjectVersionList = List<ObjectVersion>;
@@ -11211,7 +13277,7 @@ impl FromStr for ObjectVersionStorageClass {
 }
 
 /// <p>Describes the location where the restore job's output is stored.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct OutputLocation {
     /// <p>Describes an S3 location that will receive the results of the restore request.</p>
     pub s3: Option<S3Location>,
@@ -11227,8 +13293,16 @@ impl fmt::Debug for OutputLocation {
     }
 }
 
+impl SplitMetadata for OutputLocation {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Describes how results of the Select job are serialized.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct OutputSerialization {
     /// <p>Describes the serialization of CSV-encoded Select results.</p>
     pub csv: Option<CSVOutput>,
@@ -11249,8 +13323,16 @@ impl fmt::Debug for OutputSerialization {
     }
 }
 
+impl SplitMetadata for OutputSerialization {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for the owner's display name and ID.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Owner {
     /// <p>Container for the display name of the owner. This value is only supported in the
     /// following Amazon Web Services Regions:</p>
@@ -11298,6 +13380,14 @@ impl fmt::Debug for Owner {
     }
 }
 
+impl SplitMetadata for Owner {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OwnerOverride(Cow<'static, str>);
 
@@ -11335,7 +13425,7 @@ impl FromStr for OwnerOverride {
 }
 
 /// <p>The container element for a bucket's ownership controls.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct OwnershipControls {
     /// <p>The container element for an ownership control rule.</p>
     pub rules: OwnershipControlsRules,
@@ -11349,7 +13439,16 @@ impl fmt::Debug for OwnershipControls {
     }
 }
 
+impl SplitMetadata for OwnershipControls {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The container element for an ownership control rule.</p>
+#[derive(Clone)]
 pub struct OwnershipControlsRule {
     pub object_ownership: ObjectOwnership,
 }
@@ -11362,10 +13461,18 @@ impl fmt::Debug for OwnershipControlsRule {
     }
 }
 
+impl SplitMetadata for OwnershipControlsRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type OwnershipControlsRules = List<OwnershipControlsRule>;
 
 /// <p>Container for Parquet.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ParquetInput {}
 
 impl fmt::Debug for ParquetInput {
@@ -11375,8 +13482,16 @@ impl fmt::Debug for ParquetInput {
     }
 }
 
+impl SplitMetadata for ParquetInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for elements related to a part.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Part {
     /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
     /// This header specifies the base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
@@ -11433,6 +13548,14 @@ impl fmt::Debug for Part {
         d.field("part_number", &self.part_number);
         d.field("size", &self.size);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for Part {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -11531,7 +13654,7 @@ impl FromStr for Permission {
 pub type Policy = String;
 
 /// <p>The container element for a bucket's policy status.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PolicyStatus {
     /// <p>The policy status for this bucket. <code>TRUE</code> indicates that this bucket is
     /// public. <code>FALSE</code> indicates that the bucket is not public.</p>
@@ -11546,12 +13669,20 @@ impl fmt::Debug for PolicyStatus {
     }
 }
 
+impl SplitMetadata for PolicyStatus {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type Prefix = String;
 
 pub type Priority = i32;
 
 /// <p>This data type contains information about progress of an operation.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Progress {
     /// <p>The current number of uncompressed object bytes processed.</p>
     pub bytes_processed: BytesProcessed,
@@ -11571,8 +13702,16 @@ impl fmt::Debug for Progress {
     }
 }
 
+impl SplitMetadata for Progress {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>This data type contains information about the progress event of an operation.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ProgressEvent {
     /// <p>The Progress event details.</p>
     pub details: Option<Progress>,
@@ -11585,6 +13724,14 @@ impl fmt::Debug for ProgressEvent {
             d.field("details", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ProgressEvent {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -11629,7 +13776,7 @@ impl FromStr for Protocol {
 /// <p>The PublicAccessBlock configuration that you want to apply to this Amazon S3 bucket. You can
 /// enable the configuration options in any combination. For more information about when Amazon S3
 /// considers a bucket or object public, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status">The Meaning of "Public"</a> in the <i>Amazon S3 User Guide</i>. </p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PublicAccessBlockConfiguration {
     /// <p>Specifies whether Amazon S3 should block public access control lists (ACLs) for this bucket
     /// and objects in this bucket. Setting this element to <code>TRUE</code> causes the following
@@ -11679,6 +13826,15 @@ impl fmt::Debug for PublicAccessBlockConfiguration {
     }
 }
 
+impl SplitMetadata for PublicAccessBlockConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketAccelerateConfigurationInput {
     /// <p>Container for setting the transfer acceleration state.</p>
     pub accelerate_configuration: AccelerateConfiguration,
@@ -11717,8 +13873,15 @@ impl PutBucketAccelerateConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketAccelerateConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketAccelerateConfigurationOutput {}
 
 impl fmt::Debug for PutBucketAccelerateConfigurationOutput {
@@ -11728,6 +13891,15 @@ impl fmt::Debug for PutBucketAccelerateConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketAccelerateConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketAclInput {
     /// <p>The canned ACL to apply to the bucket.</p>
     pub acl: Option<BucketCannedACL>,
@@ -11811,8 +13983,15 @@ impl PutBucketAclInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketAclInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketAclOutput {}
 
 impl fmt::Debug for PutBucketAclOutput {
@@ -11822,6 +14001,15 @@ impl fmt::Debug for PutBucketAclOutput {
     }
 }
 
+impl SplitMetadata for PutBucketAclOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketAnalyticsConfigurationInput {
     /// <p>The configuration and any analyses for the analytics filter.</p>
     pub analytics_configuration: AnalyticsConfiguration,
@@ -11852,8 +14040,15 @@ impl PutBucketAnalyticsConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketAnalyticsConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketAnalyticsConfigurationOutput {}
 
 impl fmt::Debug for PutBucketAnalyticsConfigurationOutput {
@@ -11863,6 +14058,15 @@ impl fmt::Debug for PutBucketAnalyticsConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketAnalyticsConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketCorsInput {
     /// <p>Specifies the bucket impacted by the <code>cors</code>configuration.</p>
     pub bucket: BucketName,
@@ -11914,8 +14118,15 @@ impl PutBucketCorsInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketCorsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketCorsOutput {}
 
 impl fmt::Debug for PutBucketCorsOutput {
@@ -11925,6 +14136,15 @@ impl fmt::Debug for PutBucketCorsOutput {
     }
 }
 
+impl SplitMetadata for PutBucketCorsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketEncryptionInput {
     /// <p>Specifies default encryption for a bucket using server-side encryption with different
     /// key options. By default, all buckets have a default encryption configuration that
@@ -11974,8 +14194,15 @@ impl PutBucketEncryptionInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketEncryptionInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketEncryptionOutput {}
 
 impl fmt::Debug for PutBucketEncryptionOutput {
@@ -11985,6 +14212,15 @@ impl fmt::Debug for PutBucketEncryptionOutput {
     }
 }
 
+impl SplitMetadata for PutBucketEncryptionOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketIntelligentTieringConfigurationInput {
     /// <p>The name of the Amazon S3 bucket whose configuration you want to modify or retrieve.</p>
     pub bucket: BucketName,
@@ -12010,8 +14246,15 @@ impl PutBucketIntelligentTieringConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketIntelligentTieringConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketIntelligentTieringConfigurationOutput {}
 
 impl fmt::Debug for PutBucketIntelligentTieringConfigurationOutput {
@@ -12021,6 +14264,15 @@ impl fmt::Debug for PutBucketIntelligentTieringConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketIntelligentTieringConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketInventoryConfigurationInput {
     /// <p>The name of the bucket where the inventory configuration will be stored.</p>
     pub bucket: BucketName,
@@ -12051,8 +14303,15 @@ impl PutBucketInventoryConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketInventoryConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketInventoryConfigurationOutput {}
 
 impl fmt::Debug for PutBucketInventoryConfigurationOutput {
@@ -12062,6 +14321,15 @@ impl fmt::Debug for PutBucketInventoryConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketInventoryConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketLifecycleConfigurationInput {
     /// <p>The name of the bucket for which to set the configuration.</p>
     pub bucket: BucketName,
@@ -12102,8 +14370,15 @@ impl PutBucketLifecycleConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketLifecycleConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketLifecycleConfigurationOutput {}
 
 impl fmt::Debug for PutBucketLifecycleConfigurationOutput {
@@ -12113,6 +14388,15 @@ impl fmt::Debug for PutBucketLifecycleConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketLifecycleConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketLoggingInput {
     /// <p>The name of the bucket for which to set the logging parameters.</p>
     pub bucket: BucketName,
@@ -12157,8 +14441,15 @@ impl PutBucketLoggingInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketLoggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketLoggingOutput {}
 
 impl fmt::Debug for PutBucketLoggingOutput {
@@ -12168,6 +14459,15 @@ impl fmt::Debug for PutBucketLoggingOutput {
     }
 }
 
+impl SplitMetadata for PutBucketLoggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketMetricsConfigurationInput {
     /// <p>The name of the bucket for which the metrics configuration is set.</p>
     pub bucket: BucketName,
@@ -12199,8 +14499,15 @@ impl PutBucketMetricsConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketMetricsConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketMetricsConfigurationOutput {}
 
 impl fmt::Debug for PutBucketMetricsConfigurationOutput {
@@ -12210,6 +14517,15 @@ impl fmt::Debug for PutBucketMetricsConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketMetricsConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketNotificationConfigurationInput {
     /// <p>The name of the bucket.</p>
     pub bucket: BucketName,
@@ -12242,8 +14558,15 @@ impl PutBucketNotificationConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketNotificationConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketNotificationConfigurationOutput {}
 
 impl fmt::Debug for PutBucketNotificationConfigurationOutput {
@@ -12253,6 +14576,15 @@ impl fmt::Debug for PutBucketNotificationConfigurationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketNotificationConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketOwnershipControlsInput {
     /// <p>The name of the Amazon S3 bucket whose <code>OwnershipControls</code> you want to set.</p>
     pub bucket: BucketName,
@@ -12287,8 +14619,15 @@ impl PutBucketOwnershipControlsInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketOwnershipControlsInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketOwnershipControlsOutput {}
 
 impl fmt::Debug for PutBucketOwnershipControlsOutput {
@@ -12298,6 +14637,15 @@ impl fmt::Debug for PutBucketOwnershipControlsOutput {
     }
 }
 
+impl SplitMetadata for PutBucketOwnershipControlsOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketPolicyInput {
     /// <p>The name of the bucket.</p>
     pub bucket: BucketName,
@@ -12348,8 +14696,15 @@ impl PutBucketPolicyInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketPolicyInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketPolicyOutput {}
 
 impl fmt::Debug for PutBucketPolicyOutput {
@@ -12359,6 +14714,15 @@ impl fmt::Debug for PutBucketPolicyOutput {
     }
 }
 
+impl SplitMetadata for PutBucketPolicyOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketReplicationInput {
     /// <p>The name of the bucket</p>
     pub bucket: BucketName,
@@ -12409,8 +14773,15 @@ impl PutBucketReplicationInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketReplicationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketReplicationOutput {}
 
 impl fmt::Debug for PutBucketReplicationOutput {
@@ -12420,6 +14791,15 @@ impl fmt::Debug for PutBucketReplicationOutput {
     }
 }
 
+impl SplitMetadata for PutBucketReplicationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketRequestPaymentInput {
     /// <p>The bucket name.</p>
     pub bucket: BucketName,
@@ -12466,8 +14846,15 @@ impl PutBucketRequestPaymentInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketRequestPaymentInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketRequestPaymentOutput {}
 
 impl fmt::Debug for PutBucketRequestPaymentOutput {
@@ -12477,6 +14864,15 @@ impl fmt::Debug for PutBucketRequestPaymentOutput {
     }
 }
 
+impl SplitMetadata for PutBucketRequestPaymentOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketTaggingInput {
     /// <p>The bucket name.</p>
     pub bucket: BucketName,
@@ -12523,8 +14919,15 @@ impl PutBucketTaggingInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketTaggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketTaggingOutput {}
 
 impl fmt::Debug for PutBucketTaggingOutput {
@@ -12534,6 +14937,15 @@ impl fmt::Debug for PutBucketTaggingOutput {
     }
 }
 
+impl SplitMetadata for PutBucketTaggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketVersioningInput {
     /// <p>The bucket name.</p>
     pub bucket: BucketName,
@@ -12587,8 +14999,15 @@ impl PutBucketVersioningInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketVersioningInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketVersioningOutput {}
 
 impl fmt::Debug for PutBucketVersioningOutput {
@@ -12598,6 +15017,15 @@ impl fmt::Debug for PutBucketVersioningOutput {
     }
 }
 
+impl SplitMetadata for PutBucketVersioningOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutBucketWebsiteInput {
     /// <p>The bucket name.</p>
     pub bucket: BucketName,
@@ -12644,8 +15072,15 @@ impl PutBucketWebsiteInput {
         default()
     }
 }
+impl SplitMetadata for PutBucketWebsiteInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutBucketWebsiteOutput {}
 
 impl fmt::Debug for PutBucketWebsiteOutput {
@@ -12655,6 +15090,15 @@ impl fmt::Debug for PutBucketWebsiteOutput {
     }
 }
 
+impl SplitMetadata for PutBucketWebsiteOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutObjectAclInput {
     /// <p>The canned ACL to apply to the object. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL">Canned
     /// ACL</a>.</p>
@@ -12759,8 +15203,15 @@ impl PutObjectAclInput {
         default()
     }
 }
+impl SplitMetadata for PutObjectAclInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutObjectAclOutput {
     pub request_charged: Option<RequestCharged>,
 }
@@ -12772,6 +15223,14 @@ impl fmt::Debug for PutObjectAclOutput {
             d.field("request_charged", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for PutObjectAclOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -13051,7 +15510,375 @@ impl PutObjectInput {
         default()
     }
 }
+#[derive(Clone)]
+pub struct PutObjectInputMeta {
+    /// <p>The canned ACL to apply to the object. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL">Canned
+    /// ACL</a>.</p>
+    /// <p>This action is not supported by Amazon S3 on Outposts.</p>
+    pub acl: Option<ObjectCannedACL>,
+    /// <p>The bucket name to which the PUT action was initiated. </p>
+    /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>When you use this action with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form <code>
+    /// <i>AccessPointName</i>-<i>AccountId</i>.<i>outpostID</i>.s3-outposts.<i>Region</i>.amazonaws.com</code>. When you use this action with S3 on Outposts through the Amazon Web Services SDKs, you provide the Outposts access point ARN in place of the bucket name. For more information about S3 on Outposts ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html">What is S3 on Outposts</a> in the <i>Amazon S3 User Guide</i>.</p>
+    pub bucket: BucketName,
+    /// <p>Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption with
+    /// server-side encryption using AWS KMS (SSE-KMS). Setting this header to <code>true</code>
+    /// causes Amazon S3 to use an S3 Bucket Key for object encryption with SSE-KMS.</p>
+    /// <p>Specifying this header with a PUT action doesn’t affect bucket-level settings for S3
+    /// Bucket Key.</p>
+    pub bucket_key_enabled: Option<BucketKeyEnabled>,
+    /// <p> Can be used to specify caching behavior along the request/reply chain. For more
+    /// information, see <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9">http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9</a>.</p>
+    pub cache_control: Option<CacheControl>,
+    /// <p>Indicates the algorithm used to create the checksum for the object when using the SDK. This header will not provide any
+    /// additional functionality if not using the SDK. When sending this header, there must be a corresponding <code>x-amz-checksum</code> or
+    /// <code>x-amz-trailer</code> header sent. Otherwise, Amazon S3 fails the request with the HTTP status code <code>400 Bad Request</code>. For more
+    /// information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in
+    /// the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>If you provide an individual checksum, Amazon S3 ignores any provided
+    /// <code>ChecksumAlgorithm</code> parameter.</p>
+    pub checksum_algorithm: Option<ChecksumAlgorithm>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_crc32: Option<ChecksumCRC32>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 32-bit CRC32C checksum of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_crc32c: Option<ChecksumCRC32C>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 160-bit SHA-1 digest of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_sha1: Option<ChecksumSHA1>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 256-bit SHA-256 digest of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_sha256: Option<ChecksumSHA256>,
+    /// <p>Specifies presentational information for the object. For more information, see <a href="https://www.rfc-editor.org/rfc/rfc6266#section-4">https://www.rfc-editor.org/rfc/rfc6266#section-4</a>.</p>
+    pub content_disposition: Option<ContentDisposition>,
+    /// <p>Specifies what content encodings have been applied to the object and thus what decoding
+    /// mechanisms must be applied to obtain the media-type referenced by the Content-Type header
+    /// field. For more information, see <a href="https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding">https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding</a>.</p>
+    pub content_encoding: Option<ContentEncoding>,
+    /// <p>The language the content is in.</p>
+    pub content_language: Option<ContentLanguage>,
+    /// <p>Size of the body in bytes. This parameter is useful when the size of the body cannot be
+    /// determined automatically. For more information, see <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length">https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length</a>.</p>
+    pub content_length: Option<ContentLength>,
+    /// <p>The base64-encoded 128-bit MD5 digest of the message (without the headers) according to
+    /// RFC 1864. This header can be used as a message integrity check to verify that the data is
+    /// the same data that was originally sent. Although it is optional, we recommend using the
+    /// Content-MD5 mechanism as an end-to-end integrity check. For more information about REST
+    /// request authentication, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html">REST Authentication</a>.</p>
+    pub content_md5: Option<ContentMD5>,
+    /// <p>A standard MIME type describing the format of the contents. For more information, see
+    /// <a href="https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type">https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type</a>.</p>
+    pub content_type: Option<ContentType>,
+    /// <p>The account ID of the expected bucket owner. If the bucket is owned by a different account, the request fails with the HTTP status code <code>403 Forbidden</code> (access denied).</p>
+    pub expected_bucket_owner: Option<AccountId>,
+    /// <p>The date and time at which the object is no longer cacheable. For more information, see
+    /// <a href="https://www.rfc-editor.org/rfc/rfc7234#section-5.3">https://www.rfc-editor.org/rfc/rfc7234#section-5.3</a>.</p>
+    pub expires: Option<Expires>,
+    /// <p>Gives the grantee READ, READ_ACP, and WRITE_ACP permissions on the object.</p>
+    /// <p>This action is not supported by Amazon S3 on Outposts.</p>
+    pub grant_full_control: Option<GrantFullControl>,
+    /// <p>Allows grantee to read the object data and its metadata.</p>
+    /// <p>This action is not supported by Amazon S3 on Outposts.</p>
+    pub grant_read: Option<GrantRead>,
+    /// <p>Allows grantee to read the object ACL.</p>
+    /// <p>This action is not supported by Amazon S3 on Outposts.</p>
+    pub grant_read_acp: Option<GrantReadACP>,
+    /// <p>Allows grantee to write the ACL for the applicable object.</p>
+    /// <p>This action is not supported by Amazon S3 on Outposts.</p>
+    pub grant_write_acp: Option<GrantWriteACP>,
+    /// <p>Object key for which the PUT action was initiated.</p>
+    pub key: ObjectKey,
+    /// <p>A map of metadata to store with the object in S3.</p>
+    pub metadata: Option<Metadata>,
+    /// <p>Specifies whether a legal hold will be applied to this object. For more information
+    /// about S3 Object Lock, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html">Object Lock</a>.</p>
+    pub object_lock_legal_hold_status: Option<ObjectLockLegalHoldStatus>,
+    /// <p>The Object Lock mode that you want to apply to this object.</p>
+    pub object_lock_mode: Option<ObjectLockMode>,
+    /// <p>The date and time when you want this object's Object Lock to expire. Must be formatted
+    /// as a timestamp parameter.</p>
+    pub object_lock_retain_until_date: Option<ObjectLockRetainUntilDate>,
+    pub request_payer: Option<RequestPayer>,
+    /// <p>Specifies the algorithm to use to when encrypting the object (for example,
+    /// AES256).</p>
+    pub sse_customer_algorithm: Option<SSECustomerAlgorithm>,
+    /// <p>Specifies the customer-provided encryption key for Amazon S3 to use in encrypting data. This
+    /// value is used to store the object and then it is discarded; Amazon S3 does not store the
+    /// encryption key. The key must be appropriate for use with the algorithm specified in the
+    /// <code>x-amz-server-side-encryption-customer-algorithm</code> header.</p>
+    pub sse_customer_key: Option<SSECustomerKey>,
+    /// <p>Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321. Amazon S3 uses
+    /// this header for a message integrity check to ensure that the encryption key was transmitted
+    /// without error.</p>
+    pub sse_customer_key_md5: Option<SSECustomerKeyMD5>,
+    /// <p>Specifies the Amazon Web Services KMS Encryption Context to use for object encryption. The value of
+    /// this header is a base64-encoded UTF-8 string holding JSON with the encryption context
+    /// key-value pairs. This value is stored as object metadata and automatically gets passed on to
+    /// Amazon Web Services KMS for future <code>GetObject</code> or <code>CopyObject</code> operations on this
+    /// object.</p>
+    pub ssekms_encryption_context: Option<SSEKMSEncryptionContext>,
+    /// <p>If <code>x-amz-server-side-encryption</code> has a valid value of <code>aws:kms</code>,
+    /// this header specifies the ID of the Amazon Web Services Key Management Service (Amazon Web Services KMS) symmetric
+    /// encryption customer managed key that was used for the object. If you specify
+    /// <code>x-amz-server-side-encryption:aws:kms</code>, but do not provide<code>
+    /// x-amz-server-side-encryption-aws-kms-key-id</code>, Amazon S3 uses the Amazon Web Services managed key to
+    /// protect the data. If the KMS key does not exist in the same account issuing the command,
+    /// you must use the full ARN and not just the ID. </p>
+    pub ssekms_key_id: Option<SSEKMSKeyId>,
+    /// <p>The server-side encryption algorithm used when storing this object in Amazon S3 (for example,
+    /// AES256, <code>aws:kms</code>).</p>
+    pub server_side_encryption: Option<ServerSideEncryption>,
+    /// <p>By default, Amazon S3 uses the STANDARD Storage Class to store newly created objects. The
+    /// STANDARD storage class provides high durability and high availability. Depending on
+    /// performance needs, you can specify a different Storage Class. Amazon S3 on Outposts only uses
+    /// the OUTPOSTS Storage Class. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html">Storage Classes</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub storage_class: Option<StorageClass>,
+    /// <p>The tag-set for the object. The tag-set must be encoded as URL Query parameters. (For
+    /// example, "Key1=Value1")</p>
+    pub tagging: Option<TaggingHeader>,
+    /// <p>If the bucket is configured as a website, redirects requests for this object to another
+    /// object in the same bucket or to an external URL. Amazon S3 stores the value of this header in
+    /// the object metadata. For information about object metadata, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html">Object Key and Metadata</a>.</p>
+    /// <p>In the following example, the request header sets the redirect to an object
+    /// (anotherPage.html) in the same bucket:</p>
+    /// <p>
+    /// <code>x-amz-website-redirect-location: /anotherPage.html</code>
+    /// </p>
+    /// <p>In the following example, the request header sets the object redirect to another
+    /// website:</p>
+    /// <p>
+    /// <code>x-amz-website-redirect-location: http://www.example.com/</code>
+    /// </p>
+    /// <p>For more information about website hosting in Amazon S3, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html">Hosting Websites on Amazon S3</a> and
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html">How to
+    /// Configure Website Page Redirects</a>. </p>
+    pub website_redirect_location: Option<WebsiteRedirectLocation>,
+}
 
+impl fmt::Debug for PutObjectInputMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("PutObjectInputMeta");
+        if let Some(ref val) = self.acl {
+            d.field("acl", val);
+        }
+        d.field("bucket", &self.bucket);
+        if let Some(ref val) = self.bucket_key_enabled {
+            d.field("bucket_key_enabled", val);
+        }
+        if let Some(ref val) = self.cache_control {
+            d.field("cache_control", val);
+        }
+        if let Some(ref val) = self.checksum_algorithm {
+            d.field("checksum_algorithm", val);
+        }
+        if let Some(ref val) = self.checksum_crc32 {
+            d.field("checksum_crc32", val);
+        }
+        if let Some(ref val) = self.checksum_crc32c {
+            d.field("checksum_crc32c", val);
+        }
+        if let Some(ref val) = self.checksum_sha1 {
+            d.field("checksum_sha1", val);
+        }
+        if let Some(ref val) = self.checksum_sha256 {
+            d.field("checksum_sha256", val);
+        }
+        if let Some(ref val) = self.content_disposition {
+            d.field("content_disposition", val);
+        }
+        if let Some(ref val) = self.content_encoding {
+            d.field("content_encoding", val);
+        }
+        if let Some(ref val) = self.content_language {
+            d.field("content_language", val);
+        }
+        if let Some(ref val) = self.content_length {
+            d.field("content_length", val);
+        }
+        if let Some(ref val) = self.content_md5 {
+            d.field("content_md5", val);
+        }
+        if let Some(ref val) = self.content_type {
+            d.field("content_type", val);
+        }
+        if let Some(ref val) = self.expected_bucket_owner {
+            d.field("expected_bucket_owner", val);
+        }
+        if let Some(ref val) = self.expires {
+            d.field("expires", val);
+        }
+        if let Some(ref val) = self.grant_full_control {
+            d.field("grant_full_control", val);
+        }
+        if let Some(ref val) = self.grant_read {
+            d.field("grant_read", val);
+        }
+        if let Some(ref val) = self.grant_read_acp {
+            d.field("grant_read_acp", val);
+        }
+        if let Some(ref val) = self.grant_write_acp {
+            d.field("grant_write_acp", val);
+        }
+        d.field("key", &self.key);
+        if let Some(ref val) = self.metadata {
+            d.field("metadata", val);
+        }
+        if let Some(ref val) = self.object_lock_legal_hold_status {
+            d.field("object_lock_legal_hold_status", val);
+        }
+        if let Some(ref val) = self.object_lock_mode {
+            d.field("object_lock_mode", val);
+        }
+        if let Some(ref val) = self.object_lock_retain_until_date {
+            d.field("object_lock_retain_until_date", val);
+        }
+        if let Some(ref val) = self.request_payer {
+            d.field("request_payer", val);
+        }
+        if let Some(ref val) = self.sse_customer_algorithm {
+            d.field("sse_customer_algorithm", val);
+        }
+        if let Some(ref val) = self.sse_customer_key {
+            d.field("sse_customer_key", val);
+        }
+        if let Some(ref val) = self.sse_customer_key_md5 {
+            d.field("sse_customer_key_md5", val);
+        }
+        if let Some(ref val) = self.ssekms_encryption_context {
+            d.field("ssekms_encryption_context", val);
+        }
+        if let Some(ref val) = self.ssekms_key_id {
+            d.field("ssekms_key_id", val);
+        }
+        if let Some(ref val) = self.server_side_encryption {
+            d.field("server_side_encryption", val);
+        }
+        if let Some(ref val) = self.storage_class {
+            d.field("storage_class", val);
+        }
+        if let Some(ref val) = self.tagging {
+            d.field("tagging", val);
+        }
+        if let Some(ref val) = self.website_redirect_location {
+            d.field("website_redirect_location", val);
+        }
+        d.finish_non_exhaustive()
+    }
+}
+
+impl From<PutObjectInput> for PutObjectInputMeta {
+    fn from(value: PutObjectInput) -> Self {
+        Self {
+            acl: value.acl,
+            bucket: value.bucket,
+            bucket_key_enabled: value.bucket_key_enabled,
+            cache_control: value.cache_control,
+            checksum_algorithm: value.checksum_algorithm,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_disposition: value.content_disposition,
+            content_encoding: value.content_encoding,
+            content_language: value.content_language,
+            content_length: value.content_length,
+            content_md5: value.content_md5,
+            content_type: value.content_type,
+            expected_bucket_owner: value.expected_bucket_owner,
+            expires: value.expires,
+            grant_full_control: value.grant_full_control,
+            grant_read: value.grant_read,
+            grant_read_acp: value.grant_read_acp,
+            grant_write_acp: value.grant_write_acp,
+            key: value.key,
+            metadata: value.metadata,
+            object_lock_legal_hold_status: value.object_lock_legal_hold_status,
+            object_lock_mode: value.object_lock_mode,
+            object_lock_retain_until_date: value.object_lock_retain_until_date,
+            request_payer: value.request_payer,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key: value.sse_customer_key,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            ssekms_encryption_context: value.ssekms_encryption_context,
+            ssekms_key_id: value.ssekms_key_id,
+            server_side_encryption: value.server_side_encryption,
+            storage_class: value.storage_class,
+            tagging: value.tagging,
+            website_redirect_location: value.website_redirect_location,
+        }
+    }
+}
+
+impl From<PutObjectInputMeta> for PutObjectInput {
+    fn from(value: PutObjectInputMeta) -> Self {
+        Self {
+            acl: value.acl,
+            body: None,
+            bucket: value.bucket,
+            bucket_key_enabled: value.bucket_key_enabled,
+            cache_control: value.cache_control,
+            checksum_algorithm: value.checksum_algorithm,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_disposition: value.content_disposition,
+            content_encoding: value.content_encoding,
+            content_language: value.content_language,
+            content_length: value.content_length,
+            content_md5: value.content_md5,
+            content_type: value.content_type,
+            expected_bucket_owner: value.expected_bucket_owner,
+            expires: value.expires,
+            grant_full_control: value.grant_full_control,
+            grant_read: value.grant_read,
+            grant_read_acp: value.grant_read_acp,
+            grant_write_acp: value.grant_write_acp,
+            key: value.key,
+            metadata: value.metadata,
+            object_lock_legal_hold_status: value.object_lock_legal_hold_status,
+            object_lock_mode: value.object_lock_mode,
+            object_lock_retain_until_date: value.object_lock_retain_until_date,
+            request_payer: value.request_payer,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key: value.sse_customer_key,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            ssekms_encryption_context: value.ssekms_encryption_context,
+            ssekms_key_id: value.ssekms_key_id,
+            server_side_encryption: value.server_side_encryption,
+            storage_class: value.storage_class,
+            tagging: value.tagging,
+            website_redirect_location: value.website_redirect_location,
+        }
+    }
+}
+
+impl SplitMetadata for PutObjectInput {
+    type Meta = PutObjectInputMeta;
+    type Data = Option<StreamingBlob>;
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        let mut this = self;
+        let data = this.body.take();
+        let meta = Self::Meta::from(this);
+        (meta, data)
+    }
+
+    fn set_data(&mut self, data: Self::Data) {
+        self.body = data;
+    }
+}
+
+#[derive(Clone)]
 pub struct PutObjectLegalHoldInput {
     /// <p>The bucket name containing the object that you want to place a legal hold on. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -13112,8 +15939,15 @@ impl PutObjectLegalHoldInput {
         default()
     }
 }
+impl SplitMetadata for PutObjectLegalHoldInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutObjectLegalHoldOutput {
     pub request_charged: Option<RequestCharged>,
 }
@@ -13128,6 +15962,15 @@ impl fmt::Debug for PutObjectLegalHoldOutput {
     }
 }
 
+impl SplitMetadata for PutObjectLegalHoldOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutObjectLockConfigurationInput {
     /// <p>The bucket whose Object Lock configuration you want to create or replace.</p>
     pub bucket: BucketName,
@@ -13183,8 +16026,15 @@ impl PutObjectLockConfigurationInput {
         default()
     }
 }
+impl SplitMetadata for PutObjectLockConfigurationInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutObjectLockConfigurationOutput {
     pub request_charged: Option<RequestCharged>,
 }
@@ -13199,7 +16049,15 @@ impl fmt::Debug for PutObjectLockConfigurationOutput {
     }
 }
 
-#[derive(Default)]
+impl SplitMetadata for PutObjectLockConfigurationOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct PutObjectOutput {
     /// <p>Indicates whether the uploaded object uses an S3 Bucket Key for server-side encryption
     /// with Amazon Web Services KMS (SSE-KMS).</p>
@@ -13303,6 +16161,15 @@ impl fmt::Debug for PutObjectOutput {
     }
 }
 
+impl SplitMetadata for PutObjectOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutObjectRetentionInput {
     /// <p>The bucket name that contains the object you want to apply this Object Retention
     /// configuration to. </p>
@@ -13370,8 +16237,15 @@ impl PutObjectRetentionInput {
         default()
     }
 }
+impl SplitMetadata for PutObjectRetentionInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutObjectRetentionOutput {
     pub request_charged: Option<RequestCharged>,
 }
@@ -13386,6 +16260,15 @@ impl fmt::Debug for PutObjectRetentionOutput {
     }
 }
 
+impl SplitMetadata for PutObjectRetentionOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutObjectTaggingInput {
     /// <p>The bucket name containing the object. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -13445,8 +16328,15 @@ impl PutObjectTaggingInput {
         default()
     }
 }
+impl SplitMetadata for PutObjectTaggingInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutObjectTaggingOutput {
     /// <p>The versionId of the object the tag-set was added to.</p>
     pub version_id: Option<ObjectVersionId>,
@@ -13462,6 +16352,15 @@ impl fmt::Debug for PutObjectTaggingOutput {
     }
 }
 
+impl SplitMetadata for PutObjectTaggingOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
+#[derive(Clone)]
 pub struct PutPublicAccessBlockInput {
     /// <p>The name of the Amazon S3 bucket whose <code>PublicAccessBlock</code> configuration you want
     /// to set.</p>
@@ -13509,8 +16408,15 @@ impl PutPublicAccessBlockInput {
         default()
     }
 }
+impl SplitMetadata for PutPublicAccessBlockInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PutPublicAccessBlockOutput {}
 
 impl fmt::Debug for PutPublicAccessBlockOutput {
@@ -13520,10 +16426,19 @@ impl fmt::Debug for PutPublicAccessBlockOutput {
     }
 }
 
+impl SplitMetadata for PutPublicAccessBlockOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type QueueArn = String;
 
 /// <p>Specifies the configuration for publishing messages to an Amazon Simple Queue Service
 /// (Amazon SQS) queue when Amazon S3 detects specified events.</p>
+#[derive(Clone)]
 pub struct QueueConfiguration {
     /// <p>A collection of bucket events for which to send notifications</p>
     pub events: EventList,
@@ -13546,6 +16461,14 @@ impl fmt::Debug for QueueConfiguration {
         }
         d.field("queue_arn", &self.queue_arn);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for QueueConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -13598,7 +16521,7 @@ impl FromStr for QuoteFields {
 pub type RecordDelimiter = String;
 
 /// <p>The container for the records event.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RecordsEvent {
     /// <p>The byte array of partial, one or more result records.</p>
     pub payload: Option<Body>,
@@ -13614,9 +16537,17 @@ impl fmt::Debug for RecordsEvent {
     }
 }
 
+impl SplitMetadata for RecordsEvent {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies how requests are redirected. In the event of an error, you can specify a
 /// different error code to return.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Redirect {
     /// <p>The host name to use in the redirect request.</p>
     pub host_name: Option<HostName>,
@@ -13671,8 +16602,17 @@ impl fmt::Debug for Redirect {
     }
 }
 
+impl SplitMetadata for Redirect {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the redirect behavior of all requests to a website endpoint of an Amazon S3
 /// bucket.</p>
+#[derive(Clone)]
 pub struct RedirectAllRequestsTo {
     /// <p>Name of the host where requests are redirected.</p>
     pub host_name: HostName,
@@ -13692,6 +16632,14 @@ impl fmt::Debug for RedirectAllRequestsTo {
     }
 }
 
+impl SplitMetadata for RedirectAllRequestsTo {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ReplaceKeyPrefixWith = String;
 
 pub type ReplaceKeyWith = String;
@@ -13707,6 +16655,7 @@ pub type ReplicaKmsKeyID = String;
 /// replication configuration is the earlier version, V1. In the earlier version, this
 /// element is not allowed.</p>
 /// </note>
+#[derive(Clone)]
 pub struct ReplicaModifications {
     /// <p>Specifies whether Amazon S3 replicates modifications on replicas.</p>
     pub status: ReplicaModificationsStatus,
@@ -13717,6 +16666,14 @@ impl fmt::Debug for ReplicaModifications {
         let mut d = f.debug_struct("ReplicaModifications");
         d.field("status", &self.status);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ReplicaModifications {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -13760,6 +16717,7 @@ impl FromStr for ReplicaModificationsStatus {
 
 /// <p>A container for replication rules. You can add up to 1,000 rules. The maximum size of a
 /// replication configuration is 2 MB.</p>
+#[derive(Clone)]
 pub struct ReplicationConfiguration {
     /// <p>The Amazon Resource Name (ARN) of the Identity and Access Management (IAM) role that Amazon S3 assumes when
     /// replicating objects. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-how-setup.html">How to Set Up Replication</a>
@@ -13779,7 +16737,16 @@ impl fmt::Debug for ReplicationConfiguration {
     }
 }
 
+impl SplitMetadata for ReplicationConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies which Amazon S3 objects to replicate and where to store the replicas.</p>
+#[derive(Clone)]
 pub struct ReplicationRule {
     pub delete_marker_replication: Option<DeleteMarkerReplication>,
     /// <p>A container for information about the replication destination and its configurations
@@ -13847,6 +16814,14 @@ impl fmt::Debug for ReplicationRule {
     }
 }
 
+impl SplitMetadata for ReplicationRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A container for specifying rule filters. The filters determine the subset of objects to
 /// which the rule applies. This element is required only if you specify more than one filter. </p>
 /// <p>For example:</p>
@@ -13860,7 +16835,7 @@ impl fmt::Debug for ReplicationRule {
 /// in an <code>And</code> tag.</p>
 /// </li>
 /// </ul>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ReplicationRuleAndOperator {
     /// <p>An object key name prefix that identifies the subset of objects to which the rule
     /// applies.</p>
@@ -13882,10 +16857,18 @@ impl fmt::Debug for ReplicationRuleAndOperator {
     }
 }
 
+impl SplitMetadata for ReplicationRuleAndOperator {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A filter that identifies the subset of objects to which the replication rule applies. A
 /// <code>Filter</code> must specify exactly one <code>Prefix</code>, <code>Tag</code>, or
 /// an <code>And</code> child element.</p>
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum ReplicationRuleFilter {
     /// <p>A container for specifying rule filters. The filters determine the subset of objects to
@@ -14000,6 +16983,7 @@ impl FromStr for ReplicationStatus {
 /// <p> A container specifying S3 Replication Time Control (S3 RTC) related information, including whether S3 RTC is
 /// enabled and the time when all objects and operations on objects must be replicated. Must be
 /// specified together with a <code>Metrics</code> block. </p>
+#[derive(Clone)]
 pub struct ReplicationTime {
     /// <p> Specifies whether the replication time is enabled. </p>
     pub status: ReplicationTimeStatus,
@@ -14014,6 +16998,14 @@ impl fmt::Debug for ReplicationTime {
         d.field("status", &self.status);
         d.field("time", &self.time);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ReplicationTime {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -14057,7 +17049,7 @@ impl FromStr for ReplicationTimeStatus {
 
 /// <p> A container specifying the time value for S3 Replication Time Control (S3 RTC) and replication metrics
 /// <code>EventThreshold</code>. </p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ReplicationTimeValue {
     /// <p> Contains an integer specifying time in minutes. </p>
     /// <p> Valid value: 15</p>
@@ -14069,6 +17061,14 @@ impl fmt::Debug for ReplicationTimeValue {
         let mut d = f.debug_struct("ReplicationTimeValue");
         d.field("minutes", &self.minutes);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for ReplicationTimeValue {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -14151,6 +17151,7 @@ impl FromStr for RequestPayer {
 }
 
 /// <p>Container for Payer.</p>
+#[derive(Clone)]
 pub struct RequestPaymentConfiguration {
     /// <p>Specifies who pays for the download and request fees.</p>
     pub payer: Payer,
@@ -14164,9 +17165,17 @@ impl fmt::Debug for RequestPaymentConfiguration {
     }
 }
 
+impl SplitMetadata for RequestPaymentConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for specifying if periodic <code>QueryProgress</code> messages should be
 /// sent.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RequestProgress {
     /// <p>Specifies whether periodic QueryProgress frames should be sent. Valid values: TRUE,
     /// FALSE. Default value: FALSE.</p>
@@ -14178,6 +17187,14 @@ impl fmt::Debug for RequestProgress {
         let mut d = f.debug_struct("RequestProgress");
         d.field("enabled", &self.enabled);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for RequestProgress {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -14199,6 +17216,7 @@ pub type ResponseExpires = Timestamp;
 
 pub type Restore = String;
 
+#[derive(Clone)]
 pub struct RestoreObjectInput {
     /// <p>The bucket name containing the object to restore. </p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -14253,8 +17271,15 @@ impl RestoreObjectInput {
         default()
     }
 }
+impl SplitMetadata for RestoreObjectInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RestoreObjectOutput {
     pub request_charged: Option<RequestCharged>,
     /// <p>Indicates the path in the provided S3 output location where Select results will be
@@ -14275,10 +17300,18 @@ impl fmt::Debug for RestoreObjectOutput {
     }
 }
 
+impl SplitMetadata for RestoreObjectOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type RestoreOutputPath = String;
 
 /// <p>Container for restore job parameters.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct RestoreRequest {
     /// <p>Lifetime of the active copy in days. Do not use with restores that specify
     /// <code>OutputLocation</code>.</p>
@@ -14326,6 +17359,14 @@ impl fmt::Debug for RestoreRequest {
     }
 }
 
+impl SplitMetadata for RestoreRequest {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RestoreRequestType(Cow<'static, str>);
 
@@ -14367,6 +17408,7 @@ pub type Role = String;
 /// <p>Specifies the redirect behavior and when a redirect is applied. For more information
 /// about routing rules, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html#advanced-conditional-redirects">Configuring advanced conditional redirects</a> in the
 /// <i>Amazon S3 User Guide</i>.</p>
+#[derive(Clone)]
 pub struct RoutingRule {
     /// <p>A container for describing a condition that must be met for the specified redirect to
     /// apply. For example, 1. If request is for pages in the <code>/docs</code> folder, redirect
@@ -14390,10 +17432,18 @@ impl fmt::Debug for RoutingRule {
     }
 }
 
+impl SplitMetadata for RoutingRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type RoutingRules = List<RoutingRule>;
 
 /// <p>A container for object key name prefix and suffix filtering rules.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct S3KeyFilter {
     pub filter_rules: Option<FilterRuleList>,
 }
@@ -14408,7 +17458,16 @@ impl fmt::Debug for S3KeyFilter {
     }
 }
 
+impl SplitMetadata for S3KeyFilter {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Describes an Amazon S3 location that will receive the results of the restore request.</p>
+#[derive(Clone)]
 pub struct S3Location {
     /// <p>A list of grants that control access to the staged results.</p>
     pub access_control_list: Option<Grants>,
@@ -14454,6 +17513,14 @@ impl fmt::Debug for S3Location {
     }
 }
 
+impl SplitMetadata for S3Location {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type SSECustomerAlgorithm = String;
 
 pub type SSECustomerKey = String;
@@ -14461,6 +17528,7 @@ pub type SSECustomerKey = String;
 pub type SSECustomerKeyMD5 = String;
 
 /// <p>Specifies the use of SSE-KMS to encrypt delivered inventory reports.</p>
+#[derive(Clone)]
 pub struct SSEKMS {
     /// <p>Specifies the ID of the Amazon Web Services Key Management Service (Amazon Web Services KMS) symmetric encryption
     /// customer managed key to use for encrypting inventory reports.</p>
@@ -14475,12 +17543,20 @@ impl fmt::Debug for SSEKMS {
     }
 }
 
+impl SplitMetadata for SSEKMS {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type SSEKMSEncryptionContext = String;
 
 pub type SSEKMSKeyId = String;
 
 /// <p>Specifies the use of SSE-S3 to encrypt delivered inventory reports.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SSES3 {}
 
 impl fmt::Debug for SSES3 {
@@ -14490,11 +17566,19 @@ impl fmt::Debug for SSES3 {
     }
 }
 
+impl SplitMetadata for SSES3 {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the byte range of the object to get the records from. A record is processed
 /// when its first byte is contained by the range. This parameter is optional, but when
 /// specified, it must not be empty. See RFC 2616, Section 14.35.1 about how to specify the
 /// start and end of the range.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ScanRange {
     /// <p>Specifies the end of the byte range. This parameter is optional. Valid values:
     /// non-negative integers. The default value is one less than the size of the object being
@@ -14520,8 +17604,16 @@ impl fmt::Debug for ScanRange {
     }
 }
 
+impl SplitMetadata for ScanRange {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>The container for selecting objects from a content event stream.</p>
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum SelectObjectContentEvent {
     /// <p>The Continuation Event.</p>
@@ -14542,6 +17634,7 @@ pub enum SelectObjectContentEvent {
 /// into records. It returns only records that match the specified SQL expression. You must
 /// also specify the data serialization format for the response. For more information, see
 /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectSELECTContent.html">S3Select API Documentation</a>.</p>
+#[derive(Clone)]
 pub struct SelectObjectContentInput {
     /// <p>The S3 bucket.</p>
     pub bucket: BucketName,
@@ -14595,6 +17688,13 @@ impl SelectObjectContentInput {
         default()
     }
 }
+impl SplitMetadata for SelectObjectContentInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
 #[derive(Default)]
 pub struct SelectObjectContentOutput {
@@ -14612,12 +17712,50 @@ impl fmt::Debug for SelectObjectContentOutput {
     }
 }
 
+#[derive(Default, Clone)]
+pub struct SelectObjectContentOutputMeta {}
+
+impl fmt::Debug for SelectObjectContentOutputMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("SelectObjectContentOutputMeta");
+        d.finish_non_exhaustive()
+    }
+}
+
+impl From<SelectObjectContentOutput> for SelectObjectContentOutputMeta {
+    fn from(value: SelectObjectContentOutput) -> Self {
+        Self {}
+    }
+}
+
+impl From<SelectObjectContentOutputMeta> for SelectObjectContentOutput {
+    fn from(value: SelectObjectContentOutputMeta) -> Self {
+        Self { payload: None }
+    }
+}
+
+impl SplitMetadata for SelectObjectContentOutput {
+    type Meta = SelectObjectContentOutputMeta;
+    type Data = Option<SelectObjectContentEventStream>;
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        let mut this = self;
+        let data = this.payload.take();
+        let meta = Self::Meta::from(this);
+        (meta, data)
+    }
+
+    fn set_data(&mut self, data: Self::Data) {
+        self.payload = data;
+    }
+}
+
 /// <p>Request to filter the contents of an Amazon S3 object based on a simple Structured Query
 /// Language (SQL) statement. In the request, along with the SQL expression, you must specify a
 /// data serialization format (JSON or CSV) of the object. Amazon S3 uses this to parse object data
 /// into records. It returns only records that match the specified SQL expression. You must
 /// also specify the data serialization format for the response. For more information, see
 /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectSELECTContent.html">S3Select API Documentation</a>.</p>
+#[derive(Clone)]
 pub struct SelectObjectContentRequest {
     /// <p>The expression that is used to query the object.</p>
     pub expression: Expression,
@@ -14673,7 +17811,16 @@ impl fmt::Debug for SelectObjectContentRequest {
     }
 }
 
+impl SplitMetadata for SelectObjectContentRequest {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Describes the parameters for Select job types.</p>
+#[derive(Clone)]
 pub struct SelectParameters {
     /// <p>The expression that is used to query the object.</p>
     pub expression: Expression,
@@ -14693,6 +17840,14 @@ impl fmt::Debug for SelectParameters {
         d.field("input_serialization", &self.input_serialization);
         d.field("output_serialization", &self.output_serialization);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for SelectParameters {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -14741,6 +17896,7 @@ impl FromStr for ServerSideEncryption {
 /// with SSE-KMS to a bucket. By default, Amazon S3 uses this KMS key for SSE-KMS. For more
 /// information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html">PUT Bucket encryption</a> in
 /// the <i>Amazon S3 API Reference</i>.</p>
+#[derive(Clone)]
 pub struct ServerSideEncryptionByDefault {
     /// <p>Amazon Web Services Key Management Service (KMS) customer Amazon Web Services KMS key ID to use for the default
     /// encryption. This parameter is allowed if and only if <code>SSEAlgorithm</code> is set to
@@ -14781,8 +17937,16 @@ impl fmt::Debug for ServerSideEncryptionByDefault {
     }
 }
 
+impl SplitMetadata for ServerSideEncryptionByDefault {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the default server-side-encryption configuration.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ServerSideEncryptionConfiguration {
     /// <p>Container for information about a particular server-side encryption configuration
     /// rule.</p>
@@ -14797,8 +17961,16 @@ impl fmt::Debug for ServerSideEncryptionConfiguration {
     }
 }
 
+impl SplitMetadata for ServerSideEncryptionConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies the default server-side encryption configuration.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ServerSideEncryptionRule {
     /// <p>Specifies the default server-side encryption to apply to new objects in the bucket. If a
     /// PUT Object request doesn't specify any server-side encryption, this default encryption will
@@ -14824,6 +17996,14 @@ impl fmt::Debug for ServerSideEncryptionRule {
     }
 }
 
+impl SplitMetadata for ServerSideEncryptionRule {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type ServerSideEncryptionRules = List<ServerSideEncryptionRule>;
 
 pub type Setting = bool;
@@ -14837,7 +18017,7 @@ pub type SkipValidation = bool;
 /// objects. Currently, Amazon S3 supports only the filter that you can specify for objects created
 /// with server-side encryption using a customer managed key stored in Amazon Web Services Key Management Service
 /// (SSE-KMS).</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct SourceSelectionCriteria {
     /// <p>A filter that you can specify for selections for modifications on replicas. Amazon S3 doesn't
     /// replicate replica modifications by default. In the latest version of replication
@@ -14868,8 +18048,17 @@ impl fmt::Debug for SourceSelectionCriteria {
     }
 }
 
+impl SplitMetadata for SourceSelectionCriteria {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>A container for filter information for the selection of S3 objects encrypted with Amazon Web Services
 /// KMS.</p>
+#[derive(Clone)]
 pub struct SseKmsEncryptedObjects {
     /// <p>Specifies whether Amazon S3 replicates objects created with server-side encryption using an
     /// Amazon Web Services KMS key stored in Amazon Web Services Key Management Service.</p>
@@ -14881,6 +18070,14 @@ impl fmt::Debug for SseKmsEncryptedObjects {
         let mut d = f.debug_struct("SseKmsEncryptedObjects");
         d.field("status", &self.status);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for SseKmsEncryptedObjects {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -14927,7 +18124,7 @@ pub type Start = i64;
 pub type StartAfter = String;
 
 /// <p>Container for the stats details.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Stats {
     /// <p>The total number of uncompressed object bytes processed.</p>
     pub bytes_processed: BytesProcessed,
@@ -14947,8 +18144,16 @@ impl fmt::Debug for Stats {
     }
 }
 
+impl SplitMetadata for Stats {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for the Stats Event.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct StatsEvent {
     /// <p>The Stats event details.</p>
     pub details: Option<Stats>,
@@ -14961,6 +18166,14 @@ impl fmt::Debug for StatsEvent {
             d.field("details", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for StatsEvent {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -15020,7 +18233,7 @@ impl FromStr for StorageClass {
 
 /// <p>Specifies data related to access patterns to be collected and made available to analyze
 /// the tradeoffs between different storage classes for an Amazon S3 bucket.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct StorageClassAnalysis {
     /// <p>Specifies how data related to the storage class analysis for an Amazon S3 bucket should be
     /// exported.</p>
@@ -15037,8 +18250,17 @@ impl fmt::Debug for StorageClassAnalysis {
     }
 }
 
+impl SplitMetadata for StorageClassAnalysis {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Container for data related to the storage class analysis for an Amazon S3 bucket for
 /// export.</p>
+#[derive(Clone)]
 pub struct StorageClassAnalysisDataExport {
     /// <p>The place to store the data for an analysis.</p>
     pub destination: AnalyticsExportDestination,
@@ -15053,6 +18275,14 @@ impl fmt::Debug for StorageClassAnalysisDataExport {
         d.field("destination", &self.destination);
         d.field("output_schema_version", &self.output_schema_version);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for StorageClassAnalysisDataExport {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -15095,6 +18325,7 @@ impl FromStr for StorageClassAnalysisSchemaVersion {
 pub type Suffix = String;
 
 /// <p>A container of a key value name pair.</p>
+#[derive(Clone)]
 pub struct Tag {
     /// <p>Name of the object key.</p>
     pub key: ObjectKey,
@@ -15111,12 +18342,20 @@ impl fmt::Debug for Tag {
     }
 }
 
+impl SplitMetadata for Tag {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type TagCount = i32;
 
 pub type TagSet = List<Tag>;
 
 /// <p>Container for <code>TagSet</code> elements.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Tagging {
     /// <p>A collection for a set of tags</p>
     pub tag_set: TagSet,
@@ -15127,6 +18366,14 @@ impl fmt::Debug for Tagging {
         let mut d = f.debug_struct("Tagging");
         d.field("tag_set", &self.tag_set);
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for Tagging {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -15176,7 +18423,7 @@ pub type TargetBucket = String;
 /// <p>Buckets that use the bucket owner enforced setting for Object Ownership don't support
 /// target grants. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general">Permissions server access log delivery</a> in the
 /// <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct TargetGrant {
     /// <p>Container for the person being granted permissions.</p>
     pub grantee: Option<Grantee>,
@@ -15194,6 +18441,14 @@ impl fmt::Debug for TargetGrant {
             d.field("permission", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for TargetGrant {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -15244,6 +18499,7 @@ impl FromStr for Tier {
 /// <p>The S3 Intelligent-Tiering storage class is designed to optimize storage costs by
 /// automatically moving data to the most cost-effective storage access tier, without
 /// additional operational overhead.</p>
+#[derive(Clone)]
 pub struct Tiering {
     /// <p>S3 Intelligent-Tiering access tier. See <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access">Storage class
     /// for automatically optimizing frequently and infrequently accessed objects</a> for a
@@ -15265,6 +18521,14 @@ impl fmt::Debug for Tiering {
     }
 }
 
+impl SplitMetadata for Tiering {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type TieringList = List<Tiering>;
 
 pub type Token = String;
@@ -15273,6 +18537,7 @@ pub type TopicArn = String;
 
 /// <p>A container for specifying the configuration for publication of messages to an Amazon
 /// Simple Notification Service (Amazon SNS) topic when Amazon S3 detects specified events.</p>
+#[derive(Clone)]
 pub struct TopicConfiguration {
     /// <p>The Amazon S3 bucket event about which to send notifications. For more information, see
     /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html">Supported
@@ -15300,12 +18565,20 @@ impl fmt::Debug for TopicConfiguration {
     }
 }
 
+impl SplitMetadata for TopicConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type TopicConfigurationList = List<TopicConfiguration>;
 
 /// <p>Specifies when an object transitions to a specified storage class. For more information
 /// about Amazon S3 lifecycle configuration rules, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-transition-general-considerations.html">Transitioning
 /// Objects Using Amazon S3 Lifecycle</a> in the <i>Amazon S3 User Guide</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Transition {
     /// <p>Indicates when objects are transitioned to the specified storage class. The date value
     /// must be in ISO 8601 format. The time is always midnight UTC.</p>
@@ -15328,6 +18601,14 @@ impl fmt::Debug for Transition {
             d.field("storage_class", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for Transition {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -15423,6 +18704,7 @@ pub type URI = String;
 
 pub type UploadIdMarker = String;
 
+#[derive(Clone)]
 pub struct UploadPartCopyInput {
     /// <p>The bucket name.</p>
     /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
@@ -15564,8 +18846,15 @@ impl UploadPartCopyInput {
         default()
     }
 }
+impl SplitMetadata for UploadPartCopyInput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct UploadPartCopyOutput {
     /// <p>Indicates whether the multipart upload uses an S3 Bucket Key for server-side encryption
     /// with Amazon Web Services KMS (SSE-KMS).</p>
@@ -15617,6 +18906,14 @@ impl fmt::Debug for UploadPartCopyOutput {
             d.field("server_side_encryption", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for UploadPartCopyOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -15746,8 +19043,185 @@ impl UploadPartInput {
         default()
     }
 }
+#[derive(Clone)]
+pub struct UploadPartInputMeta {
+    /// <p>The name of the bucket to which the multipart upload was initiated.</p>
+    /// <p>When using this action with an access point, you must direct requests to the access point hostname. The access point hostname takes the form <i>AccessPointName</i>-<i>AccountId</i>.s3-accesspoint.<i>Region</i>.amazonaws.com. When using this action with an access point through the Amazon Web Services SDKs, you provide the access point ARN in place of the bucket name. For more information about access point ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html">Using access points</a> in the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>When you use this action with Amazon S3 on Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form <code>
+    /// <i>AccessPointName</i>-<i>AccountId</i>.<i>outpostID</i>.s3-outposts.<i>Region</i>.amazonaws.com</code>. When you use this action with S3 on Outposts through the Amazon Web Services SDKs, you provide the Outposts access point ARN in place of the bucket name. For more information about S3 on Outposts ARNs, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html">What is S3 on Outposts</a> in the <i>Amazon S3 User Guide</i>.</p>
+    pub bucket: BucketName,
+    /// <p>Indicates the algorithm used to create the checksum for the object when using the SDK. This header will not provide any
+    /// additional functionality if not using the SDK. When sending this header, there must be a corresponding <code>x-amz-checksum</code> or
+    /// <code>x-amz-trailer</code> header sent. Otherwise, Amazon S3 fails the request with the HTTP status code <code>400 Bad Request</code>. For more
+    /// information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in
+    /// the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>If you provide an individual checksum, Amazon S3 ignores any provided
+    /// <code>ChecksumAlgorithm</code> parameter.</p>
+    /// <p>This checksum algorithm must be the same for all parts and it match the checksum value
+    /// supplied in the <code>CreateMultipartUpload</code> request.</p>
+    pub checksum_algorithm: Option<ChecksumAlgorithm>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_crc32: Option<ChecksumCRC32>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 32-bit CRC32C checksum of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_crc32c: Option<ChecksumCRC32C>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 160-bit SHA-1 digest of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_sha1: Option<ChecksumSHA1>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is the same data that was originally sent.
+    /// This header specifies the base64-encoded, 256-bit SHA-256 digest of the object. For more information, see
+    /// <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object integrity</a> in the
+    /// <i>Amazon S3 User Guide</i>.</p>
+    pub checksum_sha256: Option<ChecksumSHA256>,
+    /// <p>Size of the body in bytes. This parameter is useful when the size of the body cannot be
+    /// determined automatically.</p>
+    pub content_length: Option<ContentLength>,
+    /// <p>The base64-encoded 128-bit MD5 digest of the part data. This parameter is auto-populated
+    /// when using the command from the CLI. This parameter is required if object lock parameters
+    /// are specified.</p>
+    pub content_md5: Option<ContentMD5>,
+    /// <p>The account ID of the expected bucket owner. If the bucket is owned by a different account, the request fails with the HTTP status code <code>403 Forbidden</code> (access denied).</p>
+    pub expected_bucket_owner: Option<AccountId>,
+    /// <p>Object key for which the multipart upload was initiated.</p>
+    pub key: ObjectKey,
+    /// <p>Part number of part being uploaded. This is a positive integer between 1 and
+    /// 10,000.</p>
+    pub part_number: PartNumber,
+    pub request_payer: Option<RequestPayer>,
+    /// <p>Specifies the algorithm to use to when encrypting the object (for example,
+    /// AES256).</p>
+    pub sse_customer_algorithm: Option<SSECustomerAlgorithm>,
+    /// <p>Specifies the customer-provided encryption key for Amazon S3 to use in encrypting data. This
+    /// value is used to store the object and then it is discarded; Amazon S3 does not store the
+    /// encryption key. The key must be appropriate for use with the algorithm specified in the
+    /// <code>x-amz-server-side-encryption-customer-algorithm header</code>. This must be the
+    /// same encryption key specified in the initiate multipart upload request.</p>
+    pub sse_customer_key: Option<SSECustomerKey>,
+    /// <p>Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321. Amazon S3 uses
+    /// this header for a message integrity check to ensure that the encryption key was transmitted
+    /// without error.</p>
+    pub sse_customer_key_md5: Option<SSECustomerKeyMD5>,
+    /// <p>Upload ID identifying the multipart upload whose part is being uploaded.</p>
+    pub upload_id: MultipartUploadId,
+}
 
-#[derive(Default)]
+impl fmt::Debug for UploadPartInputMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("UploadPartInputMeta");
+        d.field("bucket", &self.bucket);
+        if let Some(ref val) = self.checksum_algorithm {
+            d.field("checksum_algorithm", val);
+        }
+        if let Some(ref val) = self.checksum_crc32 {
+            d.field("checksum_crc32", val);
+        }
+        if let Some(ref val) = self.checksum_crc32c {
+            d.field("checksum_crc32c", val);
+        }
+        if let Some(ref val) = self.checksum_sha1 {
+            d.field("checksum_sha1", val);
+        }
+        if let Some(ref val) = self.checksum_sha256 {
+            d.field("checksum_sha256", val);
+        }
+        if let Some(ref val) = self.content_length {
+            d.field("content_length", val);
+        }
+        if let Some(ref val) = self.content_md5 {
+            d.field("content_md5", val);
+        }
+        if let Some(ref val) = self.expected_bucket_owner {
+            d.field("expected_bucket_owner", val);
+        }
+        d.field("key", &self.key);
+        d.field("part_number", &self.part_number);
+        if let Some(ref val) = self.request_payer {
+            d.field("request_payer", val);
+        }
+        if let Some(ref val) = self.sse_customer_algorithm {
+            d.field("sse_customer_algorithm", val);
+        }
+        if let Some(ref val) = self.sse_customer_key {
+            d.field("sse_customer_key", val);
+        }
+        if let Some(ref val) = self.sse_customer_key_md5 {
+            d.field("sse_customer_key_md5", val);
+        }
+        d.field("upload_id", &self.upload_id);
+        d.finish_non_exhaustive()
+    }
+}
+
+impl From<UploadPartInput> for UploadPartInputMeta {
+    fn from(value: UploadPartInput) -> Self {
+        Self {
+            bucket: value.bucket,
+            checksum_algorithm: value.checksum_algorithm,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_length: value.content_length,
+            content_md5: value.content_md5,
+            expected_bucket_owner: value.expected_bucket_owner,
+            key: value.key,
+            part_number: value.part_number,
+            request_payer: value.request_payer,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key: value.sse_customer_key,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            upload_id: value.upload_id,
+        }
+    }
+}
+
+impl From<UploadPartInputMeta> for UploadPartInput {
+    fn from(value: UploadPartInputMeta) -> Self {
+        Self {
+            body: None,
+            bucket: value.bucket,
+            checksum_algorithm: value.checksum_algorithm,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_length: value.content_length,
+            content_md5: value.content_md5,
+            expected_bucket_owner: value.expected_bucket_owner,
+            key: value.key,
+            part_number: value.part_number,
+            request_payer: value.request_payer,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key: value.sse_customer_key,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            upload_id: value.upload_id,
+        }
+    }
+}
+
+impl SplitMetadata for UploadPartInput {
+    type Meta = UploadPartInputMeta;
+    type Data = Option<StreamingBlob>;
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        let mut this = self;
+        let data = this.body.take();
+        let meta = Self::Meta::from(this);
+        (meta, data)
+    }
+
+    fn set_data(&mut self, data: Self::Data) {
+        self.body = data;
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct UploadPartOutput {
     /// <p>Indicates whether the multipart upload uses an S3 Bucket Key for server-side encryption
     /// with Amazon Web Services KMS (SSE-KMS).</p>
@@ -15828,6 +19302,14 @@ impl fmt::Debug for UploadPartOutput {
     }
 }
 
+impl SplitMetadata for UploadPartOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 pub type UserMetadata = List<MetadataEntry>;
 
 pub type Value = String;
@@ -15838,7 +19320,7 @@ pub type VersionIdMarker = String;
 
 /// <p>Describes the versioning state of an Amazon S3 bucket. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html">PUT
 /// Bucket versioning</a> in the <i>Amazon S3 API Reference</i>.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct VersioningConfiguration {
     /// <p>Specifies whether MFA delete is enabled in the bucket versioning configuration. This
     /// element is only returned if the bucket has been configured with MFA delete. If the bucket
@@ -15861,8 +19343,16 @@ impl fmt::Debug for VersioningConfiguration {
     }
 }
 
+impl SplitMetadata for VersioningConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
+    }
+}
+
 /// <p>Specifies website configuration parameters for an Amazon S3 bucket.</p>
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct WebsiteConfiguration {
     /// <p>The name of the error document for the website.</p>
     pub error_document: Option<ErrorDocument>,
@@ -15893,6 +19383,14 @@ impl fmt::Debug for WebsiteConfiguration {
             d.field("routing_rules", val);
         }
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for WebsiteConfiguration {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 
@@ -16245,14 +19743,466 @@ impl WriteGetObjectResponseInput {
         default()
     }
 }
+#[derive(Clone)]
+pub struct WriteGetObjectResponseInputMeta {
+    /// <p>Indicates that a range of bytes was specified.</p>
+    pub accept_ranges: Option<AcceptRanges>,
+    /// <p> Indicates whether the object stored in Amazon S3 uses an S3 bucket key for server-side
+    /// encryption with Amazon Web Services KMS (SSE-KMS).</p>
+    pub bucket_key_enabled: Option<BucketKeyEnabled>,
+    /// <p>Specifies caching behavior along the request/reply chain.</p>
+    pub cache_control: Option<CacheControl>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is
+    /// the same data that was originally sent. This specifies the base64-encoded, 32-bit CRC32
+    /// checksum of the object returned by the Object Lambda function. This may not match the
+    /// checksum for the object stored in Amazon S3. Amazon S3 will perform validation of the checksum values
+    /// only when the original <code>GetObject</code> request required checksum validation. For
+    /// more information about checksums, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object
+    /// integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>Only one checksum header can be specified at a time. If you supply multiple checksum
+    /// headers, this request will fail.</p>
+    /// <p></p>
+    pub checksum_crc32: Option<ChecksumCRC32>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is
+    /// the same data that was originally sent. This specifies the base64-encoded, 32-bit CRC32C
+    /// checksum of the object returned by the Object Lambda function. This may not match the
+    /// checksum for the object stored in Amazon S3. Amazon S3 will perform validation of the checksum values
+    /// only when the original <code>GetObject</code> request required checksum validation. For
+    /// more information about checksums, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object
+    /// integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>Only one checksum header can be specified at a time. If you supply multiple checksum
+    /// headers, this request will fail.</p>
+    pub checksum_crc32c: Option<ChecksumCRC32C>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is
+    /// the same data that was originally sent. This specifies the base64-encoded, 160-bit SHA-1
+    /// digest of the object returned by the Object Lambda function. This may not match the
+    /// checksum for the object stored in Amazon S3. Amazon S3 will perform validation of the checksum values
+    /// only when the original <code>GetObject</code> request required checksum validation. For
+    /// more information about checksums, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object
+    /// integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>Only one checksum header can be specified at a time. If you supply multiple checksum
+    /// headers, this request will fail.</p>
+    pub checksum_sha1: Option<ChecksumSHA1>,
+    /// <p>This header can be used as a data integrity check to verify that the data received is
+    /// the same data that was originally sent. This specifies the base64-encoded, 256-bit SHA-256
+    /// digest of the object returned by the Object Lambda function. This may not match the
+    /// checksum for the object stored in Amazon S3. Amazon S3 will perform validation of the checksum values
+    /// only when the original <code>GetObject</code> request required checksum validation. For
+    /// more information about checksums, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html">Checking object
+    /// integrity</a> in the <i>Amazon S3 User Guide</i>.</p>
+    /// <p>Only one checksum header can be specified at a time. If you supply multiple checksum
+    /// headers, this request will fail.</p>
+    pub checksum_sha256: Option<ChecksumSHA256>,
+    /// <p>Specifies presentational information for the object.</p>
+    pub content_disposition: Option<ContentDisposition>,
+    /// <p>Specifies what content encodings have been applied to the object and thus what decoding
+    /// mechanisms must be applied to obtain the media-type referenced by the Content-Type header
+    /// field.</p>
+    pub content_encoding: Option<ContentEncoding>,
+    /// <p>The language the content is in.</p>
+    pub content_language: Option<ContentLanguage>,
+    /// <p>The size of the content body in bytes.</p>
+    pub content_length: Option<ContentLength>,
+    /// <p>The portion of the object returned in the response.</p>
+    pub content_range: Option<ContentRange>,
+    /// <p>A standard MIME type describing the format of the object data.</p>
+    pub content_type: Option<ContentType>,
+    /// <p>Specifies whether an object stored in Amazon S3 is (<code>true</code>) or is not
+    /// (<code>false</code>) a delete marker. </p>
+    pub delete_marker: Option<DeleteMarker>,
+    /// <p>An opaque identifier assigned by a web server to a specific version of a resource found
+    /// at a URL. </p>
+    pub e_tag: Option<ETag>,
+    /// <p>A string that uniquely identifies an error condition. Returned in the &lt;Code&gt; tag
+    /// of the error XML response for a corresponding <code>GetObject</code> call. Cannot be used
+    /// with a successful <code>StatusCode</code> header or when the transformed object is provided
+    /// in the body. All error codes from S3 are sentence-cased. The regular expression (regex)
+    /// value is <code>"^[A-Z][a-zA-Z]+$"</code>.</p>
+    pub error_code: Option<ErrorCode>,
+    /// <p>Contains a generic description of the error condition. Returned in the &lt;Message&gt;
+    /// tag of the error XML response for a corresponding <code>GetObject</code> call. Cannot be
+    /// used with a successful <code>StatusCode</code> header or when the transformed object is
+    /// provided in body.</p>
+    pub error_message: Option<ErrorMessage>,
+    /// <p>If the object expiration is configured (see PUT Bucket lifecycle), the response includes
+    /// this header. It includes the <code>expiry-date</code> and <code>rule-id</code> key-value
+    /// pairs that provide the object expiration information. The value of the <code>rule-id</code>
+    /// is URL-encoded. </p>
+    pub expiration: Option<Expiration>,
+    /// <p>The date and time at which the object is no longer cacheable.</p>
+    pub expires: Option<Expires>,
+    /// <p>The date and time that the object was last modified.</p>
+    pub last_modified: Option<LastModified>,
+    /// <p>A map of metadata to store with the object in S3.</p>
+    pub metadata: Option<Metadata>,
+    /// <p>Set to the number of metadata entries not returned in <code>x-amz-meta</code> headers.
+    /// This can happen if you create metadata using an API like SOAP that supports more flexible
+    /// metadata than the REST API. For example, using SOAP, you can create metadata whose values
+    /// are not legal HTTP headers.</p>
+    pub missing_meta: Option<MissingMeta>,
+    /// <p>Indicates whether an object stored in Amazon S3 has an active legal hold.</p>
+    pub object_lock_legal_hold_status: Option<ObjectLockLegalHoldStatus>,
+    /// <p>Indicates whether an object stored in Amazon S3 has Object Lock enabled. For more information
+    /// about S3 Object Lock, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html">Object Lock</a>.</p>
+    pub object_lock_mode: Option<ObjectLockMode>,
+    /// <p>The date and time when Object Lock is configured to expire.</p>
+    pub object_lock_retain_until_date: Option<ObjectLockRetainUntilDate>,
+    /// <p>The count of parts this object has.</p>
+    pub parts_count: Option<PartsCount>,
+    /// <p>Indicates if request involves bucket that is either a source or destination in a
+    /// Replication rule. For more information about S3 Replication, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/replication.html">Replication</a>.</p>
+    pub replication_status: Option<ReplicationStatus>,
+    pub request_charged: Option<RequestCharged>,
+    /// <p>Route prefix to the HTTP URL generated.</p>
+    pub request_route: RequestRoute,
+    /// <p>A single use encrypted token that maps <code>WriteGetObjectResponse</code> to the end
+    /// user <code>GetObject</code> request.</p>
+    pub request_token: RequestToken,
+    /// <p>Provides information about object restoration operation and expiration time of the
+    /// restored object copy.</p>
+    pub restore: Option<Restore>,
+    /// <p>Encryption algorithm used if server-side encryption with a customer-provided encryption
+    /// key was specified for object stored in Amazon S3.</p>
+    pub sse_customer_algorithm: Option<SSECustomerAlgorithm>,
+    /// <p> 128-bit MD5 digest of customer-provided encryption key used in Amazon S3 to encrypt data
+    /// stored in S3. For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html">Protecting data
+    /// using server-side encryption with customer-provided encryption keys
+    /// (SSE-C)</a>.</p>
+    pub sse_customer_key_md5: Option<SSECustomerKeyMD5>,
+    /// <p> If present, specifies the ID of the Amazon Web Services Key Management Service (Amazon Web Services KMS) symmetric
+    /// encryption customer managed key that was used for stored in Amazon S3 object. </p>
+    pub ssekms_key_id: Option<SSEKMSKeyId>,
+    /// <p> The server-side encryption algorithm used when storing requested object in Amazon S3 (for
+    /// example, AES256, <code>aws:kms</code>).</p>
+    pub server_side_encryption: Option<ServerSideEncryption>,
+    /// <p>The integer status code for an HTTP response of a corresponding <code>GetObject</code>
+    /// request. The following is a list of status codes.</p>
+    /// <ul>
+    /// <li>
+    /// <p>
+    /// <code>200 - OK</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>206 - Partial Content</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>304 - Not Modified</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>400 - Bad Request</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>401 - Unauthorized</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>403 - Forbidden</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>404 - Not Found</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>405 - Method Not Allowed</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>409 - Conflict</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>411 - Length Required</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>412 - Precondition Failed</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>416 - Range Not Satisfiable</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>500 - Internal Server Error</code>
+    /// </p>
+    /// </li>
+    /// <li>
+    /// <p>
+    /// <code>503 - Service Unavailable</code>
+    /// </p>
+    /// </li>
+    /// </ul>
+    pub status_code: Option<GetObjectResponseStatusCode>,
+    /// <p>Provides storage class information of the object. Amazon S3 returns this header for all
+    /// objects except for S3 Standard storage class objects.</p>
+    /// <p>For more information, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html">Storage Classes</a>.</p>
+    pub storage_class: Option<StorageClass>,
+    /// <p>The number of tags, if any, on the object.</p>
+    pub tag_count: Option<TagCount>,
+    /// <p>An ID used to reference a specific version of the object.</p>
+    pub version_id: Option<ObjectVersionId>,
+}
 
-#[derive(Default)]
+impl fmt::Debug for WriteGetObjectResponseInputMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("WriteGetObjectResponseInputMeta");
+        if let Some(ref val) = self.accept_ranges {
+            d.field("accept_ranges", val);
+        }
+        if let Some(ref val) = self.bucket_key_enabled {
+            d.field("bucket_key_enabled", val);
+        }
+        if let Some(ref val) = self.cache_control {
+            d.field("cache_control", val);
+        }
+        if let Some(ref val) = self.checksum_crc32 {
+            d.field("checksum_crc32", val);
+        }
+        if let Some(ref val) = self.checksum_crc32c {
+            d.field("checksum_crc32c", val);
+        }
+        if let Some(ref val) = self.checksum_sha1 {
+            d.field("checksum_sha1", val);
+        }
+        if let Some(ref val) = self.checksum_sha256 {
+            d.field("checksum_sha256", val);
+        }
+        if let Some(ref val) = self.content_disposition {
+            d.field("content_disposition", val);
+        }
+        if let Some(ref val) = self.content_encoding {
+            d.field("content_encoding", val);
+        }
+        if let Some(ref val) = self.content_language {
+            d.field("content_language", val);
+        }
+        if let Some(ref val) = self.content_length {
+            d.field("content_length", val);
+        }
+        if let Some(ref val) = self.content_range {
+            d.field("content_range", val);
+        }
+        if let Some(ref val) = self.content_type {
+            d.field("content_type", val);
+        }
+        if let Some(ref val) = self.delete_marker {
+            d.field("delete_marker", val);
+        }
+        if let Some(ref val) = self.e_tag {
+            d.field("e_tag", val);
+        }
+        if let Some(ref val) = self.error_code {
+            d.field("error_code", val);
+        }
+        if let Some(ref val) = self.error_message {
+            d.field("error_message", val);
+        }
+        if let Some(ref val) = self.expiration {
+            d.field("expiration", val);
+        }
+        if let Some(ref val) = self.expires {
+            d.field("expires", val);
+        }
+        if let Some(ref val) = self.last_modified {
+            d.field("last_modified", val);
+        }
+        if let Some(ref val) = self.metadata {
+            d.field("metadata", val);
+        }
+        if let Some(ref val) = self.missing_meta {
+            d.field("missing_meta", val);
+        }
+        if let Some(ref val) = self.object_lock_legal_hold_status {
+            d.field("object_lock_legal_hold_status", val);
+        }
+        if let Some(ref val) = self.object_lock_mode {
+            d.field("object_lock_mode", val);
+        }
+        if let Some(ref val) = self.object_lock_retain_until_date {
+            d.field("object_lock_retain_until_date", val);
+        }
+        if let Some(ref val) = self.parts_count {
+            d.field("parts_count", val);
+        }
+        if let Some(ref val) = self.replication_status {
+            d.field("replication_status", val);
+        }
+        if let Some(ref val) = self.request_charged {
+            d.field("request_charged", val);
+        }
+        d.field("request_route", &self.request_route);
+        d.field("request_token", &self.request_token);
+        if let Some(ref val) = self.restore {
+            d.field("restore", val);
+        }
+        if let Some(ref val) = self.sse_customer_algorithm {
+            d.field("sse_customer_algorithm", val);
+        }
+        if let Some(ref val) = self.sse_customer_key_md5 {
+            d.field("sse_customer_key_md5", val);
+        }
+        if let Some(ref val) = self.ssekms_key_id {
+            d.field("ssekms_key_id", val);
+        }
+        if let Some(ref val) = self.server_side_encryption {
+            d.field("server_side_encryption", val);
+        }
+        if let Some(ref val) = self.status_code {
+            d.field("status_code", val);
+        }
+        if let Some(ref val) = self.storage_class {
+            d.field("storage_class", val);
+        }
+        if let Some(ref val) = self.tag_count {
+            d.field("tag_count", val);
+        }
+        if let Some(ref val) = self.version_id {
+            d.field("version_id", val);
+        }
+        d.finish_non_exhaustive()
+    }
+}
+
+impl From<WriteGetObjectResponseInput> for WriteGetObjectResponseInputMeta {
+    fn from(value: WriteGetObjectResponseInput) -> Self {
+        Self {
+            accept_ranges: value.accept_ranges,
+            bucket_key_enabled: value.bucket_key_enabled,
+            cache_control: value.cache_control,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_disposition: value.content_disposition,
+            content_encoding: value.content_encoding,
+            content_language: value.content_language,
+            content_length: value.content_length,
+            content_range: value.content_range,
+            content_type: value.content_type,
+            delete_marker: value.delete_marker,
+            e_tag: value.e_tag,
+            error_code: value.error_code,
+            error_message: value.error_message,
+            expiration: value.expiration,
+            expires: value.expires,
+            last_modified: value.last_modified,
+            metadata: value.metadata,
+            missing_meta: value.missing_meta,
+            object_lock_legal_hold_status: value.object_lock_legal_hold_status,
+            object_lock_mode: value.object_lock_mode,
+            object_lock_retain_until_date: value.object_lock_retain_until_date,
+            parts_count: value.parts_count,
+            replication_status: value.replication_status,
+            request_charged: value.request_charged,
+            request_route: value.request_route,
+            request_token: value.request_token,
+            restore: value.restore,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            ssekms_key_id: value.ssekms_key_id,
+            server_side_encryption: value.server_side_encryption,
+            status_code: value.status_code,
+            storage_class: value.storage_class,
+            tag_count: value.tag_count,
+            version_id: value.version_id,
+        }
+    }
+}
+
+impl From<WriteGetObjectResponseInputMeta> for WriteGetObjectResponseInput {
+    fn from(value: WriteGetObjectResponseInputMeta) -> Self {
+        Self {
+            accept_ranges: value.accept_ranges,
+            body: None,
+            bucket_key_enabled: value.bucket_key_enabled,
+            cache_control: value.cache_control,
+            checksum_crc32: value.checksum_crc32,
+            checksum_crc32c: value.checksum_crc32c,
+            checksum_sha1: value.checksum_sha1,
+            checksum_sha256: value.checksum_sha256,
+            content_disposition: value.content_disposition,
+            content_encoding: value.content_encoding,
+            content_language: value.content_language,
+            content_length: value.content_length,
+            content_range: value.content_range,
+            content_type: value.content_type,
+            delete_marker: value.delete_marker,
+            e_tag: value.e_tag,
+            error_code: value.error_code,
+            error_message: value.error_message,
+            expiration: value.expiration,
+            expires: value.expires,
+            last_modified: value.last_modified,
+            metadata: value.metadata,
+            missing_meta: value.missing_meta,
+            object_lock_legal_hold_status: value.object_lock_legal_hold_status,
+            object_lock_mode: value.object_lock_mode,
+            object_lock_retain_until_date: value.object_lock_retain_until_date,
+            parts_count: value.parts_count,
+            replication_status: value.replication_status,
+            request_charged: value.request_charged,
+            request_route: value.request_route,
+            request_token: value.request_token,
+            restore: value.restore,
+            sse_customer_algorithm: value.sse_customer_algorithm,
+            sse_customer_key_md5: value.sse_customer_key_md5,
+            ssekms_key_id: value.ssekms_key_id,
+            server_side_encryption: value.server_side_encryption,
+            status_code: value.status_code,
+            storage_class: value.storage_class,
+            tag_count: value.tag_count,
+            version_id: value.version_id,
+        }
+    }
+}
+
+impl SplitMetadata for WriteGetObjectResponseInput {
+    type Meta = WriteGetObjectResponseInputMeta;
+    type Data = Option<StreamingBlob>;
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        let mut this = self;
+        let data = this.body.take();
+        let meta = Self::Meta::from(this);
+        (meta, data)
+    }
+
+    fn set_data(&mut self, data: Self::Data) {
+        self.body = data;
+    }
+}
+
+#[derive(Default, Clone)]
 pub struct WriteGetObjectResponseOutput {}
 
 impl fmt::Debug for WriteGetObjectResponseOutput {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("WriteGetObjectResponseOutput");
         d.finish_non_exhaustive()
+    }
+}
+
+impl SplitMetadata for WriteGetObjectResponseOutput {
+    type Meta = Self;
+    type Data = ();
+    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+        (self, ())
     }
 }
 

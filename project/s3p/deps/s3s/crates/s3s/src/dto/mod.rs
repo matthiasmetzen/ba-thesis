@@ -58,3 +58,11 @@ impl From<ListObjectsInput> for ListObjectsV2Input {
         }
     }
 }
+
+pub trait SplitMetadata: Sized {
+    type Meta: Clone + From<Self>;
+    type Data;
+
+    fn split_metadata(self) -> (Self::Meta, Self::Data);
+    fn set_data(&mut self, _data: Self::Data) {}
+}
