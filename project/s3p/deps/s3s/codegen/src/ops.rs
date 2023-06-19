@@ -118,6 +118,7 @@ pub fn codegen(ops: &Operations, rust_types: &RustTypes) {
         "use crate::error::*;"
         "use crate::path::S3Path;"
         "use crate::s3_trait::S3;"
+        "use crate::{S3Request, S3Response};"
         ""
         "use std::borrow::Cow;"
         "use std::sync::Arc;"
@@ -125,6 +126,7 @@ pub fn codegen(ops: &Operations, rust_types: &RustTypes) {
     ];
 
     codegen_http(ops, rust_types);
+    codegen_enum(ops, rust_types);
     codegen_router(ops, rust_types);
 }
 
@@ -144,15 +146,25 @@ fn codegen_http(ops: &Operations, rust_types: &RustTypes) {
         g!();
 
         g!("impl {} {{", op.name);
+        {
+            codegen_op_http_de(op, rust_types);
+            codegen_op_http_ser(op, rust_types);
 
-        codegen_op_http_de(op, rust_types);
-        codegen_op_http_ser(op, rust_types);
-
+            if op.name == "PutObject" {
+                codegen_op_http_de_multipart(op, rust_types);
+            }
+        }
         g!("}}");
         g!();
 
         codegen_op_http_call(op);
         g!();
+        codegen_op_http_typed_call(op);
+        g!();
+
+        codegen_try_from_request(op, rust_types);
+        codegen_try_from_request_multipart(op, rust_types);
+        codegen_try_into_response(op, rust_types);
     }
 }
 
@@ -239,90 +251,12 @@ fn codegen_op_http_ser(op: &Operation, rust_types: &RustTypes) {
 
             g!("}}");
         }
-        rust::Type::Struct(ty) => {
-            if ty.fields.is_empty() {
-                g!("pub fn serialize_http(_: {output}) -> S3Result<http::Response> {{");
-                {
-                    let code_name = status_code_name(op.http_code);
-                    g!("Ok(http::Response::with_status(http::StatusCode::{code_name}))");
-                }
-                g!("}}");
-            } else {
-                g!("pub fn serialize_http(x: {output}) -> S3Result<http::Response> {{");
-
-                assert!(ty.fields.is_empty().not());
-                for field in &ty.fields {
-                    assert!(["header", "metadata", "xml", "payload"].contains(&field.position.as_str()),);
-                }
-
-                {
-                    let code_name = status_code_name(op.http_code);
-                    g!("let mut res = http::Response::with_status(http::StatusCode::{code_name});");
-                }
-
-                if is_xml_output(ty) {
-                    g!("http::set_xml_body(&mut res, &x)?;");
-                } else if let Some(field) = ty.fields.iter().find(|x| x.position == "payload") {
-                    match field.type_.as_str() {
-                        "Policy" => {
-                            assert!(field.option_type);
-                            g!("if let Some(val) = x.{} {{", field.name);
-                            g!("res.body = http::Body::from(val);");
-                            g!("}}");
-                        }
-                        "StreamingBlob" => {
-                            if field.option_type {
-                                g!("if let Some(val) = x.{} {{", field.name);
-                                g!("http::set_stream_body(&mut res, val);");
-                                g!("}}");
-                            } else {
-                                g!("http::set_stream_body(&mut res, x.{});", field.name);
-                            }
-                        }
-                        "SelectObjectContentEventStream" => {
-                            assert!(field.option_type);
-                            g!("if let Some(val) = x.{} {{", field.name);
-                            g!("http::set_event_stream_body(&mut res, val);");
-                            g!("}}");
-                        }
-                        _ => {
-                            if field.option_type {
-                                g!("if let Some(ref val) = x.{} {{", field.name);
-                                g!("    http::set_xml_body(&mut res, val)?;");
-                                g!("}}");
-                            } else {
-                                g!("http::set_xml_body(&mut res, &x.{})?;", field.name);
-                            }
-                        }
-                    }
-                }
-
-                for field in &ty.fields {
-                    if field.position == "header" {
-                        let field_name = field.name.as_str();
-                        let header_name = crate::headers::to_constant_name(field.http_header.as_deref().unwrap());
-
-                        let field_type = &rust_types[field.type_.as_str()];
-                        if let rust::Type::Timestamp(ts_ty) = field_type {
-                            assert!(field.option_type);
-                            let fmt = ts_ty.format.as_deref().unwrap_or("HttpDate");
-                            g!("http::add_opt_header_timestamp(&mut res, {header_name}, x.{field_name}, TimestampFormat::{fmt})?;");
-                        } else if field.option_type {
-                            g!("http::add_opt_header(&mut res, {header_name}, x.{field_name})?;");
-                        } else {
-                            g!("http::add_header(&mut res, {header_name}, x.{field_name})?;");
-                        }
-                    }
-                    if field.position == "metadata" {
-                        assert!(field.option_type);
-                        g!("http::add_opt_metadata(&mut res, x.{})?;", field.name);
-                    }
-                }
-
-                g!("Ok(res)");
-
-                g!("}}");
+        rust::Type::Struct(_) => {
+            g!("pub fn serialize_http(x: {output}) -> S3Result<http::Response> {{");
+            {
+                g!("Ok(x.try_into()?)")
             }
+            g!("}}");
         }
         _ => unimplemented!(),
     }
@@ -337,261 +271,29 @@ fn codegen_op_http_de(op: &Operation, rust_types: &RustTypes) {
         rust::Type::Provided(ty) => {
             assert_eq!(ty.name, "Unit");
         }
-        rust::Type::Struct(ty) => {
-            if ty.fields.is_empty() {
-                g!("pub fn deserialize_http(_: &mut http::Request) -> S3Result<{input}> {{");
-                g!("Ok({input} {{}})");
-                g!("}}");
-            } else {
-                g!("pub fn deserialize_http(req: &mut http::Request) -> S3Result<{input}> {{");
-
-                if op.name == "PutObject" {
-                    // POST object
-                    g!("if let Some(m) = req.s3ext.multipart.take() {{");
-                    g!("    return Self::deserialize_http_multipart(req, m);");
-                    g!("}}");
-                    g!();
-                }
-
-                let path_pattern = PathPattern::parse(op.http_uri.as_str());
-                match path_pattern {
-                    PathPattern::Root => {}
-                    PathPattern::Bucket => {
-                        if op.name != "WriteGetObjectResponse" {
-                            g!("let bucket = http::unwrap_bucket(req);");
-                            g!();
-                        }
-                    }
-                    PathPattern::Object => {
-                        g!("let (bucket, key) = http::unwrap_object(req);");
-                        g!();
-                    }
-                }
-
-                for field in &ty.fields {
-                    match field.position.as_str() {
-                        "bucket" => {
-                            assert_eq!(field.name, "bucket");
-                        }
-                        "key" => {
-                            assert_eq!(field.name, "key");
-                        }
-                        "query" => {
-                            let query = field.http_query.as_deref().unwrap();
-
-                            let field_type = &rust_types[&field.type_];
-
-                            if let rust::Type::List(_) = field_type {
-                                panic!()
-                            } else if let rust::Type::Timestamp(ts_ty) = field_type {
-                                assert!(field.option_type);
-                                let fmt = ts_ty.format.as_deref().unwrap_or("DateTime");
-                                g!(
-                                    "let {}: Option<{}> = http::parse_opt_query_timestamp(req, \"{}\", TimestampFormat::{})?;",
-                                    field.name,
-                                    field.type_,
-                                    query,
-                                    fmt
-                                );
-                            } else if field.option_type {
-                                g!(
-                                    "let {}: Option<{}> = http::parse_opt_query(req, \"{}\")?;",
-                                    field.name,
-                                    field.type_,
-                                    query
-                                );
-                            } else if let Some(ref default_value) = field.default_value {
-                                let literal = default_value_literal(default_value);
-                                g!(
-                                    "let {}: {} = http::parse_opt_query(req, \"{}\")?.unwrap_or({});",
-                                    field.name,
-                                    field.type_,
-                                    query,
-                                    literal,
-                                );
-                            } else {
-                                g!("let {}: {} = http::parse_query(req, \"{}\")?;", field.name, field.type_, query,);
-                            }
-                        }
-                        "header" => {
-                            let header = headers::to_constant_name(field.http_header.as_deref().unwrap());
-                            let field_type = &rust_types[&field.type_];
-
-                            if let rust::Type::List(_) = field_type {
-                                assert!(field.option_type.not());
-                                g!("let {}: {} = http::parse_list_header(req, &{})?;", field.name, field.type_, header);
-                            } else if let rust::Type::Timestamp(ts_ty) = field_type {
-                                assert!(field.option_type);
-                                let fmt = ts_ty.format.as_deref().unwrap_or("HttpDate");
-                                g!(
-                                    "let {}: Option<{}> = http::parse_opt_header_timestamp(req, &{}, TimestampFormat::{})?;",
-                                    field.name,
-                                    field.type_,
-                                    header,
-                                    fmt
-                                );
-                            } else if field.option_type {
-                                g!("let {}: Option<{}> = http::parse_opt_header(req, &{})?;", field.name, field.type_, header);
-                            } else if let Some(ref default_value) = field.default_value {
-                                // ASK: content length
-                                // In S3 smithy model, content-length has a default value (0).
-                                // Why? Is it correct???
-
-                                let literal = default_value_literal(default_value);
-                                g!(
-                                    "let {}: {} = http::parse_opt_header(req, &{})?.unwrap_or({});",
-                                    field.name,
-                                    field.type_,
-                                    header,
-                                    literal,
-                                );
-                            } else {
-                                g!("let {}: {} = http::parse_header(req, &{})?;", field.name, field.type_, header);
-                            }
-                        }
-                        "metadata" => {
-                            assert!(field.option_type);
-                            g!("let {}: Option<{}> = http::parse_opt_metadata(req)?;", field.name, field.type_);
-                        }
-                        "payload" => match field.type_.as_str() {
-                            "Policy" => {
-                                assert!(field.option_type.not());
-                                g!("let {}: {} = http::take_string_body(req)?;", field.name, field.type_);
-                            }
-                            "StreamingBlob" => {
-                                assert!(field.option_type);
-                                g!("let {}: Option<{}> = Some(http::take_stream_body(req));", field.name, field.type_);
-                            }
-                            _ => {
-                                if field.option_type {
-                                    g!("let {}: Option<{}> = http::take_opt_xml_body(req)?;", field.name, field.type_);
-                                } else {
-                                    g!("let {}: {} = http::take_xml_body(req)?;", field.name, field.type_);
-                                }
-                            }
-                        },
-
-                        _ => unimplemented!(),
-                    }
-                    g!();
-                }
-
-                g!("Ok({input} {{");
-                for field in &ty.fields {
-                    match field.position.as_str() {
-                        "bucket" | "key" | "query" | "header" | "metadata" | "payload" => {
-                            g!("{},", field.name);
-                        }
-                        _ => unimplemented!(),
-                    }
-                }
-                g!("}})");
-
-                g!("}}");
-                g!();
-
-                if op.name == "PutObject" {
-                    codegen_op_http_de_multipart(op, rust_types);
-                }
+        rust::Type::Struct(_) => {
+            g!("pub fn deserialize_http(req: &mut http::Request) -> S3Result<{input}> {{");
+            {
+                g!("{input}::try_from(req)")
             }
+            g!("}}");
         }
         _ => unimplemented!(),
     }
     g!();
 }
 
-fn codegen_op_http_de_multipart(op: &Operation, rust_types: &RustTypes) {
+fn codegen_op_http_de_multipart(op: &Operation, _rust_types: &RustTypes) {
     assert_eq!(op.name, "PutObject");
 
-    g!(
-        "pub fn deserialize_http_multipart(req: &mut http::Request, m: http::Multipart) -> S3Result<{}> {{",
-        op.input
-    );
+    let input = op.input.as_str();
 
-    glines![
-        "let bucket = http::unwrap_bucket(req);"
-        "let key = http::parse_field_value(&m, \"key\")?.ok_or_else(|| invalid_request!(\"missing key\"))?;"
-        ""
-        "let vec_stream = req.s3ext.vec_stream.take().expect(\"missing vec stream\");"
-        ""
-        "let content_length = i64::try_from(vec_stream.exact_remaining_length()).map_err(|e|s3_error!(e, InvalidArgument, \"content-length overflow\"))?;"
-        "let content_length = (content_length != 0).then_some(content_length);"
-        ""
-        "let body: Option<StreamingBlob> = Some(StreamingBlob::new(vec_stream));"
-        ""
-    ];
-
-    let rust::Type::Struct(ty) = &rust_types[op.input.as_str()] else { panic!() };
-
-    for field in &ty.fields {
-        match field.position.as_str() {
-            "bucket" | "key" | "payload" => {}
-            "header" => {
-                let header = field.http_header.as_deref().unwrap();
-                assert!(header.as_bytes().iter().all(|&x| x == b'-' || x.is_ascii_alphanumeric()));
-                let header = header.to_ascii_lowercase();
-
-                if header == "content-length" {
-                    continue;
-                }
-
-                let field_type = &rust_types[field.type_.as_str()];
-
-                if let rust::Type::Timestamp(ts_ty) = field_type {
-                    assert!(field.option_type);
-                    let fmt = ts_ty.format.as_deref().unwrap_or("HttpDate");
-                    g!(
-                        "let {}: Option<{}> = http::parse_field_value_timestamp(&m, \"{}\", TimestampFormat::{})?;",
-                        field.name,
-                        field.type_,
-                        header,
-                        fmt
-                    );
-                } else if field.option_type {
-                    g!(
-                        "let {}: Option<{}> = http::parse_field_value(&m, \"{}\")?;",
-                        field.name,
-                        field.type_,
-                        header
-                    );
-                } else if let Some(ref default_value) = field.default_value {
-                    g!(
-                        "let {}: {} = http::parse_field_value(&m, \"{}\")?.unwrap_or({});",
-                        field.name,
-                        field.type_,
-                        header,
-                        default_value_literal(default_value)
-                    );
-                } else {
-                    unimplemented!()
-                }
-            }
-            "metadata" => {
-                assert!(field.option_type);
-                g!("let {}: Option<{}> = {{", field.name, field.type_);
-                g!("    let mut metadata = {}::default();", field.type_);
-                glines![
-                    "    for (name, value) in m.fields() {"
-                    "        if let Some(key) = name.strip_prefix(\"x-amz-meta-\") {"
-                    "            if key.is_empty() { continue; }"
-                    "            metadata.insert(key.to_owned(), value.clone());"
-                    "        }"
-                    "    }"
-                    "    if metadata.is_empty() { None } else { Some(metadata) }"
-                    "};"
-                ];
-            }
-            _ => unimplemented!(),
-        }
-        g!();
+    g!("pub fn deserialize_http_multipart(req: &mut http::Request, m: http::Multipart) -> S3Result<{input}> {{");
+    {
+        g!("Ok({input}::try_from((req,m))?)");
     }
-
-    g!("Ok({} {{", op.input);
-    for field in &ty.fields {
-        g!("{},", field.name);
-    }
-    g!("}})");
     g!("}}");
+    g!();
 }
 
 fn codegen_op_http_call(op: &Operation) {
@@ -642,6 +344,452 @@ fn codegen_op_http_call(op: &Operation) {
     ];
 
     g!("}}");
+}
+
+fn codegen_op_http_typed_call(op: &Operation) {
+    let input = op.input.as_str();
+    let output = op.output.as_str();
+
+    g!("#[async_trait::async_trait]");
+    g!("impl super::TypedOperation for {} {{", op.name);
+    {
+        g!("type Input = {input};");
+        g!("type Output = {output};");
+        g!();
+        g!("async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {{");
+        {
+            let method = op.name.to_snake_case();
+
+            if op.name == "GetObject" {
+                g!("let overrided_headers = super::get_object::extract_overrided_response_headers(&req)?;");
+            }
+
+            g!("let result = s3.{method}(req).await;");
+            if op.name == "GetObject" {
+                g!();
+                glines![
+                "let mut result = result;"
+                "if let Ok(response) = &mut result {"
+                "   response.headers.extend(overrided_headers);"
+                "}"
+                ];
+            }
+            g!();
+            g!("result");
+        }
+
+        g!("}}");
+    }
+    g!("}}");
+}
+
+#[allow(clippy::too_many_lines)]
+fn codegen_try_from_request(op: &Operation, rust_types: &RustTypes) {
+    let input = op.input.as_str();
+    let rust_type = &rust_types[input];
+    match rust_type {
+        rust::Type::Provided(ty) => {
+            assert_eq!(ty.name, "Unit");
+        }
+        rust::Type::Struct(ty) => {
+            g!("impl TryFrom<&mut http::Request> for {input} {{");
+            {
+                g!("type Error = S3Error;");
+                g!();
+                if ty.fields.is_empty() {
+                    glines![
+                        "fn try_from(_: &mut http::Request) -> S3Result<Self> {"
+                        "   Ok(Self {})"
+                        "}"
+                    ];
+                } else {
+                    g!("fn try_from(req: &mut http::Request) -> S3Result<Self> {{");
+                    {
+                        if op.name == "PutObject" {
+                            // POST object
+                            g!("if let Some(m) = req.s3ext.multipart.take() {{");
+                            g!("    return Self::try_from((req, m));");
+                            g!("}}");
+                            g!();
+                        }
+
+                        let path_pattern = PathPattern::parse(op.http_uri.as_str());
+                        match path_pattern {
+                            PathPattern::Root => {}
+                            PathPattern::Bucket => {
+                                if op.name != "WriteGetObjectResponse" {
+                                    g!("let bucket = http::unwrap_bucket(req);");
+                                    g!();
+                                }
+                            }
+                            PathPattern::Object => {
+                                g!("let (bucket, key) = http::unwrap_object(req);");
+                                g!();
+                            }
+                        }
+
+                        for field in &ty.fields {
+                            match field.position.as_str() {
+                                "bucket" => {
+                                    assert_eq!(field.name, "bucket");
+                                }
+                                "key" => {
+                                    assert_eq!(field.name, "key");
+                                }
+                                "query" => {
+                                    let query = field.http_query.as_deref().unwrap();
+
+                                    let field_type = &rust_types[&field.type_];
+
+                                    if let rust::Type::List(_) = field_type {
+                                        panic!()
+                                    } else if let rust::Type::Timestamp(ts_ty) = field_type {
+                                        assert!(field.option_type);
+                                        let fmt = ts_ty.format.as_deref().unwrap_or("DateTime");
+                                        g!(
+                                    "let {}: Option<{}> = http::parse_opt_query_timestamp(req, \"{}\", TimestampFormat::{})?;",
+                                    field.name,
+                                    field.type_,
+                                    query,
+                                    fmt
+                                );
+                                    } else if field.option_type {
+                                        g!(
+                                            "let {}: Option<{}> = http::parse_opt_query(req, \"{}\")?;",
+                                            field.name,
+                                            field.type_,
+                                            query
+                                        );
+                                    } else if let Some(ref default_value) = field.default_value {
+                                        let literal = default_value_literal(default_value);
+                                        g!(
+                                            "let {}: {} = http::parse_opt_query(req, \"{}\")?.unwrap_or({});",
+                                            field.name,
+                                            field.type_,
+                                            query,
+                                            literal,
+                                        );
+                                    } else {
+                                        g!("let {}: {} = http::parse_query(req, \"{}\")?;", field.name, field.type_, query,);
+                                    }
+                                }
+                                "header" => {
+                                    let header = headers::to_constant_name(field.http_header.as_deref().unwrap());
+                                    let field_type = &rust_types[&field.type_];
+
+                                    if let rust::Type::List(_) = field_type {
+                                        assert!(field.option_type.not());
+                                        g!("let {}: {} = http::parse_list_header(req, &{})?;", field.name, field.type_, header);
+                                    } else if let rust::Type::Timestamp(ts_ty) = field_type {
+                                        assert!(field.option_type);
+                                        let fmt = ts_ty.format.as_deref().unwrap_or("HttpDate");
+                                        g!(
+                                        "let {}: Option<{}> = http::parse_opt_header_timestamp(req, &{}, TimestampFormat::{})?;",
+                                        field.name,
+                                        field.type_,
+                                        header,
+                                        fmt
+                                    );
+                                    } else if field.option_type {
+                                        g!(
+                                            "let {}: Option<{}> = http::parse_opt_header(req, &{})?;",
+                                            field.name,
+                                            field.type_,
+                                            header
+                                        );
+                                    } else if let Some(ref default_value) = field.default_value {
+                                        // ASK: content length
+                                        // In S3 smithy model, content-length has a default value (0).
+                                        // Why? Is it correct???
+
+                                        let literal = default_value_literal(default_value);
+                                        g!(
+                                            "let {}: {} = http::parse_opt_header(req, &{})?.unwrap_or({});",
+                                            field.name,
+                                            field.type_,
+                                            header,
+                                            literal,
+                                        );
+                                    } else {
+                                        g!("let {}: {} = http::parse_header(req, &{})?;", field.name, field.type_, header);
+                                    }
+                                }
+                                "metadata" => {
+                                    assert!(field.option_type);
+                                    g!("let {}: Option<{}> = http::parse_opt_metadata(req)?;", field.name, field.type_);
+                                }
+                                "payload" => match field.type_.as_str() {
+                                    "Policy" => {
+                                        assert!(field.option_type.not());
+                                        g!("let {}: {} = http::take_string_body(req)?;", field.name, field.type_);
+                                    }
+                                    "StreamingBlob" => {
+                                        assert!(field.option_type);
+                                        g!("let {}: Option<{}> = Some(http::take_stream_body(req));", field.name, field.type_);
+                                    }
+                                    _ => {
+                                        if field.option_type {
+                                            g!("let {}: Option<{}> = http::take_opt_xml_body(req)?;", field.name, field.type_);
+                                        } else {
+                                            g!("let {}: {} = http::take_xml_body(req)?;", field.name, field.type_);
+                                        }
+                                    }
+                                },
+
+                                _ => unimplemented!(),
+                            }
+                            g!();
+                        }
+
+                        g!("Ok(Self {{");
+                        for field in &ty.fields {
+                            match field.position.as_str() {
+                                "bucket" | "key" | "query" | "header" | "metadata" | "payload" => {
+                                    g!("{},", field.name);
+                                }
+                                _ => unimplemented!(),
+                            }
+                        }
+                        g!("}})");
+                    }
+                    g!();
+                    g!("}}");
+                }
+            }
+            g!("}}");
+        }
+        _ => unimplemented!(),
+    }
+    g!();
+}
+
+#[allow(clippy::too_many_lines)]
+fn codegen_try_from_request_multipart(op: &Operation, rust_types: &RustTypes) {
+    if op.name != "PutObject" {
+        return;
+    }
+
+    let input = op.input.as_str();
+    let rust_type = &rust_types[input];
+
+    assert_eq!(op.name, "PutObject");
+
+    g!("impl TryFrom<(&mut http::Request, http::Multipart)> for {input} {{");
+    {
+        g!("type Error = S3Error;");
+        g!();
+        g!("fn try_from((req, m): (&mut http::Request, http::Multipart)) -> S3Result<{}> {{", input);
+
+        {
+            glines![
+                "let bucket = http::unwrap_bucket(req);"
+                "let key = http::parse_field_value(&m, \"key\")?.ok_or_else(|| invalid_request!(\"missing key\"))?;"
+                ""
+                "let vec_stream = req.s3ext.vec_stream.take().expect(\"missing vec stream\");"
+                ""
+            "let content_length = i64::try_from(vec_stream.exact_remaining_length()).map_err(|e|s3_error!(e, InvalidArgument, \"content-length overflow\"))?;"
+            "let content_length = (content_length != 0).then_some(content_length);"
+            ""
+            "let body: Option<StreamingBlob> = Some(StreamingBlob::new(vec_stream));"
+            ""
+            ];
+
+            let rust::Type::Struct(ty) = &rust_type else { panic!() };
+
+            for field in &ty.fields {
+                match field.position.as_str() {
+                    "bucket" | "key" | "payload" => {}
+                    "header" => {
+                        let header = field.http_header.as_deref().unwrap();
+                        assert!(header.as_bytes().iter().all(|&x| x == b'-' || x.is_ascii_alphanumeric()));
+                        let header = header.to_ascii_lowercase();
+
+                        if header == "content-length" {
+                            continue;
+                        }
+
+                        let field_type = &rust_types[field.type_.as_str()];
+
+                        if let rust::Type::Timestamp(ts_ty) = field_type {
+                            assert!(field.option_type);
+                            let fmt = ts_ty.format.as_deref().unwrap_or("HttpDate");
+                            g!(
+                                "let {}: Option<{}> = http::parse_field_value_timestamp(&m, \"{}\", TimestampFormat::{})?;",
+                                field.name,
+                                field.type_,
+                                header,
+                                fmt
+                            );
+                        } else if field.option_type {
+                            g!(
+                                "let {}: Option<{}> = http::parse_field_value(&m, \"{}\")?;",
+                                field.name,
+                                field.type_,
+                                header
+                            );
+                        } else if let Some(ref default_value) = field.default_value {
+                            g!(
+                                "let {}: {} = http::parse_field_value(&m, \"{}\")?.unwrap_or({});",
+                                field.name,
+                                field.type_,
+                                header,
+                                default_value_literal(default_value)
+                            );
+                        } else {
+                            unimplemented!()
+                        }
+                    }
+                    "metadata" => {
+                        assert!(field.option_type);
+                        g!("let {}: Option<{}> = {{", field.name, field.type_);
+                        g!("    let mut metadata = {}::default();", field.type_);
+                        glines![
+                        "    for (name, value) in m.fields() {"
+                        "        if let Some(key) = name.strip_prefix(\"x-amz-meta-\") {"
+                        "            if key.is_empty() { continue; }"
+                        "            metadata.insert(key.to_owned(), value.clone());"
+                        "        }"
+                        "    }"
+                        "    if metadata.is_empty() { None } else { Some(metadata) }"
+                        "};"
+                        ];
+                    }
+                    _ => unimplemented!(),
+                }
+                g!();
+            }
+
+            g!("Ok(Self {{");
+            for field in &ty.fields {
+                g!("{},", field.name);
+            }
+            g!("}})");
+        }
+        g!("}}");
+    }
+    g!("}}");
+    g!();
+}
+
+fn codegen_try_into_response(op: &Operation, rust_types: &RustTypes) {
+    let output = op.output.as_str();
+    let rust_type = &rust_types[output];
+    match rust_type {
+        rust::Type::Provided(ty) => {
+            assert_eq!(ty.name, "Unit");
+            g!("impl Into<http::Response> for {output} {{");
+            {
+                g!("fn into(self) -> http::Response {{");
+
+                if op.http_code == 200 {
+                    g!("http::Response::default()");
+                } else {
+                    g!("let mut res = http::Response::default();");
+
+                    let code_name = status_code_name(op.http_code);
+                    g!("res.status = http::StatusCode::{code_name};");
+
+                    g!("res");
+                }
+
+                g!("}}");
+            }
+            g!("}}");
+        }
+        rust::Type::Struct(ty) => {
+            g!("impl TryInto<http::Response> for {output} {{");
+            {
+                g!("type Error = S3Error;");
+                g!();
+                if ty.fields.is_empty() {
+                    g!("fn try_into(self) -> S3Result<http::Response> {{");
+                    {
+                        let code_name = status_code_name(op.http_code);
+                        g!("Ok(http::Response::with_status(http::StatusCode::{code_name}))");
+                    }
+                    g!("}}");
+                } else {
+                    g!("fn try_into(self) -> S3Result<http::Response> {{");
+
+                    assert!(ty.fields.is_empty().not());
+                    for field in &ty.fields {
+                        assert!(["header", "metadata", "xml", "payload"].contains(&field.position.as_str()),);
+                    }
+
+                    {
+                        let code_name = status_code_name(op.http_code);
+                        g!("let mut res = http::Response::with_status(http::StatusCode::{code_name});");
+                    }
+
+                    if is_xml_output(ty) {
+                        g!("http::set_xml_body(&mut res, &self)?;");
+                    } else if let Some(field) = ty.fields.iter().find(|x| x.position == "payload") {
+                        match field.type_.as_str() {
+                            "Policy" => {
+                                assert!(field.option_type);
+                                g!("if let Some(val) = self.{} {{", field.name);
+                                g!("res.body = http::Body::from(val);");
+                                g!("}}");
+                            }
+                            "StreamingBlob" => {
+                                if field.option_type {
+                                    g!("if let Some(val) = self.{} {{", field.name);
+                                    g!("http::set_stream_body(&mut res, val);");
+                                    g!("}}");
+                                } else {
+                                    g!("http::set_stream_body(&mut res, self.{});", field.name);
+                                }
+                            }
+                            "SelectObjectContentEventStream" => {
+                                assert!(field.option_type);
+                                g!("if let Some(val) = self.{} {{", field.name);
+                                g!("http::set_event_stream_body(&mut res, val);");
+                                g!("}}");
+                            }
+                            _ => {
+                                if field.option_type {
+                                    g!("if let Some(ref val) = self.{} {{", field.name);
+                                    g!("    http::set_xml_body(&mut res, val)?;");
+                                    g!("}}");
+                                } else {
+                                    g!("http::set_xml_body(&mut res, &self.{})?;", field.name);
+                                }
+                            }
+                        }
+                    }
+
+                    for field in &ty.fields {
+                        if field.position == "header" {
+                            let field_name = field.name.as_str();
+                            let header_name = crate::headers::to_constant_name(field.http_header.as_deref().unwrap());
+
+                            let field_type = &rust_types[field.type_.as_str()];
+                            if let rust::Type::Timestamp(ts_ty) = field_type {
+                                assert!(field.option_type);
+                                let fmt = ts_ty.format.as_deref().unwrap_or("HttpDate");
+                                g!("http::add_opt_header_timestamp(&mut res, {header_name}, self.{field_name}, TimestampFormat::{fmt})?;");
+                            } else if field.option_type {
+                                g!("http::add_opt_header(&mut res, {header_name}, self.{field_name})?;");
+                            } else {
+                                g!("http::add_header(&mut res, {header_name}, self.{field_name})?;");
+                            }
+                        }
+                        if field.position == "metadata" {
+                            assert!(field.option_type);
+                            g!("http::add_opt_metadata(&mut res, self.{})?;", field.name);
+                        }
+                    }
+
+                    g!("Ok(res)");
+
+                    g!("}}");
+                }
+            }
+            g!("}}");
+        }
+        _ => unimplemented!(),
+    }
+    g!();
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -795,17 +943,13 @@ fn codegen_router(ops: &Operations, rust_types: &RustTypes) {
         req: &http::Request, \
         s3_path: &S3Path, \
         qs: Option<&http::OrderedQs>)\
-         -> S3Result<(&'static dyn super::Operation, bool)> {{");
+         -> S3Result<(OperationType, bool)> {{");
 
     let succ = |route: &Route, return_: bool| {
         if return_ {
-            g!(
-                "return Ok((&{} as &'static dyn super::Operation, {}));",
-                route.op.name,
-                route.needs_full_body
-            );
+            g!("return Ok((OperationType::from(&{}), {}));", route.op.name, route.needs_full_body);
         } else {
-            g!("Ok((&{} as &'static dyn super::Operation, {}))", route.op.name, route.needs_full_body);
+            g!("Ok((OperationType::from(&{}), {}))", route.op.name, route.needs_full_body);
         }
     };
 
@@ -966,4 +1110,66 @@ fn codegen_router(ops: &Operations, rust_types: &RustTypes) {
     g!("}}");
 
     g!("}}");
+}
+
+fn codegen_enum(ops: &Operations, _rust_types: &RustTypes) {
+    g!("#[derive(Clone)]");
+    g!("#[non_exhaustive]");
+    g!("pub enum OperationType {{");
+    for op in ops.values() {
+        g!("{}(&'static {}),", op.name, op.name);
+    }
+    g!("}}");
+
+    g!();
+
+    g!("impl OperationType {{");
+    {
+        g!("pub async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {{");
+        {
+            g!("match self {{");
+            for op in ops.values() {
+                g!("Self::{}(op) => <{} as super::Operation>::call(op, s3, req).await,", op.name, op.name);
+            }
+            g!("}}");
+        }
+        g!("}}");
+
+        g!();
+        g!("pub fn as_dyn(self) -> &'static dyn super::Operation {{");
+        {
+            g!("match self {{");
+            for op in ops.values() {
+                g!("Self::{}(op) => op as &'static dyn super::Operation,", op.name);
+            }
+            g!("}}");
+        }
+        g!("}}");
+
+        g!();
+        g!("pub fn name(&self) -> &'static str {{");
+        {
+            g!("match self {{");
+            for op in ops.values() {
+                g!("Self::{}(_) => \"{}\",", op.name, op.name);
+            }
+            g!("}}");
+        }
+        g!("}}");
+    }
+    g!("}}");
+
+    g!();
+    for op in ops.values() {
+        g!("impl From<&'static {}> for OperationType  {{", op.name);
+        {
+            g!("fn from(op: &'static {}) -> Self {{", op.name);
+            {
+                g!("Self::{}(op)", op.name);
+            }
+            g!("}}");
+        }
+        g!("}}");
+        g!();
+    }
 }

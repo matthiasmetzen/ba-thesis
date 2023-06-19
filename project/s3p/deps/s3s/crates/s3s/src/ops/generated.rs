@@ -12,6 +12,7 @@ use crate::header::*;
 use crate::http;
 use crate::path::S3Path;
 use crate::s3_trait::S3;
+use crate::{S3Request, S3Response};
 
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -308,27 +309,11 @@ pub struct AbortMultipartUpload;
 
 impl AbortMultipartUpload {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<AbortMultipartUploadInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
-
-        Ok(AbortMultipartUploadInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            request_payer,
-            upload_id,
-        })
+        AbortMultipartUploadInput::try_from(req)
     }
 
     pub fn serialize_http(x: AbortMultipartUploadOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::NO_CONTENT);
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -353,7 +338,53 @@ impl super::Operation for AbortMultipartUpload {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for AbortMultipartUpload {
+    type Input = AbortMultipartUploadInput;
+    type Output = AbortMultipartUploadOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.abort_multipart_upload(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for AbortMultipartUploadInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            request_payer,
+            upload_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for AbortMultipartUploadOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::NO_CONTENT);
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
     }
 }
 
@@ -361,6 +392,57 @@ pub struct CompleteMultipartUpload;
 
 impl CompleteMultipartUpload {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<CompleteMultipartUploadInput> {
+        CompleteMultipartUploadInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: CompleteMultipartUploadOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
+#[async_trait::async_trait]
+impl super::Operation for CompleteMultipartUpload {
+    fn name(&self) -> &'static str {
+        "CompleteMultipartUpload"
+    }
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        let input = Self::deserialize_http(req)?;
+        let s3_req = super::build_s3_request(input, req);
+        let result = s3.complete_multipart_upload(s3_req).await;
+        let s3_resp = match result {
+            Ok(val) => val,
+            Err(err) => return super::serialize_error(err),
+        };
+        let mut resp = Self::serialize_http(s3_resp.output)?;
+        resp.headers.extend(s3_resp.headers);
+        resp.extensions.extend(s3_resp.extensions);
+        Ok(resp)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for CompleteMultipartUpload {
+    type Input = CompleteMultipartUploadInput;
+    type Output = CompleteMultipartUploadOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.complete_multipart_upload(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for CompleteMultipartUploadInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let checksum_crc32: Option<ChecksumCRC32> = http::parse_opt_header(req, &X_AMZ_CHECKSUM_CRC32)?;
@@ -387,7 +469,7 @@ impl CompleteMultipartUpload {
 
         let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
 
-        Ok(CompleteMultipartUploadInput {
+        Ok(Self {
             bucket,
             checksum_crc32,
             checksum_crc32c,
@@ -403,30 +485,46 @@ impl CompleteMultipartUpload {
             upload_id,
         })
     }
+}
 
-    pub fn serialize_http(x: CompleteMultipartUploadOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for CompleteMultipartUploadOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, x.expiration)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
+        http::set_xml_body(&mut res, &self)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, self.expiration)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
         Ok(res)
     }
 }
 
+pub struct CopyObject;
+
+impl CopyObject {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<CopyObjectInput> {
+        CopyObjectInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: CopyObjectOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
 #[async_trait::async_trait]
-impl super::Operation for CompleteMultipartUpload {
+impl super::Operation for CopyObject {
     fn name(&self) -> &'static str {
-        "CompleteMultipartUpload"
+        "CopyObject"
     }
 
     async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
         let input = Self::deserialize_http(req)?;
         let s3_req = super::build_s3_request(input, req);
-        let result = s3.complete_multipart_upload(s3_req).await;
+        let result = s3.copy_object(s3_req).await;
         let s3_resp = match result {
             Ok(val) => val,
             Err(err) => return super::serialize_error(err),
@@ -438,14 +536,28 @@ impl super::Operation for CompleteMultipartUpload {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct CopyObject;
+#[async_trait::async_trait]
+impl super::TypedOperation for CopyObject {
+    type Input = CopyObjectInput;
+    type Output = CopyObjectOutput;
 
-impl CopyObject {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<CopyObjectInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.copy_object(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for CopyObjectInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let acl: Option<ObjectCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
@@ -539,7 +651,7 @@ impl CopyObject {
         let website_redirect_location: Option<WebsiteRedirectLocation> =
             http::parse_opt_header(req, &X_AMZ_WEBSITE_REDIRECT_LOCATION)?;
 
-        Ok(CopyObjectInput {
+        Ok(Self {
             acl,
             bucket,
             bucket_key_enabled,
@@ -583,48 +695,27 @@ impl CopyObject {
             website_redirect_location,
         })
     }
-
-    pub fn serialize_http(x: CopyObjectOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.copy_object_result {
-            http::set_xml_body(&mut res, val)?;
-        }
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, X_AMZ_COPY_SOURCE_VERSION_ID, x.copy_source_version_id)?;
-        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, x.expiration)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CONTEXT, x.ssekms_encryption_context)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        Ok(res)
-    }
 }
 
-#[async_trait::async_trait]
-impl super::Operation for CopyObject {
-    fn name(&self) -> &'static str {
-        "CopyObject"
-    }
+impl TryInto<http::Response> for CopyObjectOutput {
+    type Error = S3Error;
 
-    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
-        let input = Self::deserialize_http(req)?;
-        let s3_req = super::build_s3_request(input, req);
-        let result = s3.copy_object(s3_req).await;
-        let s3_resp = match result {
-            Ok(val) => val,
-            Err(err) => return super::serialize_error(err),
-        };
-        let mut resp = Self::serialize_http(s3_resp.output)?;
-        resp.headers.extend(s3_resp.headers);
-        resp.extensions.extend(s3_resp.extensions);
-        Ok(resp)
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.copy_object_result {
+            http::set_xml_body(&mut res, val)?;
+        }
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, X_AMZ_COPY_SOURCE_VERSION_ID, self.copy_source_version_id)?;
+        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, self.expiration)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CONTEXT, self.ssekms_encryption_context)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        Ok(res)
     }
 }
 
@@ -632,45 +723,11 @@ pub struct CreateBucket;
 
 impl CreateBucket {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<CreateBucketInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let acl: Option<BucketCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
-
-        let create_bucket_configuration: Option<CreateBucketConfiguration> = http::take_opt_xml_body(req)?;
-
-        let grant_full_control: Option<GrantFullControl> = http::parse_opt_header(req, &X_AMZ_GRANT_FULL_CONTROL)?;
-
-        let grant_read: Option<GrantRead> = http::parse_opt_header(req, &X_AMZ_GRANT_READ)?;
-
-        let grant_read_acp: Option<GrantReadACP> = http::parse_opt_header(req, &X_AMZ_GRANT_READ_ACP)?;
-
-        let grant_write: Option<GrantWrite> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE)?;
-
-        let grant_write_acp: Option<GrantWriteACP> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE_ACP)?;
-
-        let object_lock_enabled_for_bucket: Option<ObjectLockEnabledForBucket> =
-            http::parse_opt_header(req, &X_AMZ_BUCKET_OBJECT_LOCK_ENABLED)?;
-
-        let object_ownership: Option<ObjectOwnership> = http::parse_opt_header(req, &X_AMZ_OBJECT_OWNERSHIP)?;
-
-        Ok(CreateBucketInput {
-            acl,
-            bucket,
-            create_bucket_configuration,
-            grant_full_control,
-            grant_read,
-            grant_read_acp,
-            grant_write,
-            grant_write_acp,
-            object_lock_enabled_for_bucket,
-            object_ownership,
-        })
+        CreateBucketInput::try_from(req)
     }
 
     pub fn serialize_http(x: CreateBucketOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, LOCATION, x.location)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -695,7 +752,71 @@ impl super::Operation for CreateBucket {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for CreateBucket {
+    type Input = CreateBucketInput;
+    type Output = CreateBucketOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.create_bucket(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for CreateBucketInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let acl: Option<BucketCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
+
+        let create_bucket_configuration: Option<CreateBucketConfiguration> = http::take_opt_xml_body(req)?;
+
+        let grant_full_control: Option<GrantFullControl> = http::parse_opt_header(req, &X_AMZ_GRANT_FULL_CONTROL)?;
+
+        let grant_read: Option<GrantRead> = http::parse_opt_header(req, &X_AMZ_GRANT_READ)?;
+
+        let grant_read_acp: Option<GrantReadACP> = http::parse_opt_header(req, &X_AMZ_GRANT_READ_ACP)?;
+
+        let grant_write: Option<GrantWrite> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE)?;
+
+        let grant_write_acp: Option<GrantWriteACP> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE_ACP)?;
+
+        let object_lock_enabled_for_bucket: Option<ObjectLockEnabledForBucket> =
+            http::parse_opt_header(req, &X_AMZ_BUCKET_OBJECT_LOCK_ENABLED)?;
+
+        let object_ownership: Option<ObjectOwnership> = http::parse_opt_header(req, &X_AMZ_OBJECT_OWNERSHIP)?;
+
+        Ok(Self {
+            acl,
+            bucket,
+            create_bucket_configuration,
+            grant_full_control,
+            grant_read,
+            grant_read_acp,
+            grant_write,
+            grant_write_acp,
+            object_lock_enabled_for_bucket,
+            object_ownership,
+        })
+    }
+}
+
+impl TryInto<http::Response> for CreateBucketOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, LOCATION, self.location)?;
+        Ok(res)
     }
 }
 
@@ -703,6 +824,57 @@ pub struct CreateMultipartUpload;
 
 impl CreateMultipartUpload {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<CreateMultipartUploadInput> {
+        CreateMultipartUploadInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: CreateMultipartUploadOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
+#[async_trait::async_trait]
+impl super::Operation for CreateMultipartUpload {
+    fn name(&self) -> &'static str {
+        "CreateMultipartUpload"
+    }
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        let input = Self::deserialize_http(req)?;
+        let s3_req = super::build_s3_request(input, req);
+        let result = s3.create_multipart_upload(s3_req).await;
+        let s3_resp = match result {
+            Ok(val) => val,
+            Err(err) => return super::serialize_error(err),
+        };
+        let mut resp = Self::serialize_http(s3_resp.output)?;
+        resp.headers.extend(s3_resp.headers);
+        resp.extensions.extend(s3_resp.extensions);
+        Ok(resp)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for CreateMultipartUpload {
+    type Input = CreateMultipartUploadInput;
+    type Output = CreateMultipartUploadOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.create_multipart_upload(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for CreateMultipartUploadInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let acl: Option<ObjectCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
@@ -768,7 +940,7 @@ impl CreateMultipartUpload {
         let website_redirect_location: Option<WebsiteRedirectLocation> =
             http::parse_opt_header(req, &X_AMZ_WEBSITE_REDIRECT_LOCATION)?;
 
-        Ok(CreateMultipartUploadInput {
+        Ok(Self {
             acl,
             bucket,
             bucket_key_enabled,
@@ -801,46 +973,25 @@ impl CreateMultipartUpload {
             website_redirect_location,
         })
     }
-
-    pub fn serialize_http(x: CreateMultipartUploadOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_opt_header_timestamp(&mut res, X_AMZ_ABORT_DATE, x.abort_date, TimestampFormat::HttpDate)?;
-        http::add_opt_header(&mut res, X_AMZ_ABORT_RULE_ID, x.abort_rule_id)?;
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_ALGORITHM, x.checksum_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CONTEXT, x.ssekms_encryption_context)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
-        Ok(res)
-    }
 }
 
-#[async_trait::async_trait]
-impl super::Operation for CreateMultipartUpload {
-    fn name(&self) -> &'static str {
-        "CreateMultipartUpload"
-    }
+impl TryInto<http::Response> for CreateMultipartUploadOutput {
+    type Error = S3Error;
 
-    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
-        let input = Self::deserialize_http(req)?;
-        let s3_req = super::build_s3_request(input, req);
-        let result = s3.create_multipart_upload(s3_req).await;
-        let s3_resp = match result {
-            Ok(val) => val,
-            Err(err) => return super::serialize_error(err),
-        };
-        let mut resp = Self::serialize_http(s3_resp.output)?;
-        resp.headers.extend(s3_resp.headers);
-        resp.extensions.extend(s3_resp.extensions);
-        Ok(resp)
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        http::add_opt_header_timestamp(&mut res, X_AMZ_ABORT_DATE, self.abort_date, TimestampFormat::HttpDate)?;
+        http::add_opt_header(&mut res, X_AMZ_ABORT_RULE_ID, self.abort_rule_id)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_ALGORITHM, self.checksum_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CONTEXT, self.ssekms_encryption_context)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
+        Ok(res)
     }
 }
 
@@ -848,18 +999,11 @@ pub struct DeleteBucket;
 
 impl DeleteBucket {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -884,7 +1028,44 @@ impl super::Operation for DeleteBucket {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucket {
+    type Input = DeleteBucketInput;
+    type Output = DeleteBucketOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -892,21 +1073,11 @@ pub struct DeleteBucketAnalyticsConfiguration;
 
 impl DeleteBucketAnalyticsConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketAnalyticsConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: AnalyticsId = http::parse_query(req, "id")?;
-
-        Ok(DeleteBucketAnalyticsConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        DeleteBucketAnalyticsConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketAnalyticsConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketAnalyticsConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -931,7 +1102,47 @@ impl super::Operation for DeleteBucketAnalyticsConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketAnalyticsConfiguration {
+    type Input = DeleteBucketAnalyticsConfigurationInput;
+    type Output = DeleteBucketAnalyticsConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_analytics_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketAnalyticsConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: AnalyticsId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketAnalyticsConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -939,18 +1150,11 @@ pub struct DeleteBucketCors;
 
 impl DeleteBucketCors {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketCorsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketCorsInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketCorsInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketCorsOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketCorsOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -975,7 +1179,44 @@ impl super::Operation for DeleteBucketCors {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketCors {
+    type Input = DeleteBucketCorsInput;
+    type Output = DeleteBucketCorsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_cors(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketCorsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketCorsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -983,18 +1224,11 @@ pub struct DeleteBucketEncryption;
 
 impl DeleteBucketEncryption {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketEncryptionInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketEncryptionInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketEncryptionInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketEncryptionOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketEncryptionOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1019,7 +1253,44 @@ impl super::Operation for DeleteBucketEncryption {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketEncryption {
+    type Input = DeleteBucketEncryptionInput;
+    type Output = DeleteBucketEncryptionOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_encryption(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketEncryptionInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketEncryptionOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1027,15 +1298,11 @@ pub struct DeleteBucketIntelligentTieringConfiguration;
 
 impl DeleteBucketIntelligentTieringConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketIntelligentTieringConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let id: IntelligentTieringId = http::parse_query(req, "id")?;
-
-        Ok(DeleteBucketIntelligentTieringConfigurationInput { bucket, id })
+        DeleteBucketIntelligentTieringConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketIntelligentTieringConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketIntelligentTieringConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1060,7 +1327,41 @@ impl super::Operation for DeleteBucketIntelligentTieringConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketIntelligentTieringConfiguration {
+    type Input = DeleteBucketIntelligentTieringConfigurationInput;
+    type Output = DeleteBucketIntelligentTieringConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_intelligent_tiering_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketIntelligentTieringConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let id: IntelligentTieringId = http::parse_query(req, "id")?;
+
+        Ok(Self { bucket, id })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketIntelligentTieringConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1068,21 +1369,11 @@ pub struct DeleteBucketInventoryConfiguration;
 
 impl DeleteBucketInventoryConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketInventoryConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: InventoryId = http::parse_query(req, "id")?;
-
-        Ok(DeleteBucketInventoryConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        DeleteBucketInventoryConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketInventoryConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketInventoryConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1107,7 +1398,47 @@ impl super::Operation for DeleteBucketInventoryConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketInventoryConfiguration {
+    type Input = DeleteBucketInventoryConfigurationInput;
+    type Output = DeleteBucketInventoryConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_inventory_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketInventoryConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: InventoryId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketInventoryConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1115,18 +1446,11 @@ pub struct DeleteBucketLifecycle;
 
 impl DeleteBucketLifecycle {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketLifecycleInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketLifecycleInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketLifecycleInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketLifecycleOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketLifecycleOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1151,7 +1475,44 @@ impl super::Operation for DeleteBucketLifecycle {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketLifecycle {
+    type Input = DeleteBucketLifecycleInput;
+    type Output = DeleteBucketLifecycleOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_lifecycle(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketLifecycleInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketLifecycleOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1159,21 +1520,11 @@ pub struct DeleteBucketMetricsConfiguration;
 
 impl DeleteBucketMetricsConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketMetricsConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: MetricsId = http::parse_query(req, "id")?;
-
-        Ok(DeleteBucketMetricsConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        DeleteBucketMetricsConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketMetricsConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketMetricsConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1198,7 +1549,47 @@ impl super::Operation for DeleteBucketMetricsConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketMetricsConfiguration {
+    type Input = DeleteBucketMetricsConfigurationInput;
+    type Output = DeleteBucketMetricsConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_metrics_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketMetricsConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: MetricsId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketMetricsConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1206,18 +1597,11 @@ pub struct DeleteBucketOwnershipControls;
 
 impl DeleteBucketOwnershipControls {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketOwnershipControlsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketOwnershipControlsInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketOwnershipControlsInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketOwnershipControlsOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketOwnershipControlsOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1242,7 +1626,44 @@ impl super::Operation for DeleteBucketOwnershipControls {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketOwnershipControls {
+    type Input = DeleteBucketOwnershipControlsInput;
+    type Output = DeleteBucketOwnershipControlsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_ownership_controls(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketOwnershipControlsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketOwnershipControlsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1250,18 +1671,11 @@ pub struct DeleteBucketPolicy;
 
 impl DeleteBucketPolicy {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketPolicyInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketPolicyInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketPolicyInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketPolicyOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketPolicyOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1286,7 +1700,44 @@ impl super::Operation for DeleteBucketPolicy {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketPolicy {
+    type Input = DeleteBucketPolicyInput;
+    type Output = DeleteBucketPolicyOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_policy(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketPolicyInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketPolicyOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1294,18 +1745,11 @@ pub struct DeleteBucketReplication;
 
 impl DeleteBucketReplication {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketReplicationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketReplicationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketReplicationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketReplicationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketReplicationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1330,7 +1774,44 @@ impl super::Operation for DeleteBucketReplication {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketReplication {
+    type Input = DeleteBucketReplicationInput;
+    type Output = DeleteBucketReplicationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_replication(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketReplicationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketReplicationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1338,18 +1819,11 @@ pub struct DeleteBucketTagging;
 
 impl DeleteBucketTagging {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketTaggingInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketTaggingInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketTaggingInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketTaggingOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketTaggingOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1374,7 +1848,44 @@ impl super::Operation for DeleteBucketTagging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketTagging {
+    type Input = DeleteBucketTaggingInput;
+    type Output = DeleteBucketTaggingOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_tagging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketTaggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketTaggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1382,18 +1893,11 @@ pub struct DeleteBucketWebsite;
 
 impl DeleteBucketWebsite {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteBucketWebsiteInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeleteBucketWebsiteInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeleteBucketWebsiteInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeleteBucketWebsiteOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeleteBucketWebsiteOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1418,7 +1922,44 @@ impl super::Operation for DeleteBucketWebsite {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteBucketWebsite {
+    type Input = DeleteBucketWebsiteInput;
+    type Output = DeleteBucketWebsiteOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_bucket_website(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteBucketWebsiteInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteBucketWebsiteOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1426,36 +1967,11 @@ pub struct DeleteObject;
 
 impl DeleteObject {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteObjectInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let bypass_governance_retention: Option<BypassGovernanceRetention> =
-            http::parse_opt_header(req, &X_AMZ_BYPASS_GOVERNANCE_RETENTION)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let mfa: Option<MFA> = http::parse_opt_header(req, &X_AMZ_MFA)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(DeleteObjectInput {
-            bucket,
-            bypass_governance_retention,
-            expected_bucket_owner,
-            key,
-            mfa,
-            request_payer,
-            version_id,
-        })
+        DeleteObjectInput::try_from(req)
     }
 
     pub fn serialize_http(x: DeleteObjectOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::NO_CONTENT);
-        http::add_header(&mut res, X_AMZ_DELETE_MARKER, x.delete_marker)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1480,7 +1996,62 @@ impl super::Operation for DeleteObject {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteObject {
+    type Input = DeleteObjectInput;
+    type Output = DeleteObjectOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_object(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteObjectInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let bypass_governance_retention: Option<BypassGovernanceRetention> =
+            http::parse_opt_header(req, &X_AMZ_BYPASS_GOVERNANCE_RETENTION)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let mfa: Option<MFA> = http::parse_opt_header(req, &X_AMZ_MFA)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            bypass_governance_retention,
+            expected_bucket_owner,
+            key,
+            mfa,
+            request_payer,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteObjectOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::NO_CONTENT);
+        http::add_header(&mut res, X_AMZ_DELETE_MARKER, self.delete_marker)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        Ok(res)
     }
 }
 
@@ -1488,24 +2059,11 @@ pub struct DeleteObjectTagging;
 
 impl DeleteObjectTagging {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteObjectTaggingInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(DeleteObjectTaggingInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            version_id,
-        })
+        DeleteObjectTaggingInput::try_from(req)
     }
 
     pub fn serialize_http(x: DeleteObjectTaggingOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::NO_CONTENT);
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1530,7 +2088,50 @@ impl super::Operation for DeleteObjectTagging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteObjectTagging {
+    type Input = DeleteObjectTaggingInput;
+    type Output = DeleteObjectTaggingOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_object_tagging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteObjectTaggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteObjectTaggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::NO_CONTENT);
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        Ok(res)
     }
 }
 
@@ -1538,37 +2139,11 @@ pub struct DeleteObjects;
 
 impl DeleteObjects {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeleteObjectsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let bypass_governance_retention: Option<BypassGovernanceRetention> =
-            http::parse_opt_header(req, &X_AMZ_BYPASS_GOVERNANCE_RETENTION)?;
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let delete: Delete = http::take_xml_body(req)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let mfa: Option<MFA> = http::parse_opt_header(req, &X_AMZ_MFA)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        Ok(DeleteObjectsInput {
-            bucket,
-            bypass_governance_retention,
-            checksum_algorithm,
-            delete,
-            expected_bucket_owner,
-            mfa,
-            request_payer,
-        })
+        DeleteObjectsInput::try_from(req)
     }
 
     pub fn serialize_http(x: DeleteObjectsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1593,7 +2168,63 @@ impl super::Operation for DeleteObjects {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeleteObjects {
+    type Input = DeleteObjectsInput;
+    type Output = DeleteObjectsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_objects(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeleteObjectsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let bypass_governance_retention: Option<BypassGovernanceRetention> =
+            http::parse_opt_header(req, &X_AMZ_BYPASS_GOVERNANCE_RETENTION)?;
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let delete: Delete = http::take_xml_body(req)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let mfa: Option<MFA> = http::parse_opt_header(req, &X_AMZ_MFA)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        Ok(Self {
+            bucket,
+            bypass_governance_retention,
+            checksum_algorithm,
+            delete,
+            expected_bucket_owner,
+            mfa,
+            request_payer,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeleteObjectsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
     }
 }
 
@@ -1601,18 +2232,11 @@ pub struct DeletePublicAccessBlock;
 
 impl DeletePublicAccessBlock {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<DeletePublicAccessBlockInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(DeletePublicAccessBlockInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        DeletePublicAccessBlockInput::try_from(req)
     }
 
-    pub fn serialize_http(_: DeletePublicAccessBlockOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: DeletePublicAccessBlockOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -1637,7 +2261,44 @@ impl super::Operation for DeletePublicAccessBlock {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for DeletePublicAccessBlock {
+    type Input = DeletePublicAccessBlockInput;
+    type Output = DeletePublicAccessBlockOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.delete_public_access_block(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for DeletePublicAccessBlockInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for DeletePublicAccessBlockOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -1645,20 +2306,11 @@ pub struct GetBucketAccelerateConfiguration;
 
 impl GetBucketAccelerateConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketAccelerateConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketAccelerateConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketAccelerateConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketAccelerateConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1683,7 +2335,46 @@ impl super::Operation for GetBucketAccelerateConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketAccelerateConfiguration {
+    type Input = GetBucketAccelerateConfigurationInput;
+    type Output = GetBucketAccelerateConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_accelerate_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketAccelerateConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketAccelerateConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -1691,20 +2382,11 @@ pub struct GetBucketAcl;
 
 impl GetBucketAcl {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketAclInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketAclInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketAclInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketAclOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1729,7 +2411,46 @@ impl super::Operation for GetBucketAcl {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketAcl {
+    type Input = GetBucketAclInput;
+    type Output = GetBucketAclOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_acl(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketAclInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketAclOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -1737,25 +2458,11 @@ pub struct GetBucketAnalyticsConfiguration;
 
 impl GetBucketAnalyticsConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketAnalyticsConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: AnalyticsId = http::parse_query(req, "id")?;
-
-        Ok(GetBucketAnalyticsConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        GetBucketAnalyticsConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketAnalyticsConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.analytics_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1780,7 +2487,51 @@ impl super::Operation for GetBucketAnalyticsConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketAnalyticsConfiguration {
+    type Input = GetBucketAnalyticsConfigurationInput;
+    type Output = GetBucketAnalyticsConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_analytics_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketAnalyticsConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: AnalyticsId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketAnalyticsConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.analytics_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -1788,20 +2539,11 @@ pub struct GetBucketCors;
 
 impl GetBucketCors {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketCorsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketCorsInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketCorsInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketCorsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1826,7 +2568,46 @@ impl super::Operation for GetBucketCors {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketCors {
+    type Input = GetBucketCorsInput;
+    type Output = GetBucketCorsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_cors(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketCorsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketCorsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -1834,22 +2615,11 @@ pub struct GetBucketEncryption;
 
 impl GetBucketEncryption {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketEncryptionInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketEncryptionInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketEncryptionInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketEncryptionOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.server_side_encryption_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1874,7 +2644,48 @@ impl super::Operation for GetBucketEncryption {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketEncryption {
+    type Input = GetBucketEncryptionInput;
+    type Output = GetBucketEncryptionOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_encryption(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketEncryptionInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketEncryptionOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.server_side_encryption_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -1882,19 +2693,11 @@ pub struct GetBucketIntelligentTieringConfiguration;
 
 impl GetBucketIntelligentTieringConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketIntelligentTieringConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let id: IntelligentTieringId = http::parse_query(req, "id")?;
-
-        Ok(GetBucketIntelligentTieringConfigurationInput { bucket, id })
+        GetBucketIntelligentTieringConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketIntelligentTieringConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.intelligent_tiering_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1919,7 +2722,45 @@ impl super::Operation for GetBucketIntelligentTieringConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketIntelligentTieringConfiguration {
+    type Input = GetBucketIntelligentTieringConfigurationInput;
+    type Output = GetBucketIntelligentTieringConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_intelligent_tiering_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketIntelligentTieringConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let id: IntelligentTieringId = http::parse_query(req, "id")?;
+
+        Ok(Self { bucket, id })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketIntelligentTieringConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.intelligent_tiering_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -1927,25 +2768,11 @@ pub struct GetBucketInventoryConfiguration;
 
 impl GetBucketInventoryConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketInventoryConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: InventoryId = http::parse_query(req, "id")?;
-
-        Ok(GetBucketInventoryConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        GetBucketInventoryConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketInventoryConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.inventory_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -1970,7 +2797,51 @@ impl super::Operation for GetBucketInventoryConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketInventoryConfiguration {
+    type Input = GetBucketInventoryConfigurationInput;
+    type Output = GetBucketInventoryConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_inventory_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketInventoryConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: InventoryId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketInventoryConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.inventory_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -1978,20 +2849,11 @@ pub struct GetBucketLifecycleConfiguration;
 
 impl GetBucketLifecycleConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketLifecycleConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketLifecycleConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketLifecycleConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketLifecycleConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2016,7 +2878,46 @@ impl super::Operation for GetBucketLifecycleConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketLifecycleConfiguration {
+    type Input = GetBucketLifecycleConfigurationInput;
+    type Output = GetBucketLifecycleConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_lifecycle_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketLifecycleConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketLifecycleConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2024,20 +2925,11 @@ pub struct GetBucketLocation;
 
 impl GetBucketLocation {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketLocationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketLocationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketLocationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketLocationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2062,7 +2954,46 @@ impl super::Operation for GetBucketLocation {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketLocation {
+    type Input = GetBucketLocationInput;
+    type Output = GetBucketLocationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_location(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketLocationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketLocationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2070,20 +3001,11 @@ pub struct GetBucketLogging;
 
 impl GetBucketLogging {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketLoggingInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketLoggingInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketLoggingInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketLoggingOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2108,7 +3030,46 @@ impl super::Operation for GetBucketLogging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketLogging {
+    type Input = GetBucketLoggingInput;
+    type Output = GetBucketLoggingOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_logging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketLoggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketLoggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2116,25 +3077,11 @@ pub struct GetBucketMetricsConfiguration;
 
 impl GetBucketMetricsConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketMetricsConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: MetricsId = http::parse_query(req, "id")?;
-
-        Ok(GetBucketMetricsConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        GetBucketMetricsConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketMetricsConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.metrics_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2159,7 +3106,51 @@ impl super::Operation for GetBucketMetricsConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketMetricsConfiguration {
+    type Input = GetBucketMetricsConfigurationInput;
+    type Output = GetBucketMetricsConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_metrics_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketMetricsConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: MetricsId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketMetricsConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.metrics_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -2167,20 +3158,11 @@ pub struct GetBucketNotificationConfiguration;
 
 impl GetBucketNotificationConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketNotificationConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketNotificationConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketNotificationConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketNotificationConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2205,7 +3187,46 @@ impl super::Operation for GetBucketNotificationConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketNotificationConfiguration {
+    type Input = GetBucketNotificationConfigurationInput;
+    type Output = GetBucketNotificationConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_notification_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketNotificationConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketNotificationConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2213,22 +3234,11 @@ pub struct GetBucketOwnershipControls;
 
 impl GetBucketOwnershipControls {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketOwnershipControlsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketOwnershipControlsInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketOwnershipControlsInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketOwnershipControlsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.ownership_controls {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2253,7 +3263,48 @@ impl super::Operation for GetBucketOwnershipControls {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketOwnershipControls {
+    type Input = GetBucketOwnershipControlsInput;
+    type Output = GetBucketOwnershipControlsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_ownership_controls(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketOwnershipControlsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketOwnershipControlsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.ownership_controls {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -2261,22 +3312,11 @@ pub struct GetBucketPolicy;
 
 impl GetBucketPolicy {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketPolicyInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketPolicyInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketPolicyInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketPolicyOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(val) = x.policy {
-            res.body = http::Body::from(val);
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2301,7 +3341,48 @@ impl super::Operation for GetBucketPolicy {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketPolicy {
+    type Input = GetBucketPolicyInput;
+    type Output = GetBucketPolicyOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_policy(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketPolicyInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketPolicyOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(val) = self.policy {
+            res.body = http::Body::from(val);
+        }
+        Ok(res)
     }
 }
 
@@ -2309,22 +3390,11 @@ pub struct GetBucketPolicyStatus;
 
 impl GetBucketPolicyStatus {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketPolicyStatusInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketPolicyStatusInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketPolicyStatusInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketPolicyStatusOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.policy_status {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2349,7 +3419,48 @@ impl super::Operation for GetBucketPolicyStatus {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketPolicyStatus {
+    type Input = GetBucketPolicyStatusInput;
+    type Output = GetBucketPolicyStatusOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_policy_status(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketPolicyStatusInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketPolicyStatusOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.policy_status {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -2357,22 +3468,11 @@ pub struct GetBucketReplication;
 
 impl GetBucketReplication {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketReplicationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketReplicationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketReplicationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketReplicationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.replication_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2397,7 +3497,48 @@ impl super::Operation for GetBucketReplication {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketReplication {
+    type Input = GetBucketReplicationInput;
+    type Output = GetBucketReplicationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_replication(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketReplicationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketReplicationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.replication_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -2405,20 +3546,11 @@ pub struct GetBucketRequestPayment;
 
 impl GetBucketRequestPayment {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketRequestPaymentInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketRequestPaymentInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketRequestPaymentInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketRequestPaymentOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2443,7 +3575,46 @@ impl super::Operation for GetBucketRequestPayment {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketRequestPayment {
+    type Input = GetBucketRequestPaymentInput;
+    type Output = GetBucketRequestPaymentOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_request_payment(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketRequestPaymentInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketRequestPaymentOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2451,20 +3622,11 @@ pub struct GetBucketTagging;
 
 impl GetBucketTagging {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketTaggingInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketTaggingInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketTaggingInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketTaggingOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2489,7 +3651,46 @@ impl super::Operation for GetBucketTagging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketTagging {
+    type Input = GetBucketTaggingInput;
+    type Output = GetBucketTaggingOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_tagging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketTaggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketTaggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2497,20 +3698,11 @@ pub struct GetBucketVersioning;
 
 impl GetBucketVersioning {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketVersioningInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketVersioningInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketVersioningInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketVersioningOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2535,7 +3727,46 @@ impl super::Operation for GetBucketVersioning {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketVersioning {
+    type Input = GetBucketVersioningInput;
+    type Output = GetBucketVersioningOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_versioning(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketVersioningInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketVersioningOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2543,20 +3774,11 @@ pub struct GetBucketWebsite;
 
 impl GetBucketWebsite {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetBucketWebsiteInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetBucketWebsiteInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetBucketWebsiteInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetBucketWebsiteOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2581,7 +3803,46 @@ impl super::Operation for GetBucketWebsite {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetBucketWebsite {
+    type Input = GetBucketWebsiteInput;
+    type Output = GetBucketWebsiteOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_bucket_website(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetBucketWebsiteInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetBucketWebsiteOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -2589,6 +3850,65 @@ pub struct GetObject;
 
 impl GetObject {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectInput> {
+        GetObjectInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: GetObjectOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
+#[async_trait::async_trait]
+impl super::Operation for GetObject {
+    fn name(&self) -> &'static str {
+        "GetObject"
+    }
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        let input = Self::deserialize_http(req)?;
+        let s3_req = super::build_s3_request(input, req);
+        let overrided_headers = super::get_object::extract_overrided_response_headers(&s3_req)?;
+        let result = s3.get_object(s3_req).await;
+        let s3_resp = match result {
+            Ok(val) => val,
+            Err(err) => return super::serialize_error(err),
+        };
+        let mut resp = Self::serialize_http(s3_resp.output)?;
+        resp.headers.extend(overrided_headers);
+        resp.headers.extend(s3_resp.headers);
+        resp.extensions.extend(s3_resp.extensions);
+        Ok(resp)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObject {
+    type Input = GetObjectInput;
+    type Output = GetObjectOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let overrided_headers = super::get_object::extract_overrided_response_headers(&req)?;
+        let result = s3.get_object(req).await;
+
+        let mut result = result;
+        if let Ok(response) = &mut result {
+            response.headers.extend(overrided_headers);
+        }
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let checksum_mode: Option<ChecksumMode> = http::parse_opt_header(req, &X_AMZ_CHECKSUM_MODE)?;
@@ -2635,7 +3955,7 @@ impl GetObject {
 
         let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
 
-        Ok(GetObjectInput {
+        Ok(Self {
             bucket,
             checksum_mode,
             expected_bucket_owner,
@@ -2659,80 +3979,57 @@ impl GetObject {
             version_id,
         })
     }
+}
 
-    pub fn serialize_http(x: GetObjectOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for GetObjectOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(val) = x.body {
+        if let Some(val) = self.body {
             http::set_stream_body(&mut res, val);
         }
-        http::add_opt_header(&mut res, ACCEPT_RANGES, x.accept_ranges)?;
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, CACHE_CONTROL, x.cache_control)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, x.checksum_crc32)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, x.checksum_crc32c)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, x.checksum_sha1)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, x.checksum_sha256)?;
-        http::add_opt_header(&mut res, CONTENT_DISPOSITION, x.content_disposition)?;
-        http::add_opt_header(&mut res, CONTENT_ENCODING, x.content_encoding)?;
-        http::add_opt_header(&mut res, CONTENT_LANGUAGE, x.content_language)?;
-        http::add_header(&mut res, CONTENT_LENGTH, x.content_length)?;
-        http::add_opt_header(&mut res, CONTENT_RANGE, x.content_range)?;
-        http::add_opt_header(&mut res, CONTENT_TYPE, x.content_type)?;
-        http::add_header(&mut res, X_AMZ_DELETE_MARKER, x.delete_marker)?;
-        http::add_opt_header(&mut res, ETAG, x.e_tag)?;
-        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, x.expiration)?;
-        http::add_opt_header_timestamp(&mut res, EXPIRES, x.expires, TimestampFormat::HttpDate)?;
-        http::add_opt_header_timestamp(&mut res, LAST_MODIFIED, x.last_modified, TimestampFormat::HttpDate)?;
-        http::add_opt_metadata(&mut res, x.metadata)?;
-        http::add_header(&mut res, X_AMZ_MISSING_META, x.missing_meta)?;
-        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_LEGAL_HOLD, x.object_lock_legal_hold_status)?;
-        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_MODE, x.object_lock_mode)?;
+        http::add_opt_header(&mut res, ACCEPT_RANGES, self.accept_ranges)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, CACHE_CONTROL, self.cache_control)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, self.checksum_crc32)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, self.checksum_crc32c)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, self.checksum_sha1)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, self.checksum_sha256)?;
+        http::add_opt_header(&mut res, CONTENT_DISPOSITION, self.content_disposition)?;
+        http::add_opt_header(&mut res, CONTENT_ENCODING, self.content_encoding)?;
+        http::add_opt_header(&mut res, CONTENT_LANGUAGE, self.content_language)?;
+        http::add_header(&mut res, CONTENT_LENGTH, self.content_length)?;
+        http::add_opt_header(&mut res, CONTENT_RANGE, self.content_range)?;
+        http::add_opt_header(&mut res, CONTENT_TYPE, self.content_type)?;
+        http::add_header(&mut res, X_AMZ_DELETE_MARKER, self.delete_marker)?;
+        http::add_opt_header(&mut res, ETAG, self.e_tag)?;
+        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, self.expiration)?;
+        http::add_opt_header_timestamp(&mut res, EXPIRES, self.expires, TimestampFormat::HttpDate)?;
+        http::add_opt_header_timestamp(&mut res, LAST_MODIFIED, self.last_modified, TimestampFormat::HttpDate)?;
+        http::add_opt_metadata(&mut res, self.metadata)?;
+        http::add_header(&mut res, X_AMZ_MISSING_META, self.missing_meta)?;
+        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_LEGAL_HOLD, self.object_lock_legal_hold_status)?;
+        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_MODE, self.object_lock_mode)?;
         http::add_opt_header_timestamp(
             &mut res,
             X_AMZ_OBJECT_LOCK_RETAIN_UNTIL_DATE,
-            x.object_lock_retain_until_date,
+            self.object_lock_retain_until_date,
             TimestampFormat::DateTime,
         )?;
-        http::add_header(&mut res, X_AMZ_MP_PARTS_COUNT, x.parts_count)?;
-        http::add_opt_header(&mut res, X_AMZ_REPLICATION_STATUS, x.replication_status)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_RESTORE, x.restore)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
-        http::add_opt_header(&mut res, X_AMZ_STORAGE_CLASS, x.storage_class)?;
-        http::add_header(&mut res, X_AMZ_TAGGING_COUNT, x.tag_count)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        http::add_opt_header(&mut res, X_AMZ_WEBSITE_REDIRECT_LOCATION, x.website_redirect_location)?;
+        http::add_header(&mut res, X_AMZ_MP_PARTS_COUNT, self.parts_count)?;
+        http::add_opt_header(&mut res, X_AMZ_REPLICATION_STATUS, self.replication_status)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_RESTORE, self.restore)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
+        http::add_opt_header(&mut res, X_AMZ_STORAGE_CLASS, self.storage_class)?;
+        http::add_header(&mut res, X_AMZ_TAGGING_COUNT, self.tag_count)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        http::add_opt_header(&mut res, X_AMZ_WEBSITE_REDIRECT_LOCATION, self.website_redirect_location)?;
         Ok(res)
-    }
-}
-
-#[async_trait::async_trait]
-impl super::Operation for GetObject {
-    fn name(&self) -> &'static str {
-        "GetObject"
-    }
-
-    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
-        let input = Self::deserialize_http(req)?;
-        let s3_req = super::build_s3_request(input, req);
-        let overrided_headers = super::get_object::extract_overrided_response_headers(&s3_req)?;
-        let result = s3.get_object(s3_req).await;
-        let s3_resp = match result {
-            Ok(val) => val,
-            Err(err) => return super::serialize_error(err),
-        };
-        let mut resp = Self::serialize_http(s3_resp.output)?;
-        resp.headers.extend(overrided_headers);
-        resp.headers.extend(s3_resp.headers);
-        resp.extensions.extend(s3_resp.extensions);
-        Ok(resp)
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -2740,28 +4037,11 @@ pub struct GetObjectAcl;
 
 impl GetObjectAcl {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectAclInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(GetObjectAclInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            request_payer,
-            version_id,
-        })
+        GetObjectAclInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetObjectAclOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2786,7 +4066,54 @@ impl super::Operation for GetObjectAcl {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectAcl {
+    type Input = GetObjectAclInput;
+    type Output = GetObjectAclOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_acl(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectAclInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            request_payer,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetObjectAclOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
     }
 }
 
@@ -2794,51 +4121,11 @@ pub struct GetObjectAttributes;
 
 impl GetObjectAttributes {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectAttributesInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let max_parts: Option<MaxParts> = http::parse_opt_header(req, &X_AMZ_MAX_PARTS)?;
-
-        let object_attributes: ObjectAttributesList = http::parse_list_header(req, &X_AMZ_OBJECT_ATTRIBUTES)?;
-
-        let part_number_marker: Option<PartNumberMarker> = http::parse_opt_header(req, &X_AMZ_PART_NUMBER_MARKER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let sse_customer_algorithm: Option<SSECustomerAlgorithm> =
-            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM)?;
-
-        let sse_customer_key: Option<SSECustomerKey> = http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY)?;
-
-        let sse_customer_key_md5: Option<SSECustomerKeyMD5> =
-            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(GetObjectAttributesInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            max_parts,
-            object_attributes,
-            part_number_marker,
-            request_payer,
-            sse_customer_algorithm,
-            sse_customer_key,
-            sse_customer_key_md5,
-            version_id,
-        })
+        GetObjectAttributesInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetObjectAttributesOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_header(&mut res, X_AMZ_DELETE_MARKER, x.delete_marker)?;
-        http::add_opt_header_timestamp(&mut res, LAST_MODIFIED, x.last_modified, TimestampFormat::HttpDate)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2863,7 +4150,77 @@ impl super::Operation for GetObjectAttributes {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectAttributes {
+    type Input = GetObjectAttributesInput;
+    type Output = GetObjectAttributesOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_attributes(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectAttributesInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let max_parts: Option<MaxParts> = http::parse_opt_header(req, &X_AMZ_MAX_PARTS)?;
+
+        let object_attributes: ObjectAttributesList = http::parse_list_header(req, &X_AMZ_OBJECT_ATTRIBUTES)?;
+
+        let part_number_marker: Option<PartNumberMarker> = http::parse_opt_header(req, &X_AMZ_PART_NUMBER_MARKER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let sse_customer_algorithm: Option<SSECustomerAlgorithm> =
+            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM)?;
+
+        let sse_customer_key: Option<SSECustomerKey> = http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY)?;
+
+        let sse_customer_key_md5: Option<SSECustomerKeyMD5> =
+            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            max_parts,
+            object_attributes,
+            part_number_marker,
+            request_payer,
+            sse_customer_algorithm,
+            sse_customer_key,
+            sse_customer_key_md5,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetObjectAttributesOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        http::add_header(&mut res, X_AMZ_DELETE_MARKER, self.delete_marker)?;
+        http::add_opt_header_timestamp(&mut res, LAST_MODIFIED, self.last_modified, TimestampFormat::HttpDate)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        Ok(res)
     }
 }
 
@@ -2871,29 +4228,11 @@ pub struct GetObjectLegalHold;
 
 impl GetObjectLegalHold {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectLegalHoldInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(GetObjectLegalHoldInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            request_payer,
-            version_id,
-        })
+        GetObjectLegalHoldInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetObjectLegalHoldOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.legal_hold {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2918,7 +4257,55 @@ impl super::Operation for GetObjectLegalHold {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectLegalHold {
+    type Input = GetObjectLegalHoldInput;
+    type Output = GetObjectLegalHoldOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_legal_hold(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectLegalHoldInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            request_payer,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetObjectLegalHoldOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.legal_hold {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -2926,22 +4313,11 @@ pub struct GetObjectLockConfiguration;
 
 impl GetObjectLockConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectLockConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetObjectLockConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetObjectLockConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetObjectLockConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.object_lock_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -2966,7 +4342,48 @@ impl super::Operation for GetObjectLockConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectLockConfiguration {
+    type Input = GetObjectLockConfigurationInput;
+    type Output = GetObjectLockConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_lock_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectLockConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetObjectLockConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.object_lock_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -2974,29 +4391,11 @@ pub struct GetObjectRetention;
 
 impl GetObjectRetention {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectRetentionInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(GetObjectRetentionInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            request_payer,
-            version_id,
-        })
+        GetObjectRetentionInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetObjectRetentionOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.retention {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3021,14 +4420,28 @@ impl super::Operation for GetObjectRetention {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct GetObjectTagging;
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectRetention {
+    type Input = GetObjectRetentionInput;
+    type Output = GetObjectRetentionOutput;
 
-impl GetObjectTagging {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectTaggingInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_retention(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectRetentionInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
@@ -3037,7 +4450,7 @@ impl GetObjectTagging {
 
         let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
 
-        Ok(GetObjectTaggingInput {
+        Ok(Self {
             bucket,
             expected_bucket_owner,
             key,
@@ -3045,12 +4458,29 @@ impl GetObjectTagging {
             version_id,
         })
     }
+}
+
+impl TryInto<http::Response> for GetObjectRetentionOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.retention {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
+    }
+}
+
+pub struct GetObjectTagging;
+
+impl GetObjectTagging {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectTaggingInput> {
+        GetObjectTaggingInput::try_from(req)
+    }
 
     pub fn serialize_http(x: GetObjectTaggingOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3075,7 +4505,54 @@ impl super::Operation for GetObjectTagging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectTagging {
+    type Input = GetObjectTaggingInput;
+    type Output = GetObjectTaggingOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_tagging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectTaggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            request_payer,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetObjectTaggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        Ok(res)
     }
 }
 
@@ -3083,27 +4560,11 @@ pub struct GetObjectTorrent;
 
 impl GetObjectTorrent {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetObjectTorrentInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        Ok(GetObjectTorrentInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            request_payer,
-        })
+        GetObjectTorrentInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetObjectTorrentOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(val) = x.body {
-            http::set_stream_body(&mut res, val);
-        }
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3128,7 +4589,53 @@ impl super::Operation for GetObjectTorrent {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetObjectTorrent {
+    type Input = GetObjectTorrentInput;
+    type Output = GetObjectTorrentOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_object_torrent(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetObjectTorrentInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            request_payer,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetObjectTorrentOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(val) = self.body {
+            http::set_stream_body(&mut res, val);
+        }
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
     }
 }
 
@@ -3136,22 +4643,11 @@ pub struct GetPublicAccessBlock;
 
 impl GetPublicAccessBlock {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<GetPublicAccessBlockInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(GetPublicAccessBlockInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        GetPublicAccessBlockInput::try_from(req)
     }
 
     pub fn serialize_http(x: GetPublicAccessBlockOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.public_access_block_configuration {
-            http::set_xml_body(&mut res, val)?;
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3176,7 +4672,48 @@ impl super::Operation for GetPublicAccessBlock {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for GetPublicAccessBlock {
+    type Input = GetPublicAccessBlockInput;
+    type Output = GetPublicAccessBlockOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.get_public_access_block(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for GetPublicAccessBlockInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for GetPublicAccessBlockOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(ref val) = self.public_access_block_configuration {
+            http::set_xml_body(&mut res, val)?;
+        }
+        Ok(res)
     }
 }
 
@@ -3184,18 +4721,11 @@ pub struct HeadBucket;
 
 impl HeadBucket {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<HeadBucketInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(HeadBucketInput {
-            bucket,
-            expected_bucket_owner,
-        })
+        HeadBucketInput::try_from(req)
     }
 
-    pub fn serialize_http(_: HeadBucketOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: HeadBucketOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -3220,7 +4750,44 @@ impl super::Operation for HeadBucket {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for HeadBucket {
+    type Input = HeadBucketInput;
+    type Output = HeadBucketOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.head_bucket(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for HeadBucketInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for HeadBucketOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -3228,6 +4795,57 @@ pub struct HeadObject;
 
 impl HeadObject {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<HeadObjectInput> {
+        HeadObjectInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: HeadObjectOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
+#[async_trait::async_trait]
+impl super::Operation for HeadObject {
+    fn name(&self) -> &'static str {
+        "HeadObject"
+    }
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        let input = Self::deserialize_http(req)?;
+        let s3_req = super::build_s3_request(input, req);
+        let result = s3.head_object(s3_req).await;
+        let s3_resp = match result {
+            Ok(val) => val,
+            Err(err) => return super::serialize_error(err),
+        };
+        let mut resp = Self::serialize_http(s3_resp.output)?;
+        resp.headers.extend(s3_resp.headers);
+        resp.extensions.extend(s3_resp.extensions);
+        Ok(resp)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for HeadObject {
+    type Input = HeadObjectInput;
+    type Output = HeadObjectOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.head_object(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for HeadObjectInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let checksum_mode: Option<ChecksumMode> = http::parse_opt_header(req, &X_AMZ_CHECKSUM_MODE)?;
@@ -3260,7 +4878,7 @@ impl HeadObject {
 
         let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
 
-        Ok(HeadObjectInput {
+        Ok(Self {
             bucket,
             checksum_mode,
             expected_bucket_owner,
@@ -3278,74 +4896,53 @@ impl HeadObject {
             version_id,
         })
     }
+}
 
-    pub fn serialize_http(x: HeadObjectOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for HeadObjectOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, ACCEPT_RANGES, x.accept_ranges)?;
-        http::add_opt_header(&mut res, X_AMZ_ARCHIVE_STATUS, x.archive_status)?;
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, CACHE_CONTROL, x.cache_control)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, x.checksum_crc32)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, x.checksum_crc32c)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, x.checksum_sha1)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, x.checksum_sha256)?;
-        http::add_opt_header(&mut res, CONTENT_DISPOSITION, x.content_disposition)?;
-        http::add_opt_header(&mut res, CONTENT_ENCODING, x.content_encoding)?;
-        http::add_opt_header(&mut res, CONTENT_LANGUAGE, x.content_language)?;
-        http::add_header(&mut res, CONTENT_LENGTH, x.content_length)?;
-        http::add_opt_header(&mut res, CONTENT_TYPE, x.content_type)?;
-        http::add_header(&mut res, X_AMZ_DELETE_MARKER, x.delete_marker)?;
-        http::add_opt_header(&mut res, ETAG, x.e_tag)?;
-        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, x.expiration)?;
-        http::add_opt_header_timestamp(&mut res, EXPIRES, x.expires, TimestampFormat::HttpDate)?;
-        http::add_opt_header_timestamp(&mut res, LAST_MODIFIED, x.last_modified, TimestampFormat::HttpDate)?;
-        http::add_opt_metadata(&mut res, x.metadata)?;
-        http::add_header(&mut res, X_AMZ_MISSING_META, x.missing_meta)?;
-        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_LEGAL_HOLD, x.object_lock_legal_hold_status)?;
-        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_MODE, x.object_lock_mode)?;
+        http::add_opt_header(&mut res, ACCEPT_RANGES, self.accept_ranges)?;
+        http::add_opt_header(&mut res, X_AMZ_ARCHIVE_STATUS, self.archive_status)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, CACHE_CONTROL, self.cache_control)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, self.checksum_crc32)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, self.checksum_crc32c)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, self.checksum_sha1)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, self.checksum_sha256)?;
+        http::add_opt_header(&mut res, CONTENT_DISPOSITION, self.content_disposition)?;
+        http::add_opt_header(&mut res, CONTENT_ENCODING, self.content_encoding)?;
+        http::add_opt_header(&mut res, CONTENT_LANGUAGE, self.content_language)?;
+        http::add_header(&mut res, CONTENT_LENGTH, self.content_length)?;
+        http::add_opt_header(&mut res, CONTENT_TYPE, self.content_type)?;
+        http::add_header(&mut res, X_AMZ_DELETE_MARKER, self.delete_marker)?;
+        http::add_opt_header(&mut res, ETAG, self.e_tag)?;
+        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, self.expiration)?;
+        http::add_opt_header_timestamp(&mut res, EXPIRES, self.expires, TimestampFormat::HttpDate)?;
+        http::add_opt_header_timestamp(&mut res, LAST_MODIFIED, self.last_modified, TimestampFormat::HttpDate)?;
+        http::add_opt_metadata(&mut res, self.metadata)?;
+        http::add_header(&mut res, X_AMZ_MISSING_META, self.missing_meta)?;
+        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_LEGAL_HOLD, self.object_lock_legal_hold_status)?;
+        http::add_opt_header(&mut res, X_AMZ_OBJECT_LOCK_MODE, self.object_lock_mode)?;
         http::add_opt_header_timestamp(
             &mut res,
             X_AMZ_OBJECT_LOCK_RETAIN_UNTIL_DATE,
-            x.object_lock_retain_until_date,
+            self.object_lock_retain_until_date,
             TimestampFormat::DateTime,
         )?;
-        http::add_header(&mut res, X_AMZ_MP_PARTS_COUNT, x.parts_count)?;
-        http::add_opt_header(&mut res, X_AMZ_REPLICATION_STATUS, x.replication_status)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_RESTORE, x.restore)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
-        http::add_opt_header(&mut res, X_AMZ_STORAGE_CLASS, x.storage_class)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        http::add_opt_header(&mut res, X_AMZ_WEBSITE_REDIRECT_LOCATION, x.website_redirect_location)?;
+        http::add_header(&mut res, X_AMZ_MP_PARTS_COUNT, self.parts_count)?;
+        http::add_opt_header(&mut res, X_AMZ_REPLICATION_STATUS, self.replication_status)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_RESTORE, self.restore)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
+        http::add_opt_header(&mut res, X_AMZ_STORAGE_CLASS, self.storage_class)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        http::add_opt_header(&mut res, X_AMZ_WEBSITE_REDIRECT_LOCATION, self.website_redirect_location)?;
         Ok(res)
-    }
-}
-
-#[async_trait::async_trait]
-impl super::Operation for HeadObject {
-    fn name(&self) -> &'static str {
-        "HeadObject"
-    }
-
-    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
-        let input = Self::deserialize_http(req)?;
-        let s3_req = super::build_s3_request(input, req);
-        let result = s3.head_object(s3_req).await;
-        let s3_resp = match result {
-            Ok(val) => val,
-            Err(err) => return super::serialize_error(err),
-        };
-        let mut resp = Self::serialize_http(s3_resp.output)?;
-        resp.headers.extend(s3_resp.headers);
-        resp.extensions.extend(s3_resp.extensions);
-        Ok(resp)
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
 
@@ -3353,23 +4950,11 @@ pub struct ListBucketAnalyticsConfigurations;
 
 impl ListBucketAnalyticsConfigurations {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListBucketAnalyticsConfigurationsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(ListBucketAnalyticsConfigurationsInput {
-            bucket,
-            continuation_token,
-            expected_bucket_owner,
-        })
+        ListBucketAnalyticsConfigurationsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListBucketAnalyticsConfigurationsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3394,7 +4979,49 @@ impl super::Operation for ListBucketAnalyticsConfigurations {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListBucketAnalyticsConfigurations {
+    type Input = ListBucketAnalyticsConfigurationsInput;
+    type Output = ListBucketAnalyticsConfigurationsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_bucket_analytics_configurations(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListBucketAnalyticsConfigurationsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            continuation_token,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for ListBucketAnalyticsConfigurationsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -3402,20 +5029,11 @@ pub struct ListBucketIntelligentTieringConfigurations;
 
 impl ListBucketIntelligentTieringConfigurations {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListBucketIntelligentTieringConfigurationsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
-
-        Ok(ListBucketIntelligentTieringConfigurationsInput {
-            bucket,
-            continuation_token,
-        })
+        ListBucketIntelligentTieringConfigurationsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListBucketIntelligentTieringConfigurationsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3440,7 +5058,46 @@ impl super::Operation for ListBucketIntelligentTieringConfigurations {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListBucketIntelligentTieringConfigurations {
+    type Input = ListBucketIntelligentTieringConfigurationsInput;
+    type Output = ListBucketIntelligentTieringConfigurationsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_bucket_intelligent_tiering_configurations(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListBucketIntelligentTieringConfigurationsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
+
+        Ok(Self {
+            bucket,
+            continuation_token,
+        })
+    }
+}
+
+impl TryInto<http::Response> for ListBucketIntelligentTieringConfigurationsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -3448,23 +5105,11 @@ pub struct ListBucketInventoryConfigurations;
 
 impl ListBucketInventoryConfigurations {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListBucketInventoryConfigurationsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(ListBucketInventoryConfigurationsInput {
-            bucket,
-            continuation_token,
-            expected_bucket_owner,
-        })
+        ListBucketInventoryConfigurationsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListBucketInventoryConfigurationsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3489,7 +5134,49 @@ impl super::Operation for ListBucketInventoryConfigurations {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListBucketInventoryConfigurations {
+    type Input = ListBucketInventoryConfigurationsInput;
+    type Output = ListBucketInventoryConfigurationsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_bucket_inventory_configurations(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListBucketInventoryConfigurationsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            continuation_token,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for ListBucketInventoryConfigurationsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -3497,23 +5184,11 @@ pub struct ListBucketMetricsConfigurations;
 
 impl ListBucketMetricsConfigurations {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListBucketMetricsConfigurationsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(ListBucketMetricsConfigurationsInput {
-            bucket,
-            continuation_token,
-            expected_bucket_owner,
-        })
+        ListBucketMetricsConfigurationsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListBucketMetricsConfigurationsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3538,21 +5213,61 @@ impl super::Operation for ListBucketMetricsConfigurations {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListBucketMetricsConfigurations {
+    type Input = ListBucketMetricsConfigurationsInput;
+    type Output = ListBucketMetricsConfigurationsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_bucket_metrics_configurations(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListBucketMetricsConfigurationsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            continuation_token,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for ListBucketMetricsConfigurationsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
 pub struct ListBuckets;
 
 impl ListBuckets {
-    pub fn deserialize_http(_: &mut http::Request) -> S3Result<ListBucketsInput> {
-        Ok(ListBucketsInput {})
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListBucketsInput> {
+        ListBucketsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListBucketsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3577,7 +5292,39 @@ impl super::Operation for ListBuckets {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListBuckets {
+    type Input = ListBucketsInput;
+    type Output = ListBucketsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_buckets(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListBucketsInput {
+    type Error = S3Error;
+
+    fn try_from(_: &mut http::Request) -> S3Result<Self> {
+        Ok(Self {})
+    }
+}
+
+impl TryInto<http::Response> for ListBucketsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -3585,38 +5332,11 @@ pub struct ListMultipartUploads;
 
 impl ListMultipartUploads {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListMultipartUploadsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let delimiter: Option<Delimiter> = http::parse_opt_query(req, "delimiter")?;
-
-        let encoding_type: Option<EncodingType> = http::parse_opt_query(req, "encoding-type")?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let key_marker: Option<KeyMarker> = http::parse_opt_query(req, "key-marker")?;
-
-        let max_uploads: Option<MaxUploads> = http::parse_opt_query(req, "max-uploads")?;
-
-        let prefix: Option<Prefix> = http::parse_opt_query(req, "prefix")?;
-
-        let upload_id_marker: Option<UploadIdMarker> = http::parse_opt_query(req, "upload-id-marker")?;
-
-        Ok(ListMultipartUploadsInput {
-            bucket,
-            delimiter,
-            encoding_type,
-            expected_bucket_owner,
-            key_marker,
-            max_uploads,
-            prefix,
-            upload_id_marker,
-        })
+        ListMultipartUploadsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListMultipartUploadsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3641,14 +5361,28 @@ impl super::Operation for ListMultipartUploads {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct ListObjectVersions;
+#[async_trait::async_trait]
+impl super::TypedOperation for ListMultipartUploads {
+    type Input = ListMultipartUploadsInput;
+    type Output = ListMultipartUploadsOutput;
 
-impl ListObjectVersions {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListObjectVersionsInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_multipart_uploads(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListMultipartUploadsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
 
         let delimiter: Option<Delimiter> = http::parse_opt_query(req, "delimiter")?;
@@ -3659,28 +5393,44 @@ impl ListObjectVersions {
 
         let key_marker: Option<KeyMarker> = http::parse_opt_query(req, "key-marker")?;
 
-        let max_keys: Option<MaxKeys> = http::parse_opt_query(req, "max-keys")?;
+        let max_uploads: Option<MaxUploads> = http::parse_opt_query(req, "max-uploads")?;
 
         let prefix: Option<Prefix> = http::parse_opt_query(req, "prefix")?;
 
-        let version_id_marker: Option<VersionIdMarker> = http::parse_opt_query(req, "version-id-marker")?;
+        let upload_id_marker: Option<UploadIdMarker> = http::parse_opt_query(req, "upload-id-marker")?;
 
-        Ok(ListObjectVersionsInput {
+        Ok(Self {
             bucket,
             delimiter,
             encoding_type,
             expected_bucket_owner,
             key_marker,
-            max_keys,
+            max_uploads,
             prefix,
-            version_id_marker,
+            upload_id_marker,
         })
+    }
+}
+
+impl TryInto<http::Response> for ListMultipartUploadsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
+    }
+}
+
+pub struct ListObjectVersions;
+
+impl ListObjectVersions {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListObjectVersionsInput> {
+        ListObjectVersionsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListObjectVersionsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3705,14 +5455,28 @@ impl super::Operation for ListObjectVersions {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct ListObjects;
+#[async_trait::async_trait]
+impl super::TypedOperation for ListObjectVersions {
+    type Input = ListObjectVersionsInput;
+    type Output = ListObjectVersionsOutput;
 
-impl ListObjects {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListObjectsInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_object_versions(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListObjectVersionsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
 
         let delimiter: Option<Delimiter> = http::parse_opt_query(req, "delimiter")?;
@@ -3721,30 +5485,46 @@ impl ListObjects {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let marker: Option<Marker> = http::parse_opt_query(req, "marker")?;
+        let key_marker: Option<KeyMarker> = http::parse_opt_query(req, "key-marker")?;
 
         let max_keys: Option<MaxKeys> = http::parse_opt_query(req, "max-keys")?;
 
         let prefix: Option<Prefix> = http::parse_opt_query(req, "prefix")?;
 
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+        let version_id_marker: Option<VersionIdMarker> = http::parse_opt_query(req, "version-id-marker")?;
 
-        Ok(ListObjectsInput {
+        Ok(Self {
             bucket,
             delimiter,
             encoding_type,
             expected_bucket_owner,
-            marker,
+            key_marker,
             max_keys,
             prefix,
-            request_payer,
+            version_id_marker,
         })
+    }
+}
+
+impl TryInto<http::Response> for ListObjectVersionsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
+    }
+}
+
+pub struct ListObjects;
+
+impl ListObjects {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListObjectsInput> {
+        ListObjectsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListObjectsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3769,17 +5549,29 @@ impl super::Operation for ListObjects {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct ListObjectsV2;
+#[async_trait::async_trait]
+impl super::TypedOperation for ListObjects {
+    type Input = ListObjectsInput;
+    type Output = ListObjectsOutput;
 
-impl ListObjectsV2 {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListObjectsV2Input> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_objects(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListObjectsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
-
-        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
 
         let delimiter: Option<Delimiter> = http::parse_opt_query(req, "delimiter")?;
 
@@ -3787,7 +5579,7 @@ impl ListObjectsV2 {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let fetch_owner: Option<FetchOwner> = http::parse_opt_query(req, "fetch-owner")?;
+        let marker: Option<Marker> = http::parse_opt_query(req, "marker")?;
 
         let max_keys: Option<MaxKeys> = http::parse_opt_query(req, "max-keys")?;
 
@@ -3795,26 +5587,38 @@ impl ListObjectsV2 {
 
         let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
 
-        let start_after: Option<StartAfter> = http::parse_opt_query(req, "start-after")?;
-
-        Ok(ListObjectsV2Input {
+        Ok(Self {
             bucket,
-            continuation_token,
             delimiter,
             encoding_type,
             expected_bucket_owner,
-            fetch_owner,
+            marker,
             max_keys,
             prefix,
             request_payer,
-            start_after,
         })
+    }
+}
+
+impl TryInto<http::Response> for ListObjectsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
+    }
+}
+
+pub struct ListObjectsV2;
+
+impl ListObjectsV2 {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListObjectsV2Input> {
+        ListObjectsV2Input::try_from(req)
     }
 
     pub fn serialize_http(x: ListObjectsV2Output) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3839,7 +5643,70 @@ impl super::Operation for ListObjectsV2 {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListObjectsV2 {
+    type Input = ListObjectsV2Input;
+    type Output = ListObjectsV2Output;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_objects_v2(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListObjectsV2Input {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let continuation_token: Option<Token> = http::parse_opt_query(req, "continuation-token")?;
+
+        let delimiter: Option<Delimiter> = http::parse_opt_query(req, "delimiter")?;
+
+        let encoding_type: Option<EncodingType> = http::parse_opt_query(req, "encoding-type")?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let fetch_owner: Option<FetchOwner> = http::parse_opt_query(req, "fetch-owner")?;
+
+        let max_keys: Option<MaxKeys> = http::parse_opt_query(req, "max-keys")?;
+
+        let prefix: Option<Prefix> = http::parse_opt_query(req, "prefix")?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let start_after: Option<StartAfter> = http::parse_opt_query(req, "start-after")?;
+
+        Ok(Self {
+            bucket,
+            continuation_token,
+            delimiter,
+            encoding_type,
+            expected_bucket_owner,
+            fetch_owner,
+            max_keys,
+            prefix,
+            request_payer,
+            start_after,
+        })
+    }
+}
+
+impl TryInto<http::Response> for ListObjectsV2Output {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -3847,47 +5714,11 @@ pub struct ListParts;
 
 impl ListParts {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<ListPartsInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let max_parts: Option<MaxParts> = http::parse_opt_query(req, "max-parts")?;
-
-        let part_number_marker: Option<PartNumberMarker> = http::parse_opt_query(req, "part-number-marker")?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let sse_customer_algorithm: Option<SSECustomerAlgorithm> =
-            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM)?;
-
-        let sse_customer_key: Option<SSECustomerKey> = http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY)?;
-
-        let sse_customer_key_md5: Option<SSECustomerKeyMD5> =
-            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5)?;
-
-        let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
-
-        Ok(ListPartsInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            max_parts,
-            part_number_marker,
-            request_payer,
-            sse_customer_algorithm,
-            sse_customer_key,
-            sse_customer_key_md5,
-            upload_id,
-        })
+        ListPartsInput::try_from(req)
     }
 
     pub fn serialize_http(x: ListPartsOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::set_xml_body(&mut res, &x)?;
-        http::add_opt_header_timestamp(&mut res, X_AMZ_ABORT_DATE, x.abort_date, TimestampFormat::HttpDate)?;
-        http::add_opt_header(&mut res, X_AMZ_ABORT_RULE_ID, x.abort_rule_id)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -3912,7 +5743,73 @@ impl super::Operation for ListParts {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for ListParts {
+    type Input = ListPartsInput;
+    type Output = ListPartsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.list_parts(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for ListPartsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let max_parts: Option<MaxParts> = http::parse_opt_query(req, "max-parts")?;
+
+        let part_number_marker: Option<PartNumberMarker> = http::parse_opt_query(req, "part-number-marker")?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let sse_customer_algorithm: Option<SSECustomerAlgorithm> =
+            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM)?;
+
+        let sse_customer_key: Option<SSECustomerKey> = http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY)?;
+
+        let sse_customer_key_md5: Option<SSECustomerKeyMD5> =
+            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5)?;
+
+        let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            max_parts,
+            part_number_marker,
+            request_payer,
+            sse_customer_algorithm,
+            sse_customer_key,
+            sse_customer_key_md5,
+            upload_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for ListPartsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::set_xml_body(&mut res, &self)?;
+        http::add_opt_header_timestamp(&mut res, X_AMZ_ABORT_DATE, self.abort_date, TimestampFormat::HttpDate)?;
+        http::add_opt_header(&mut res, X_AMZ_ABORT_RULE_ID, self.abort_rule_id)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
     }
 }
 
@@ -3920,24 +5817,11 @@ pub struct PutBucketAccelerateConfiguration;
 
 impl PutBucketAccelerateConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketAccelerateConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let accelerate_configuration: AccelerateConfiguration = http::take_xml_body(req)?;
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(PutBucketAccelerateConfigurationInput {
-            accelerate_configuration,
-            bucket,
-            checksum_algorithm,
-            expected_bucket_owner,
-        })
+        PutBucketAccelerateConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketAccelerateConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketAccelerateConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -3962,7 +5846,50 @@ impl super::Operation for PutBucketAccelerateConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketAccelerateConfiguration {
+    type Input = PutBucketAccelerateConfigurationInput;
+    type Output = PutBucketAccelerateConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_accelerate_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketAccelerateConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let accelerate_configuration: AccelerateConfiguration = http::take_xml_body(req)?;
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            accelerate_configuration,
+            bucket,
+            checksum_algorithm,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketAccelerateConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -3970,45 +5897,11 @@ pub struct PutBucketAcl;
 
 impl PutBucketAcl {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketAclInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let acl: Option<BucketCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
-
-        let access_control_policy: Option<AccessControlPolicy> = http::take_opt_xml_body(req)?;
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let grant_full_control: Option<GrantFullControl> = http::parse_opt_header(req, &X_AMZ_GRANT_FULL_CONTROL)?;
-
-        let grant_read: Option<GrantRead> = http::parse_opt_header(req, &X_AMZ_GRANT_READ)?;
-
-        let grant_read_acp: Option<GrantReadACP> = http::parse_opt_header(req, &X_AMZ_GRANT_READ_ACP)?;
-
-        let grant_write: Option<GrantWrite> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE)?;
-
-        let grant_write_acp: Option<GrantWriteACP> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE_ACP)?;
-
-        Ok(PutBucketAclInput {
-            acl,
-            access_control_policy,
-            bucket,
-            checksum_algorithm,
-            content_md5,
-            expected_bucket_owner,
-            grant_full_control,
-            grant_read,
-            grant_read_acp,
-            grant_write,
-            grant_write_acp,
-        })
+        PutBucketAclInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketAclOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketAclOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4033,7 +5926,71 @@ impl super::Operation for PutBucketAcl {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketAcl {
+    type Input = PutBucketAclInput;
+    type Output = PutBucketAclOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_acl(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketAclInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let acl: Option<BucketCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
+
+        let access_control_policy: Option<AccessControlPolicy> = http::take_opt_xml_body(req)?;
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let grant_full_control: Option<GrantFullControl> = http::parse_opt_header(req, &X_AMZ_GRANT_FULL_CONTROL)?;
+
+        let grant_read: Option<GrantRead> = http::parse_opt_header(req, &X_AMZ_GRANT_READ)?;
+
+        let grant_read_acp: Option<GrantReadACP> = http::parse_opt_header(req, &X_AMZ_GRANT_READ_ACP)?;
+
+        let grant_write: Option<GrantWrite> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE)?;
+
+        let grant_write_acp: Option<GrantWriteACP> = http::parse_opt_header(req, &X_AMZ_GRANT_WRITE_ACP)?;
+
+        Ok(Self {
+            acl,
+            access_control_policy,
+            bucket,
+            checksum_algorithm,
+            content_md5,
+            expected_bucket_owner,
+            grant_full_control,
+            grant_read,
+            grant_read_acp,
+            grant_write,
+            grant_write_acp,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketAclOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4041,24 +5998,11 @@ pub struct PutBucketAnalyticsConfiguration;
 
 impl PutBucketAnalyticsConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketAnalyticsConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let analytics_configuration: AnalyticsConfiguration = http::take_xml_body(req)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: AnalyticsId = http::parse_query(req, "id")?;
-
-        Ok(PutBucketAnalyticsConfigurationInput {
-            analytics_configuration,
-            bucket,
-            expected_bucket_owner,
-            id,
-        })
+        PutBucketAnalyticsConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketAnalyticsConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketAnalyticsConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4083,7 +6027,50 @@ impl super::Operation for PutBucketAnalyticsConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketAnalyticsConfiguration {
+    type Input = PutBucketAnalyticsConfigurationInput;
+    type Output = PutBucketAnalyticsConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_analytics_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketAnalyticsConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let analytics_configuration: AnalyticsConfiguration = http::take_xml_body(req)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: AnalyticsId = http::parse_query(req, "id")?;
+
+        Ok(Self {
+            analytics_configuration,
+            bucket,
+            expected_bucket_owner,
+            id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketAnalyticsConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4091,27 +6078,11 @@ pub struct PutBucketCors;
 
 impl PutBucketCors {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketCorsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let cors_configuration: CORSConfiguration = http::take_xml_body(req)?;
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(PutBucketCorsInput {
-            bucket,
-            cors_configuration,
-            checksum_algorithm,
-            content_md5,
-            expected_bucket_owner,
-        })
+        PutBucketCorsInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketCorsOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketCorsOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4136,15 +6107,31 @@ impl super::Operation for PutBucketCors {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutBucketEncryption;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketCors {
+    type Input = PutBucketCorsInput;
+    type Output = PutBucketCorsOutput;
 
-impl PutBucketEncryption {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketEncryptionInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_cors(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketCorsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
+
+        let cors_configuration: CORSConfiguration = http::take_xml_body(req)?;
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
 
@@ -4152,19 +6139,33 @@ impl PutBucketEncryption {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let server_side_encryption_configuration: ServerSideEncryptionConfiguration = http::take_xml_body(req)?;
-
-        Ok(PutBucketEncryptionInput {
+        Ok(Self {
             bucket,
+            cors_configuration,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            server_side_encryption_configuration,
         })
     }
+}
 
-    pub fn serialize_http(_: PutBucketEncryptionOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for PutBucketCorsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         Ok(http::Response::with_status(http::StatusCode::OK))
+    }
+}
+
+pub struct PutBucketEncryption;
+
+impl PutBucketEncryption {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketEncryptionInput> {
+        PutBucketEncryptionInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutBucketEncryptionOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4189,7 +6190,53 @@ impl super::Operation for PutBucketEncryption {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketEncryption {
+    type Input = PutBucketEncryptionInput;
+    type Output = PutBucketEncryptionOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_encryption(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketEncryptionInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let server_side_encryption_configuration: ServerSideEncryptionConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            checksum_algorithm,
+            content_md5,
+            expected_bucket_owner,
+            server_side_encryption_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketEncryptionOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4197,21 +6244,11 @@ pub struct PutBucketIntelligentTieringConfiguration;
 
 impl PutBucketIntelligentTieringConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketIntelligentTieringConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let id: IntelligentTieringId = http::parse_query(req, "id")?;
-
-        let intelligent_tiering_configuration: IntelligentTieringConfiguration = http::take_xml_body(req)?;
-
-        Ok(PutBucketIntelligentTieringConfigurationInput {
-            bucket,
-            id,
-            intelligent_tiering_configuration,
-        })
+        PutBucketIntelligentTieringConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketIntelligentTieringConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketIntelligentTieringConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4236,7 +6273,47 @@ impl super::Operation for PutBucketIntelligentTieringConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketIntelligentTieringConfiguration {
+    type Input = PutBucketIntelligentTieringConfigurationInput;
+    type Output = PutBucketIntelligentTieringConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_intelligent_tiering_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketIntelligentTieringConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let id: IntelligentTieringId = http::parse_query(req, "id")?;
+
+        let intelligent_tiering_configuration: IntelligentTieringConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            id,
+            intelligent_tiering_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketIntelligentTieringConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4244,24 +6321,11 @@ pub struct PutBucketInventoryConfiguration;
 
 impl PutBucketInventoryConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketInventoryConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: InventoryId = http::parse_query(req, "id")?;
-
-        let inventory_configuration: InventoryConfiguration = http::take_xml_body(req)?;
-
-        Ok(PutBucketInventoryConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-            inventory_configuration,
-        })
+        PutBucketInventoryConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketInventoryConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketInventoryConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4286,7 +6350,50 @@ impl super::Operation for PutBucketInventoryConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketInventoryConfiguration {
+    type Input = PutBucketInventoryConfigurationInput;
+    type Output = PutBucketInventoryConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_inventory_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketInventoryConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: InventoryId = http::parse_query(req, "id")?;
+
+        let inventory_configuration: InventoryConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+            inventory_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketInventoryConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4294,24 +6401,11 @@ pub struct PutBucketLifecycleConfiguration;
 
 impl PutBucketLifecycleConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketLifecycleConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let lifecycle_configuration: Option<BucketLifecycleConfiguration> = http::take_opt_xml_body(req)?;
-
-        Ok(PutBucketLifecycleConfigurationInput {
-            bucket,
-            checksum_algorithm,
-            expected_bucket_owner,
-            lifecycle_configuration,
-        })
+        PutBucketLifecycleConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketLifecycleConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketLifecycleConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4336,7 +6430,50 @@ impl super::Operation for PutBucketLifecycleConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketLifecycleConfiguration {
+    type Input = PutBucketLifecycleConfigurationInput;
+    type Output = PutBucketLifecycleConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_lifecycle_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketLifecycleConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let lifecycle_configuration: Option<BucketLifecycleConfiguration> = http::take_opt_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            checksum_algorithm,
+            expected_bucket_owner,
+            lifecycle_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketLifecycleConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4344,27 +6481,11 @@ pub struct PutBucketLogging;
 
 impl PutBucketLogging {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketLoggingInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let bucket_logging_status: BucketLoggingStatus = http::take_xml_body(req)?;
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        Ok(PutBucketLoggingInput {
-            bucket,
-            bucket_logging_status,
-            checksum_algorithm,
-            content_md5,
-            expected_bucket_owner,
-        })
+        PutBucketLoggingInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketLoggingOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketLoggingOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4389,7 +6510,53 @@ impl super::Operation for PutBucketLogging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketLogging {
+    type Input = PutBucketLoggingInput;
+    type Output = PutBucketLoggingOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_logging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketLoggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let bucket_logging_status: BucketLoggingStatus = http::take_xml_body(req)?;
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        Ok(Self {
+            bucket,
+            bucket_logging_status,
+            checksum_algorithm,
+            content_md5,
+            expected_bucket_owner,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketLoggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4397,24 +6564,11 @@ pub struct PutBucketMetricsConfiguration;
 
 impl PutBucketMetricsConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketMetricsConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let id: MetricsId = http::parse_query(req, "id")?;
-
-        let metrics_configuration: MetricsConfiguration = http::take_xml_body(req)?;
-
-        Ok(PutBucketMetricsConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            id,
-            metrics_configuration,
-        })
+        PutBucketMetricsConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketMetricsConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketMetricsConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4439,7 +6593,50 @@ impl super::Operation for PutBucketMetricsConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketMetricsConfiguration {
+    type Input = PutBucketMetricsConfigurationInput;
+    type Output = PutBucketMetricsConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_metrics_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketMetricsConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let id: MetricsId = http::parse_query(req, "id")?;
+
+        let metrics_configuration: MetricsConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            id,
+            metrics_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketMetricsConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4447,25 +6644,11 @@ pub struct PutBucketNotificationConfiguration;
 
 impl PutBucketNotificationConfiguration {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketNotificationConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let notification_configuration: NotificationConfiguration = http::take_xml_body(req)?;
-
-        let skip_destination_validation: Option<SkipValidation> =
-            http::parse_opt_header(req, &X_AMZ_SKIP_DESTINATION_VALIDATION)?;
-
-        Ok(PutBucketNotificationConfigurationInput {
-            bucket,
-            expected_bucket_owner,
-            notification_configuration,
-            skip_destination_validation,
-        })
+        PutBucketNotificationConfigurationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketNotificationConfigurationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketNotificationConfigurationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4490,7 +6673,51 @@ impl super::Operation for PutBucketNotificationConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketNotificationConfiguration {
+    type Input = PutBucketNotificationConfigurationInput;
+    type Output = PutBucketNotificationConfigurationOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_notification_configuration(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketNotificationConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let notification_configuration: NotificationConfiguration = http::take_xml_body(req)?;
+
+        let skip_destination_validation: Option<SkipValidation> =
+            http::parse_opt_header(req, &X_AMZ_SKIP_DESTINATION_VALIDATION)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            notification_configuration,
+            skip_destination_validation,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketNotificationConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4498,24 +6725,11 @@ pub struct PutBucketOwnershipControls;
 
 impl PutBucketOwnershipControls {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketOwnershipControlsInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let ownership_controls: OwnershipControls = http::take_xml_body(req)?;
-
-        Ok(PutBucketOwnershipControlsInput {
-            bucket,
-            content_md5,
-            expected_bucket_owner,
-            ownership_controls,
-        })
+        PutBucketOwnershipControlsInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketOwnershipControlsOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketOwnershipControlsOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4540,7 +6754,50 @@ impl super::Operation for PutBucketOwnershipControls {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketOwnershipControls {
+    type Input = PutBucketOwnershipControlsInput;
+    type Output = PutBucketOwnershipControlsOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_ownership_controls(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketOwnershipControlsInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let ownership_controls: OwnershipControls = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            content_md5,
+            expected_bucket_owner,
+            ownership_controls,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketOwnershipControlsOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4548,31 +6805,11 @@ pub struct PutBucketPolicy;
 
 impl PutBucketPolicy {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketPolicyInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let confirm_remove_self_bucket_access: Option<ConfirmRemoveSelfBucketAccess> =
-            http::parse_opt_header(req, &X_AMZ_CONFIRM_REMOVE_SELF_BUCKET_ACCESS)?;
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let policy: Policy = http::take_string_body(req)?;
-
-        Ok(PutBucketPolicyInput {
-            bucket,
-            checksum_algorithm,
-            confirm_remove_self_bucket_access,
-            content_md5,
-            expected_bucket_owner,
-            policy,
-        })
+        PutBucketPolicyInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketPolicyOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
+    pub fn serialize_http(x: PutBucketPolicyOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4597,7 +6834,57 @@ impl super::Operation for PutBucketPolicy {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketPolicy {
+    type Input = PutBucketPolicyInput;
+    type Output = PutBucketPolicyOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_policy(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketPolicyInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let confirm_remove_self_bucket_access: Option<ConfirmRemoveSelfBucketAccess> =
+            http::parse_opt_header(req, &X_AMZ_CONFIRM_REMOVE_SELF_BUCKET_ACCESS)?;
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let policy: Policy = http::take_string_body(req)?;
+
+        Ok(Self {
+            bucket,
+            checksum_algorithm,
+            confirm_remove_self_bucket_access,
+            content_md5,
+            expected_bucket_owner,
+            policy,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketPolicyOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::NO_CONTENT))
     }
 }
 
@@ -4605,30 +6892,11 @@ pub struct PutBucketReplication;
 
 impl PutBucketReplication {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketReplicationInput> {
-        let bucket = http::unwrap_bucket(req);
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let replication_configuration: ReplicationConfiguration = http::take_xml_body(req)?;
-
-        let token: Option<ObjectLockToken> = http::parse_opt_header(req, &X_AMZ_BUCKET_OBJECT_LOCK_TOKEN)?;
-
-        Ok(PutBucketReplicationInput {
-            bucket,
-            checksum_algorithm,
-            content_md5,
-            expected_bucket_owner,
-            replication_configuration,
-            token,
-        })
+        PutBucketReplicationInput::try_from(req)
     }
 
-    pub fn serialize_http(_: PutBucketReplicationOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+    pub fn serialize_http(x: PutBucketReplicationOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4653,14 +6921,28 @@ impl super::Operation for PutBucketReplication {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutBucketRequestPayment;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketReplication {
+    type Input = PutBucketReplicationInput;
+    type Output = PutBucketReplicationOutput;
 
-impl PutBucketRequestPayment {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketRequestPaymentInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_replication(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketReplicationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
@@ -4669,19 +6951,38 @@ impl PutBucketRequestPayment {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let request_payment_configuration: RequestPaymentConfiguration = http::take_xml_body(req)?;
+        let replication_configuration: ReplicationConfiguration = http::take_xml_body(req)?;
 
-        Ok(PutBucketRequestPaymentInput {
+        let token: Option<ObjectLockToken> = http::parse_opt_header(req, &X_AMZ_BUCKET_OBJECT_LOCK_TOKEN)?;
+
+        Ok(Self {
             bucket,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            request_payment_configuration,
+            replication_configuration,
+            token,
         })
     }
+}
 
-    pub fn serialize_http(_: PutBucketRequestPaymentOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for PutBucketReplicationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         Ok(http::Response::with_status(http::StatusCode::OK))
+    }
+}
+
+pub struct PutBucketRequestPayment;
+
+impl PutBucketRequestPayment {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketRequestPaymentInput> {
+        PutBucketRequestPaymentInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutBucketRequestPaymentOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4706,14 +7007,28 @@ impl super::Operation for PutBucketRequestPayment {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutBucketTagging;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketRequestPayment {
+    type Input = PutBucketRequestPaymentInput;
+    type Output = PutBucketRequestPaymentOutput;
 
-impl PutBucketTagging {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketTaggingInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_request_payment(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketRequestPaymentInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
@@ -4722,19 +7037,35 @@ impl PutBucketTagging {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let tagging: Tagging = http::take_xml_body(req)?;
+        let request_payment_configuration: RequestPaymentConfiguration = http::take_xml_body(req)?;
 
-        Ok(PutBucketTaggingInput {
+        Ok(Self {
             bucket,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            tagging,
+            request_payment_configuration,
         })
     }
+}
 
-    pub fn serialize_http(_: PutBucketTaggingOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for PutBucketRequestPaymentOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         Ok(http::Response::with_status(http::StatusCode::OK))
+    }
+}
+
+pub struct PutBucketTagging;
+
+impl PutBucketTagging {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketTaggingInput> {
+        PutBucketTaggingInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutBucketTaggingOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4759,14 +7090,28 @@ impl super::Operation for PutBucketTagging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutBucketVersioning;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketTagging {
+    type Input = PutBucketTaggingInput;
+    type Output = PutBucketTaggingOutput;
 
-impl PutBucketVersioning {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketVersioningInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_tagging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketTaggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
@@ -4775,22 +7120,35 @@ impl PutBucketVersioning {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let mfa: Option<MFA> = http::parse_opt_header(req, &X_AMZ_MFA)?;
+        let tagging: Tagging = http::take_xml_body(req)?;
 
-        let versioning_configuration: VersioningConfiguration = http::take_xml_body(req)?;
-
-        Ok(PutBucketVersioningInput {
+        Ok(Self {
             bucket,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            mfa,
-            versioning_configuration,
+            tagging,
         })
     }
+}
 
-    pub fn serialize_http(_: PutBucketVersioningOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for PutBucketTaggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         Ok(http::Response::with_status(http::StatusCode::OK))
+    }
+}
+
+pub struct PutBucketVersioning;
+
+impl PutBucketVersioning {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketVersioningInput> {
+        PutBucketVersioningInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutBucketVersioningOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4815,14 +7173,28 @@ impl super::Operation for PutBucketVersioning {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutBucketWebsite;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketVersioning {
+    type Input = PutBucketVersioningInput;
+    type Output = PutBucketVersioningOutput;
 
-impl PutBucketWebsite {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketWebsiteInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_versioning(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketVersioningInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let bucket = http::unwrap_bucket(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
@@ -4831,19 +7203,38 @@ impl PutBucketWebsite {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let website_configuration: WebsiteConfiguration = http::take_xml_body(req)?;
+        let mfa: Option<MFA> = http::parse_opt_header(req, &X_AMZ_MFA)?;
 
-        Ok(PutBucketWebsiteInput {
+        let versioning_configuration: VersioningConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
             bucket,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            website_configuration,
+            mfa,
+            versioning_configuration,
         })
     }
+}
 
-    pub fn serialize_http(_: PutBucketWebsiteOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for PutBucketVersioningOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         Ok(http::Response::with_status(http::StatusCode::OK))
+    }
+}
+
+pub struct PutBucketWebsite;
+
+impl PutBucketWebsite {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutBucketWebsiteInput> {
+        PutBucketWebsiteInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutBucketWebsiteOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -4868,7 +7259,53 @@ impl super::Operation for PutBucketWebsite {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutBucketWebsite {
+    type Input = PutBucketWebsiteInput;
+    type Output = PutBucketWebsiteOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_bucket_website(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutBucketWebsiteInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let website_configuration: WebsiteConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            checksum_algorithm,
+            content_md5,
+            expected_bucket_owner,
+            website_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutBucketWebsiteOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -4876,8 +7313,63 @@ pub struct PutObject;
 
 impl PutObject {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectInput> {
+        PutObjectInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutObjectOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+
+    pub fn deserialize_http_multipart(req: &mut http::Request, m: http::Multipart) -> S3Result<PutObjectInput> {
+        Ok(PutObjectInput::try_from((req, m))?)
+    }
+}
+
+#[async_trait::async_trait]
+impl super::Operation for PutObject {
+    fn name(&self) -> &'static str {
+        "PutObject"
+    }
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        let input = Self::deserialize_http(req)?;
+        let s3_req = super::build_s3_request(input, req);
+        let result = s3.put_object(s3_req).await;
+        let s3_resp = match result {
+            Ok(val) => val,
+            Err(err) => return super::serialize_error(err),
+        };
+        let mut resp = Self::serialize_http(s3_resp.output)?;
+        resp.headers.extend(s3_resp.headers);
+        resp.extensions.extend(s3_resp.extensions);
+        Ok(resp)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutObject {
+    type Input = PutObjectInput;
+    type Output = PutObjectOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_object(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutObjectInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         if let Some(m) = req.s3ext.multipart.take() {
-            return Self::deserialize_http_multipart(req, m);
+            return Self::try_from((req, m));
         }
 
         let (bucket, key) = http::unwrap_object(req);
@@ -4959,7 +7451,7 @@ impl PutObject {
         let website_redirect_location: Option<WebsiteRedirectLocation> =
             http::parse_opt_header(req, &X_AMZ_WEBSITE_REDIRECT_LOCATION)?;
 
-        Ok(PutObjectInput {
+        Ok(Self {
             acl,
             body,
             bucket,
@@ -4999,8 +7491,12 @@ impl PutObject {
             website_redirect_location,
         })
     }
+}
 
-    pub fn deserialize_http_multipart(req: &mut http::Request, m: http::Multipart) -> S3Result<PutObjectInput> {
+impl TryFrom<(&mut http::Request, http::Multipart)> for PutObjectInput {
+    type Error = S3Error;
+
+    fn try_from((req, m): (&mut http::Request, http::Multipart)) -> S3Result<PutObjectInput> {
         let bucket = http::unwrap_bucket(req);
         let key = http::parse_field_value(&m, "key")?.ok_or_else(|| invalid_request!("missing key"))?;
 
@@ -5100,7 +7596,7 @@ impl PutObject {
         let website_redirect_location: Option<WebsiteRedirectLocation> =
             http::parse_field_value(&m, "x-amz-website-redirect-location")?;
 
-        Ok(PutObjectInput {
+        Ok(Self {
             acl,
             body,
             bucket,
@@ -5140,37 +7636,53 @@ impl PutObject {
             website_redirect_location,
         })
     }
+}
 
-    pub fn serialize_http(x: PutObjectOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for PutObjectOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, x.checksum_crc32)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, x.checksum_crc32c)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, x.checksum_sha1)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, x.checksum_sha256)?;
-        http::add_opt_header(&mut res, ETAG, x.e_tag)?;
-        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, x.expiration)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CONTEXT, x.ssekms_encryption_context)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, self.checksum_crc32)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, self.checksum_crc32c)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, self.checksum_sha1)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, self.checksum_sha256)?;
+        http::add_opt_header(&mut res, ETAG, self.e_tag)?;
+        http::add_opt_header(&mut res, X_AMZ_EXPIRATION, self.expiration)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CONTEXT, self.ssekms_encryption_context)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
         Ok(res)
     }
 }
 
+pub struct PutObjectAcl;
+
+impl PutObjectAcl {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectAclInput> {
+        PutObjectAclInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutObjectAclOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
 #[async_trait::async_trait]
-impl super::Operation for PutObject {
+impl super::Operation for PutObjectAcl {
     fn name(&self) -> &'static str {
-        "PutObject"
+        "PutObjectAcl"
     }
 
     async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
         let input = Self::deserialize_http(req)?;
         let s3_req = super::build_s3_request(input, req);
-        let result = s3.put_object(s3_req).await;
+        let result = s3.put_object_acl(s3_req).await;
         let s3_resp = match result {
             Ok(val) => val,
             Err(err) => return super::serialize_error(err),
@@ -5182,14 +7694,28 @@ impl super::Operation for PutObject {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutObjectAcl;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutObjectAcl {
+    type Input = PutObjectAclInput;
+    type Output = PutObjectAclOutput;
 
-impl PutObjectAcl {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectAclInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_object_acl(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutObjectAclInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let acl: Option<ObjectCannedACL> = http::parse_opt_header(req, &X_AMZ_ACL)?;
@@ -5216,7 +7742,7 @@ impl PutObjectAcl {
 
         let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
 
-        Ok(PutObjectAclInput {
+        Ok(Self {
             acl,
             access_control_policy,
             bucket,
@@ -5233,36 +7759,15 @@ impl PutObjectAcl {
             version_id,
         })
     }
-
-    pub fn serialize_http(x: PutObjectAclOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
-    }
 }
 
-#[async_trait::async_trait]
-impl super::Operation for PutObjectAcl {
-    fn name(&self) -> &'static str {
-        "PutObjectAcl"
-    }
+impl TryInto<http::Response> for PutObjectAclOutput {
+    type Error = S3Error;
 
-    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
-        let input = Self::deserialize_http(req)?;
-        let s3_req = super::build_s3_request(input, req);
-        let result = s3.put_object_acl(s3_req).await;
-        let s3_resp = match result {
-            Ok(val) => val,
-            Err(err) => return super::serialize_error(err),
-        };
-        let mut resp = Self::serialize_http(s3_resp.output)?;
-        resp.headers.extend(s3_resp.headers);
-        resp.extensions.extend(s3_resp.extensions);
-        Ok(resp)
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
     }
 }
 
@@ -5270,36 +7775,11 @@ pub struct PutObjectLegalHold;
 
 impl PutObjectLegalHold {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectLegalHoldInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let legal_hold: Option<ObjectLockLegalHold> = http::take_opt_xml_body(req)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(PutObjectLegalHoldInput {
-            bucket,
-            checksum_algorithm,
-            content_md5,
-            expected_bucket_owner,
-            key,
-            legal_hold,
-            request_payer,
-            version_id,
-        })
+        PutObjectLegalHoldInput::try_from(req)
     }
 
     pub fn serialize_http(x: PutObjectLegalHoldOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -5324,15 +7804,29 @@ impl super::Operation for PutObjectLegalHold {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutObjectLockConfiguration;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutObjectLegalHold {
+    type Input = PutObjectLegalHoldInput;
+    type Output = PutObjectLegalHoldOutput;
 
-impl PutObjectLockConfiguration {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectLockConfigurationInput> {
-        let bucket = http::unwrap_bucket(req);
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_object_legal_hold(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutObjectLegalHoldInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
 
@@ -5340,27 +7834,44 @@ impl PutObjectLockConfiguration {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let object_lock_configuration: Option<ObjectLockConfiguration> = http::take_opt_xml_body(req)?;
+        let legal_hold: Option<ObjectLockLegalHold> = http::take_opt_xml_body(req)?;
 
         let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
 
-        let token: Option<ObjectLockToken> = http::parse_opt_header(req, &X_AMZ_BUCKET_OBJECT_LOCK_TOKEN)?;
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
 
-        Ok(PutObjectLockConfigurationInput {
+        Ok(Self {
             bucket,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            object_lock_configuration,
+            key,
+            legal_hold,
             request_payer,
-            token,
+            version_id,
         })
+    }
+}
+
+impl TryInto<http::Response> for PutObjectLegalHoldOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
+    }
+}
+
+pub struct PutObjectLockConfiguration;
+
+impl PutObjectLockConfiguration {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectLockConfigurationInput> {
+        PutObjectLockConfigurationInput::try_from(req)
     }
 
     pub fn serialize_http(x: PutObjectLockConfigurationOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -5385,18 +7896,29 @@ impl super::Operation for PutObjectLockConfiguration {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutObjectRetention;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutObjectLockConfiguration {
+    type Input = PutObjectLockConfigurationInput;
+    type Output = PutObjectLockConfigurationOutput;
 
-impl PutObjectRetention {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectRetentionInput> {
-        let (bucket, key) = http::unwrap_object(req);
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_object_lock_configuration(req).await;
 
-        let bypass_governance_retention: Option<BypassGovernanceRetention> =
-            http::parse_opt_header(req, &X_AMZ_BYPASS_GOVERNANCE_RETENTION)?;
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutObjectLockConfigurationInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
 
@@ -5404,29 +7926,43 @@ impl PutObjectRetention {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
+        let object_lock_configuration: Option<ObjectLockConfiguration> = http::take_opt_xml_body(req)?;
+
         let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
 
-        let retention: Option<ObjectLockRetention> = http::take_opt_xml_body(req)?;
+        let token: Option<ObjectLockToken> = http::parse_opt_header(req, &X_AMZ_BUCKET_OBJECT_LOCK_TOKEN)?;
 
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(PutObjectRetentionInput {
+        Ok(Self {
             bucket,
-            bypass_governance_retention,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            key,
+            object_lock_configuration,
             request_payer,
-            retention,
-            version_id,
+            token,
         })
+    }
+}
+
+impl TryInto<http::Response> for PutObjectLockConfigurationOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
+    }
+}
+
+pub struct PutObjectRetention;
+
+impl PutObjectRetention {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectRetentionInput> {
+        PutObjectRetentionInput::try_from(req)
     }
 
     pub fn serialize_http(x: PutObjectRetentionOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -5451,15 +7987,32 @@ impl super::Operation for PutObjectRetention {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutObjectTagging;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutObjectRetention {
+    type Input = PutObjectRetentionInput;
+    type Output = PutObjectRetentionOutput;
 
-impl PutObjectTagging {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectTaggingInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_object_retention(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutObjectRetentionInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
+
+        let bypass_governance_retention: Option<BypassGovernanceRetention> =
+            http::parse_opt_header(req, &X_AMZ_BYPASS_GOVERNANCE_RETENTION)?;
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
 
@@ -5469,26 +8022,43 @@ impl PutObjectTagging {
 
         let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
 
-        let tagging: Tagging = http::take_xml_body(req)?;
+        let retention: Option<ObjectLockRetention> = http::take_opt_xml_body(req)?;
 
         let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
 
-        Ok(PutObjectTaggingInput {
+        Ok(Self {
             bucket,
+            bypass_governance_retention,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
             key,
             request_payer,
-            tagging,
+            retention,
             version_id,
         })
     }
+}
+
+impl TryInto<http::Response> for PutObjectRetentionOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        Ok(res)
+    }
+}
+
+pub struct PutObjectTagging;
+
+impl PutObjectTagging {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutObjectTaggingInput> {
+        PutObjectTaggingInput::try_from(req)
+    }
 
     pub fn serialize_http(x: PutObjectTaggingOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, x.version_id)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -5513,15 +8083,29 @@ impl super::Operation for PutObjectTagging {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct PutPublicAccessBlock;
+#[async_trait::async_trait]
+impl super::TypedOperation for PutObjectTagging {
+    type Input = PutObjectTaggingInput;
+    type Output = PutObjectTaggingOutput;
 
-impl PutPublicAccessBlock {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutPublicAccessBlockInput> {
-        let bucket = http::unwrap_bucket(req);
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_object_tagging(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutObjectTaggingInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
 
         let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
 
@@ -5529,19 +8113,44 @@ impl PutPublicAccessBlock {
 
         let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
 
-        let public_access_block_configuration: PublicAccessBlockConfiguration = http::take_xml_body(req)?;
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
 
-        Ok(PutPublicAccessBlockInput {
+        let tagging: Tagging = http::take_xml_body(req)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
             bucket,
             checksum_algorithm,
             content_md5,
             expected_bucket_owner,
-            public_access_block_configuration,
+            key,
+            request_payer,
+            tagging,
+            version_id,
         })
     }
+}
 
-    pub fn serialize_http(_: PutPublicAccessBlockOutput) -> S3Result<http::Response> {
-        Ok(http::Response::with_status(http::StatusCode::OK))
+impl TryInto<http::Response> for PutObjectTaggingOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, X_AMZ_VERSION_ID, self.version_id)?;
+        Ok(res)
+    }
+}
+
+pub struct PutPublicAccessBlock;
+
+impl PutPublicAccessBlock {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<PutPublicAccessBlockInput> {
+        PutPublicAccessBlockInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: PutPublicAccessBlockOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
     }
 }
 
@@ -5566,7 +8175,53 @@ impl super::Operation for PutPublicAccessBlock {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for PutPublicAccessBlock {
+    type Input = PutPublicAccessBlockInput;
+    type Output = PutPublicAccessBlockOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.put_public_access_block(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for PutPublicAccessBlockInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let bucket = http::unwrap_bucket(req);
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let content_md5: Option<ContentMD5> = http::parse_opt_header(req, &CONTENT_MD5)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let public_access_block_configuration: PublicAccessBlockConfiguration = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            checksum_algorithm,
+            content_md5,
+            expected_bucket_owner,
+            public_access_block_configuration,
+        })
+    }
+}
+
+impl TryInto<http::Response> for PutPublicAccessBlockOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
@@ -5574,34 +8229,11 @@ pub struct RestoreObject;
 
 impl RestoreObject {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<RestoreObjectInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
-
-        let restore_request: Option<RestoreRequest> = http::take_opt_xml_body(req)?;
-
-        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
-
-        Ok(RestoreObjectInput {
-            bucket,
-            checksum_algorithm,
-            expected_bucket_owner,
-            key,
-            request_payer,
-            restore_request,
-            version_id,
-        })
+        RestoreObjectInput::try_from(req)
     }
 
     pub fn serialize_http(x: RestoreObjectOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_RESTORE_OUTPUT_PATH, x.restore_output_path)?;
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -5626,7 +8258,60 @@ impl super::Operation for RestoreObject {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for RestoreObject {
+    type Input = RestoreObjectInput;
+    type Output = RestoreObjectOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.restore_object(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for RestoreObjectInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let checksum_algorithm: Option<ChecksumAlgorithm> = http::parse_opt_header(req, &X_AMZ_SDK_CHECKSUM_ALGORITHM)?;
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let request_payer: Option<RequestPayer> = http::parse_opt_header(req, &X_AMZ_REQUEST_PAYER)?;
+
+        let restore_request: Option<RestoreRequest> = http::take_opt_xml_body(req)?;
+
+        let version_id: Option<ObjectVersionId> = http::parse_opt_query(req, "versionId")?;
+
+        Ok(Self {
+            bucket,
+            checksum_algorithm,
+            expected_bucket_owner,
+            key,
+            request_payer,
+            restore_request,
+            version_id,
+        })
+    }
+}
+
+impl TryInto<http::Response> for RestoreObjectOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_RESTORE_OUTPUT_PATH, self.restore_output_path)?;
+        Ok(res)
     }
 }
 
@@ -5634,37 +8319,11 @@ pub struct SelectObjectContent;
 
 impl SelectObjectContent {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<SelectObjectContentInput> {
-        let (bucket, key) = http::unwrap_object(req);
-
-        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
-
-        let sse_customer_algorithm: Option<SSECustomerAlgorithm> =
-            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM)?;
-
-        let sse_customer_key: Option<SSECustomerKey> = http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY)?;
-
-        let sse_customer_key_md5: Option<SSECustomerKeyMD5> =
-            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5)?;
-
-        let request: SelectObjectContentRequest = http::take_xml_body(req)?;
-
-        Ok(SelectObjectContentInput {
-            bucket,
-            expected_bucket_owner,
-            key,
-            sse_customer_algorithm,
-            sse_customer_key,
-            sse_customer_key_md5,
-            request,
-        })
+        SelectObjectContentInput::try_from(req)
     }
 
     pub fn serialize_http(x: SelectObjectContentOutput) -> S3Result<http::Response> {
-        let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(val) = x.payload {
-            http::set_event_stream_body(&mut res, val);
-        }
-        Ok(res)
+        Ok(x.try_into()?)
     }
 }
 
@@ -5689,7 +8348,63 @@ impl super::Operation for SelectObjectContent {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for SelectObjectContent {
+    type Input = SelectObjectContentInput;
+    type Output = SelectObjectContentOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.select_object_content(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for SelectObjectContentInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
+        let (bucket, key) = http::unwrap_object(req);
+
+        let expected_bucket_owner: Option<AccountId> = http::parse_opt_header(req, &X_AMZ_EXPECTED_BUCKET_OWNER)?;
+
+        let sse_customer_algorithm: Option<SSECustomerAlgorithm> =
+            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM)?;
+
+        let sse_customer_key: Option<SSECustomerKey> = http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY)?;
+
+        let sse_customer_key_md5: Option<SSECustomerKeyMD5> =
+            http::parse_opt_header(req, &X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5)?;
+
+        let request: SelectObjectContentRequest = http::take_xml_body(req)?;
+
+        Ok(Self {
+            bucket,
+            expected_bucket_owner,
+            key,
+            sse_customer_algorithm,
+            sse_customer_key,
+            sse_customer_key_md5,
+            request,
+        })
+    }
+}
+
+impl TryInto<http::Response> for SelectObjectContentOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
+        let mut res = http::Response::with_status(http::StatusCode::OK);
+        if let Some(val) = self.payload {
+            http::set_event_stream_body(&mut res, val);
+        }
+        Ok(res)
     }
 }
 
@@ -5697,6 +8412,57 @@ pub struct UploadPart;
 
 impl UploadPart {
     pub fn deserialize_http(req: &mut http::Request) -> S3Result<UploadPartInput> {
+        UploadPartInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: UploadPartOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
+#[async_trait::async_trait]
+impl super::Operation for UploadPart {
+    fn name(&self) -> &'static str {
+        "UploadPart"
+    }
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        let input = Self::deserialize_http(req)?;
+        let s3_req = super::build_s3_request(input, req);
+        let result = s3.upload_part(s3_req).await;
+        let s3_resp = match result {
+            Ok(val) => val,
+            Err(err) => return super::serialize_error(err),
+        };
+        let mut resp = Self::serialize_http(s3_resp.output)?;
+        resp.headers.extend(s3_resp.headers);
+        resp.extensions.extend(s3_resp.extensions);
+        Ok(resp)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        {
+            self
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl super::TypedOperation for UploadPart {
+    type Input = UploadPartInput;
+    type Output = UploadPartOutput;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.upload_part(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for UploadPartInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let body: Option<StreamingBlob> = Some(http::take_stream_body(req));
@@ -5731,7 +8497,7 @@ impl UploadPart {
 
         let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
 
-        Ok(UploadPartInput {
+        Ok(Self {
             body,
             bucket,
             checksum_algorithm,
@@ -5751,34 +8517,50 @@ impl UploadPart {
             upload_id,
         })
     }
+}
 
-    pub fn serialize_http(x: UploadPartOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for UploadPartOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         let mut res = http::Response::with_status(http::StatusCode::OK);
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, x.checksum_crc32)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, x.checksum_crc32c)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, x.checksum_sha1)?;
-        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, x.checksum_sha256)?;
-        http::add_opt_header(&mut res, ETAG, x.e_tag)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32, self.checksum_crc32)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_CRC32C, self.checksum_crc32c)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA1, self.checksum_sha1)?;
+        http::add_opt_header(&mut res, X_AMZ_CHECKSUM_SHA256, self.checksum_sha256)?;
+        http::add_opt_header(&mut res, ETAG, self.e_tag)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
         Ok(res)
     }
 }
 
+pub struct UploadPartCopy;
+
+impl UploadPartCopy {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<UploadPartCopyInput> {
+        UploadPartCopyInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: UploadPartCopyOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
 #[async_trait::async_trait]
-impl super::Operation for UploadPart {
+impl super::Operation for UploadPartCopy {
     fn name(&self) -> &'static str {
-        "UploadPart"
+        "UploadPartCopy"
     }
 
     async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
         let input = Self::deserialize_http(req)?;
         let s3_req = super::build_s3_request(input, req);
-        let result = s3.upload_part(s3_req).await;
+        let result = s3.upload_part_copy(s3_req).await;
         let s3_resp = match result {
             Ok(val) => val,
             Err(err) => return super::serialize_error(err),
@@ -5790,14 +8572,28 @@ impl super::Operation for UploadPart {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct UploadPartCopy;
+#[async_trait::async_trait]
+impl super::TypedOperation for UploadPartCopy {
+    type Input = UploadPartCopyInput;
+    type Output = UploadPartCopyOutput;
 
-impl UploadPartCopy {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<UploadPartCopyInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.upload_part_copy(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for UploadPartCopyInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let (bucket, key) = http::unwrap_object(req);
 
         let copy_source: CopySource = http::parse_header(req, &X_AMZ_COPY_SOURCE)?;
@@ -5842,7 +8638,7 @@ impl UploadPartCopy {
 
         let upload_id: MultipartUploadId = http::parse_query(req, "uploadId")?;
 
-        Ok(UploadPartCopyInput {
+        Ok(Self {
             bucket,
             copy_source,
             copy_source_if_match,
@@ -5864,33 +8660,49 @@ impl UploadPartCopy {
             upload_id,
         })
     }
+}
 
-    pub fn serialize_http(x: UploadPartCopyOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for UploadPartCopyOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         let mut res = http::Response::with_status(http::StatusCode::OK);
-        if let Some(ref val) = x.copy_part_result {
+        if let Some(ref val) = self.copy_part_result {
             http::set_xml_body(&mut res, val)?;
         }
-        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, x.bucket_key_enabled)?;
-        http::add_opt_header(&mut res, X_AMZ_COPY_SOURCE_VERSION_ID, x.copy_source_version_id)?;
-        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, x.request_charged)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, x.sse_customer_algorithm)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, x.sse_customer_key_md5)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, x.ssekms_key_id)?;
-        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, x.server_side_encryption)?;
+        http::add_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_BUCKET_KEY_ENABLED, self.bucket_key_enabled)?;
+        http::add_opt_header(&mut res, X_AMZ_COPY_SOURCE_VERSION_ID, self.copy_source_version_id)?;
+        http::add_opt_header(&mut res, X_AMZ_REQUEST_CHARGED, self.request_charged)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_ALGORITHM, self.sse_customer_algorithm)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_CUSTOMER_KEY_MD5, self.sse_customer_key_md5)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION_AWS_KMS_KEY_ID, self.ssekms_key_id)?;
+        http::add_opt_header(&mut res, X_AMZ_SERVER_SIDE_ENCRYPTION, self.server_side_encryption)?;
         Ok(res)
     }
 }
 
+pub struct WriteGetObjectResponse;
+
+impl WriteGetObjectResponse {
+    pub fn deserialize_http(req: &mut http::Request) -> S3Result<WriteGetObjectResponseInput> {
+        WriteGetObjectResponseInput::try_from(req)
+    }
+
+    pub fn serialize_http(x: WriteGetObjectResponseOutput) -> S3Result<http::Response> {
+        Ok(x.try_into()?)
+    }
+}
+
 #[async_trait::async_trait]
-impl super::Operation for UploadPartCopy {
+impl super::Operation for WriteGetObjectResponse {
     fn name(&self) -> &'static str {
-        "UploadPartCopy"
+        "WriteGetObjectResponse"
     }
 
     async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
         let input = Self::deserialize_http(req)?;
         let s3_req = super::build_s3_request(input, req);
-        let result = s3.upload_part_copy(s3_req).await;
+        let result = s3.write_get_object_response(s3_req).await;
         let s3_resp = match result {
             Ok(val) => val,
             Err(err) => return super::serialize_error(err),
@@ -5902,14 +8714,28 @@ impl super::Operation for UploadPartCopy {
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
-        self
+        {
+            self
+        }
     }
 }
 
-pub struct WriteGetObjectResponse;
+#[async_trait::async_trait]
+impl super::TypedOperation for WriteGetObjectResponse {
+    type Input = WriteGetObjectResponseInput;
+    type Output = WriteGetObjectResponseOutput;
 
-impl WriteGetObjectResponse {
-    pub fn deserialize_http(req: &mut http::Request) -> S3Result<WriteGetObjectResponseInput> {
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<S3Response<Self::Output>> {
+        let result = s3.write_get_object_response(req).await;
+
+        result
+    }
+}
+
+impl TryFrom<&mut http::Request> for WriteGetObjectResponseInput {
+    type Error = S3Error;
+
+    fn try_from(req: &mut http::Request) -> S3Result<Self> {
         let accept_ranges: Option<AcceptRanges> = http::parse_opt_header(req, &X_AMZ_FWD_HEADER_ACCEPT_RANGES)?;
 
         let body: Option<StreamingBlob> = Some(http::take_stream_body(req));
@@ -6003,7 +8829,7 @@ impl WriteGetObjectResponse {
 
         let version_id: Option<ObjectVersionId> = http::parse_opt_header(req, &X_AMZ_FWD_HEADER_X_AMZ_VERSION_ID)?;
 
-        Ok(WriteGetObjectResponseInput {
+        Ok(Self {
             accept_ranges,
             body,
             bucket_key_enabled,
@@ -6046,169 +8872,1142 @@ impl WriteGetObjectResponse {
             version_id,
         })
     }
+}
 
-    pub fn serialize_http(_: WriteGetObjectResponseOutput) -> S3Result<http::Response> {
+impl TryInto<http::Response> for WriteGetObjectResponseOutput {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<http::Response> {
         Ok(http::Response::with_status(http::StatusCode::OK))
     }
 }
 
-#[async_trait::async_trait]
-impl super::Operation for WriteGetObjectResponse {
-    fn name(&self) -> &'static str {
-        "WriteGetObjectResponse"
+#[derive(Clone)]
+#[non_exhaustive]
+pub enum OperationType {
+    AbortMultipartUpload(&'static AbortMultipartUpload),
+    CompleteMultipartUpload(&'static CompleteMultipartUpload),
+    CopyObject(&'static CopyObject),
+    CreateBucket(&'static CreateBucket),
+    CreateMultipartUpload(&'static CreateMultipartUpload),
+    DeleteBucket(&'static DeleteBucket),
+    DeleteBucketAnalyticsConfiguration(&'static DeleteBucketAnalyticsConfiguration),
+    DeleteBucketCors(&'static DeleteBucketCors),
+    DeleteBucketEncryption(&'static DeleteBucketEncryption),
+    DeleteBucketIntelligentTieringConfiguration(&'static DeleteBucketIntelligentTieringConfiguration),
+    DeleteBucketInventoryConfiguration(&'static DeleteBucketInventoryConfiguration),
+    DeleteBucketLifecycle(&'static DeleteBucketLifecycle),
+    DeleteBucketMetricsConfiguration(&'static DeleteBucketMetricsConfiguration),
+    DeleteBucketOwnershipControls(&'static DeleteBucketOwnershipControls),
+    DeleteBucketPolicy(&'static DeleteBucketPolicy),
+    DeleteBucketReplication(&'static DeleteBucketReplication),
+    DeleteBucketTagging(&'static DeleteBucketTagging),
+    DeleteBucketWebsite(&'static DeleteBucketWebsite),
+    DeleteObject(&'static DeleteObject),
+    DeleteObjectTagging(&'static DeleteObjectTagging),
+    DeleteObjects(&'static DeleteObjects),
+    DeletePublicAccessBlock(&'static DeletePublicAccessBlock),
+    GetBucketAccelerateConfiguration(&'static GetBucketAccelerateConfiguration),
+    GetBucketAcl(&'static GetBucketAcl),
+    GetBucketAnalyticsConfiguration(&'static GetBucketAnalyticsConfiguration),
+    GetBucketCors(&'static GetBucketCors),
+    GetBucketEncryption(&'static GetBucketEncryption),
+    GetBucketIntelligentTieringConfiguration(&'static GetBucketIntelligentTieringConfiguration),
+    GetBucketInventoryConfiguration(&'static GetBucketInventoryConfiguration),
+    GetBucketLifecycleConfiguration(&'static GetBucketLifecycleConfiguration),
+    GetBucketLocation(&'static GetBucketLocation),
+    GetBucketLogging(&'static GetBucketLogging),
+    GetBucketMetricsConfiguration(&'static GetBucketMetricsConfiguration),
+    GetBucketNotificationConfiguration(&'static GetBucketNotificationConfiguration),
+    GetBucketOwnershipControls(&'static GetBucketOwnershipControls),
+    GetBucketPolicy(&'static GetBucketPolicy),
+    GetBucketPolicyStatus(&'static GetBucketPolicyStatus),
+    GetBucketReplication(&'static GetBucketReplication),
+    GetBucketRequestPayment(&'static GetBucketRequestPayment),
+    GetBucketTagging(&'static GetBucketTagging),
+    GetBucketVersioning(&'static GetBucketVersioning),
+    GetBucketWebsite(&'static GetBucketWebsite),
+    GetObject(&'static GetObject),
+    GetObjectAcl(&'static GetObjectAcl),
+    GetObjectAttributes(&'static GetObjectAttributes),
+    GetObjectLegalHold(&'static GetObjectLegalHold),
+    GetObjectLockConfiguration(&'static GetObjectLockConfiguration),
+    GetObjectRetention(&'static GetObjectRetention),
+    GetObjectTagging(&'static GetObjectTagging),
+    GetObjectTorrent(&'static GetObjectTorrent),
+    GetPublicAccessBlock(&'static GetPublicAccessBlock),
+    HeadBucket(&'static HeadBucket),
+    HeadObject(&'static HeadObject),
+    ListBucketAnalyticsConfigurations(&'static ListBucketAnalyticsConfigurations),
+    ListBucketIntelligentTieringConfigurations(&'static ListBucketIntelligentTieringConfigurations),
+    ListBucketInventoryConfigurations(&'static ListBucketInventoryConfigurations),
+    ListBucketMetricsConfigurations(&'static ListBucketMetricsConfigurations),
+    ListBuckets(&'static ListBuckets),
+    ListMultipartUploads(&'static ListMultipartUploads),
+    ListObjectVersions(&'static ListObjectVersions),
+    ListObjects(&'static ListObjects),
+    ListObjectsV2(&'static ListObjectsV2),
+    ListParts(&'static ListParts),
+    PutBucketAccelerateConfiguration(&'static PutBucketAccelerateConfiguration),
+    PutBucketAcl(&'static PutBucketAcl),
+    PutBucketAnalyticsConfiguration(&'static PutBucketAnalyticsConfiguration),
+    PutBucketCors(&'static PutBucketCors),
+    PutBucketEncryption(&'static PutBucketEncryption),
+    PutBucketIntelligentTieringConfiguration(&'static PutBucketIntelligentTieringConfiguration),
+    PutBucketInventoryConfiguration(&'static PutBucketInventoryConfiguration),
+    PutBucketLifecycleConfiguration(&'static PutBucketLifecycleConfiguration),
+    PutBucketLogging(&'static PutBucketLogging),
+    PutBucketMetricsConfiguration(&'static PutBucketMetricsConfiguration),
+    PutBucketNotificationConfiguration(&'static PutBucketNotificationConfiguration),
+    PutBucketOwnershipControls(&'static PutBucketOwnershipControls),
+    PutBucketPolicy(&'static PutBucketPolicy),
+    PutBucketReplication(&'static PutBucketReplication),
+    PutBucketRequestPayment(&'static PutBucketRequestPayment),
+    PutBucketTagging(&'static PutBucketTagging),
+    PutBucketVersioning(&'static PutBucketVersioning),
+    PutBucketWebsite(&'static PutBucketWebsite),
+    PutObject(&'static PutObject),
+    PutObjectAcl(&'static PutObjectAcl),
+    PutObjectLegalHold(&'static PutObjectLegalHold),
+    PutObjectLockConfiguration(&'static PutObjectLockConfiguration),
+    PutObjectRetention(&'static PutObjectRetention),
+    PutObjectTagging(&'static PutObjectTagging),
+    PutPublicAccessBlock(&'static PutPublicAccessBlock),
+    RestoreObject(&'static RestoreObject),
+    SelectObjectContent(&'static SelectObjectContent),
+    UploadPart(&'static UploadPart),
+    UploadPartCopy(&'static UploadPartCopy),
+    WriteGetObjectResponse(&'static WriteGetObjectResponse),
+}
+
+impl OperationType {
+    pub async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
+        match self {
+            Self::AbortMultipartUpload(op) => <AbortMultipartUpload as super::Operation>::call(op, s3, req).await,
+            Self::CompleteMultipartUpload(op) => <CompleteMultipartUpload as super::Operation>::call(op, s3, req).await,
+            Self::CopyObject(op) => <CopyObject as super::Operation>::call(op, s3, req).await,
+            Self::CreateBucket(op) => <CreateBucket as super::Operation>::call(op, s3, req).await,
+            Self::CreateMultipartUpload(op) => <CreateMultipartUpload as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucket(op) => <DeleteBucket as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketAnalyticsConfiguration(op) => {
+                <DeleteBucketAnalyticsConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::DeleteBucketCors(op) => <DeleteBucketCors as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketEncryption(op) => <DeleteBucketEncryption as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketIntelligentTieringConfiguration(op) => {
+                <DeleteBucketIntelligentTieringConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::DeleteBucketInventoryConfiguration(op) => {
+                <DeleteBucketInventoryConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::DeleteBucketLifecycle(op) => <DeleteBucketLifecycle as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketMetricsConfiguration(op) => {
+                <DeleteBucketMetricsConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::DeleteBucketOwnershipControls(op) => {
+                <DeleteBucketOwnershipControls as super::Operation>::call(op, s3, req).await
+            }
+            Self::DeleteBucketPolicy(op) => <DeleteBucketPolicy as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketReplication(op) => <DeleteBucketReplication as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketTagging(op) => <DeleteBucketTagging as super::Operation>::call(op, s3, req).await,
+            Self::DeleteBucketWebsite(op) => <DeleteBucketWebsite as super::Operation>::call(op, s3, req).await,
+            Self::DeleteObject(op) => <DeleteObject as super::Operation>::call(op, s3, req).await,
+            Self::DeleteObjectTagging(op) => <DeleteObjectTagging as super::Operation>::call(op, s3, req).await,
+            Self::DeleteObjects(op) => <DeleteObjects as super::Operation>::call(op, s3, req).await,
+            Self::DeletePublicAccessBlock(op) => <DeletePublicAccessBlock as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketAccelerateConfiguration(op) => {
+                <GetBucketAccelerateConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketAcl(op) => <GetBucketAcl as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketAnalyticsConfiguration(op) => {
+                <GetBucketAnalyticsConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketCors(op) => <GetBucketCors as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketEncryption(op) => <GetBucketEncryption as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketIntelligentTieringConfiguration(op) => {
+                <GetBucketIntelligentTieringConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketInventoryConfiguration(op) => {
+                <GetBucketInventoryConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketLifecycleConfiguration(op) => {
+                <GetBucketLifecycleConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketLocation(op) => <GetBucketLocation as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketLogging(op) => <GetBucketLogging as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketMetricsConfiguration(op) => {
+                <GetBucketMetricsConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketNotificationConfiguration(op) => {
+                <GetBucketNotificationConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::GetBucketOwnershipControls(op) => <GetBucketOwnershipControls as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketPolicy(op) => <GetBucketPolicy as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketPolicyStatus(op) => <GetBucketPolicyStatus as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketReplication(op) => <GetBucketReplication as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketRequestPayment(op) => <GetBucketRequestPayment as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketTagging(op) => <GetBucketTagging as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketVersioning(op) => <GetBucketVersioning as super::Operation>::call(op, s3, req).await,
+            Self::GetBucketWebsite(op) => <GetBucketWebsite as super::Operation>::call(op, s3, req).await,
+            Self::GetObject(op) => <GetObject as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectAcl(op) => <GetObjectAcl as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectAttributes(op) => <GetObjectAttributes as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectLegalHold(op) => <GetObjectLegalHold as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectLockConfiguration(op) => <GetObjectLockConfiguration as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectRetention(op) => <GetObjectRetention as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectTagging(op) => <GetObjectTagging as super::Operation>::call(op, s3, req).await,
+            Self::GetObjectTorrent(op) => <GetObjectTorrent as super::Operation>::call(op, s3, req).await,
+            Self::GetPublicAccessBlock(op) => <GetPublicAccessBlock as super::Operation>::call(op, s3, req).await,
+            Self::HeadBucket(op) => <HeadBucket as super::Operation>::call(op, s3, req).await,
+            Self::HeadObject(op) => <HeadObject as super::Operation>::call(op, s3, req).await,
+            Self::ListBucketAnalyticsConfigurations(op) => {
+                <ListBucketAnalyticsConfigurations as super::Operation>::call(op, s3, req).await
+            }
+            Self::ListBucketIntelligentTieringConfigurations(op) => {
+                <ListBucketIntelligentTieringConfigurations as super::Operation>::call(op, s3, req).await
+            }
+            Self::ListBucketInventoryConfigurations(op) => {
+                <ListBucketInventoryConfigurations as super::Operation>::call(op, s3, req).await
+            }
+            Self::ListBucketMetricsConfigurations(op) => {
+                <ListBucketMetricsConfigurations as super::Operation>::call(op, s3, req).await
+            }
+            Self::ListBuckets(op) => <ListBuckets as super::Operation>::call(op, s3, req).await,
+            Self::ListMultipartUploads(op) => <ListMultipartUploads as super::Operation>::call(op, s3, req).await,
+            Self::ListObjectVersions(op) => <ListObjectVersions as super::Operation>::call(op, s3, req).await,
+            Self::ListObjects(op) => <ListObjects as super::Operation>::call(op, s3, req).await,
+            Self::ListObjectsV2(op) => <ListObjectsV2 as super::Operation>::call(op, s3, req).await,
+            Self::ListParts(op) => <ListParts as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketAccelerateConfiguration(op) => {
+                <PutBucketAccelerateConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketAcl(op) => <PutBucketAcl as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketAnalyticsConfiguration(op) => {
+                <PutBucketAnalyticsConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketCors(op) => <PutBucketCors as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketEncryption(op) => <PutBucketEncryption as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketIntelligentTieringConfiguration(op) => {
+                <PutBucketIntelligentTieringConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketInventoryConfiguration(op) => {
+                <PutBucketInventoryConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketLifecycleConfiguration(op) => {
+                <PutBucketLifecycleConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketLogging(op) => <PutBucketLogging as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketMetricsConfiguration(op) => {
+                <PutBucketMetricsConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketNotificationConfiguration(op) => {
+                <PutBucketNotificationConfiguration as super::Operation>::call(op, s3, req).await
+            }
+            Self::PutBucketOwnershipControls(op) => <PutBucketOwnershipControls as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketPolicy(op) => <PutBucketPolicy as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketReplication(op) => <PutBucketReplication as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketRequestPayment(op) => <PutBucketRequestPayment as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketTagging(op) => <PutBucketTagging as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketVersioning(op) => <PutBucketVersioning as super::Operation>::call(op, s3, req).await,
+            Self::PutBucketWebsite(op) => <PutBucketWebsite as super::Operation>::call(op, s3, req).await,
+            Self::PutObject(op) => <PutObject as super::Operation>::call(op, s3, req).await,
+            Self::PutObjectAcl(op) => <PutObjectAcl as super::Operation>::call(op, s3, req).await,
+            Self::PutObjectLegalHold(op) => <PutObjectLegalHold as super::Operation>::call(op, s3, req).await,
+            Self::PutObjectLockConfiguration(op) => <PutObjectLockConfiguration as super::Operation>::call(op, s3, req).await,
+            Self::PutObjectRetention(op) => <PutObjectRetention as super::Operation>::call(op, s3, req).await,
+            Self::PutObjectTagging(op) => <PutObjectTagging as super::Operation>::call(op, s3, req).await,
+            Self::PutPublicAccessBlock(op) => <PutPublicAccessBlock as super::Operation>::call(op, s3, req).await,
+            Self::RestoreObject(op) => <RestoreObject as super::Operation>::call(op, s3, req).await,
+            Self::SelectObjectContent(op) => <SelectObjectContent as super::Operation>::call(op, s3, req).await,
+            Self::UploadPart(op) => <UploadPart as super::Operation>::call(op, s3, req).await,
+            Self::UploadPartCopy(op) => <UploadPartCopy as super::Operation>::call(op, s3, req).await,
+            Self::WriteGetObjectResponse(op) => <WriteGetObjectResponse as super::Operation>::call(op, s3, req).await,
+        }
     }
 
-    async fn call(&self, s3: &Arc<dyn S3>, req: &mut http::Request) -> S3Result<http::Response> {
-        let input = Self::deserialize_http(req)?;
-        let s3_req = super::build_s3_request(input, req);
-        let result = s3.write_get_object_response(s3_req).await;
-        let s3_resp = match result {
-            Ok(val) => val,
-            Err(err) => return super::serialize_error(err),
-        };
-        let mut resp = Self::serialize_http(s3_resp.output)?;
-        resp.headers.extend(s3_resp.headers);
-        resp.extensions.extend(s3_resp.extensions);
-        Ok(resp)
+    pub fn as_dyn(self) -> &'static dyn super::Operation {
+        match self {
+            Self::AbortMultipartUpload(op) => op as &'static dyn super::Operation,
+            Self::CompleteMultipartUpload(op) => op as &'static dyn super::Operation,
+            Self::CopyObject(op) => op as &'static dyn super::Operation,
+            Self::CreateBucket(op) => op as &'static dyn super::Operation,
+            Self::CreateMultipartUpload(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucket(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketAnalyticsConfiguration(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketCors(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketEncryption(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketIntelligentTieringConfiguration(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketInventoryConfiguration(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketLifecycle(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketMetricsConfiguration(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketOwnershipControls(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketPolicy(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketReplication(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketTagging(op) => op as &'static dyn super::Operation,
+            Self::DeleteBucketWebsite(op) => op as &'static dyn super::Operation,
+            Self::DeleteObject(op) => op as &'static dyn super::Operation,
+            Self::DeleteObjectTagging(op) => op as &'static dyn super::Operation,
+            Self::DeleteObjects(op) => op as &'static dyn super::Operation,
+            Self::DeletePublicAccessBlock(op) => op as &'static dyn super::Operation,
+            Self::GetBucketAccelerateConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketAcl(op) => op as &'static dyn super::Operation,
+            Self::GetBucketAnalyticsConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketCors(op) => op as &'static dyn super::Operation,
+            Self::GetBucketEncryption(op) => op as &'static dyn super::Operation,
+            Self::GetBucketIntelligentTieringConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketInventoryConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketLifecycleConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketLocation(op) => op as &'static dyn super::Operation,
+            Self::GetBucketLogging(op) => op as &'static dyn super::Operation,
+            Self::GetBucketMetricsConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketNotificationConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetBucketOwnershipControls(op) => op as &'static dyn super::Operation,
+            Self::GetBucketPolicy(op) => op as &'static dyn super::Operation,
+            Self::GetBucketPolicyStatus(op) => op as &'static dyn super::Operation,
+            Self::GetBucketReplication(op) => op as &'static dyn super::Operation,
+            Self::GetBucketRequestPayment(op) => op as &'static dyn super::Operation,
+            Self::GetBucketTagging(op) => op as &'static dyn super::Operation,
+            Self::GetBucketVersioning(op) => op as &'static dyn super::Operation,
+            Self::GetBucketWebsite(op) => op as &'static dyn super::Operation,
+            Self::GetObject(op) => op as &'static dyn super::Operation,
+            Self::GetObjectAcl(op) => op as &'static dyn super::Operation,
+            Self::GetObjectAttributes(op) => op as &'static dyn super::Operation,
+            Self::GetObjectLegalHold(op) => op as &'static dyn super::Operation,
+            Self::GetObjectLockConfiguration(op) => op as &'static dyn super::Operation,
+            Self::GetObjectRetention(op) => op as &'static dyn super::Operation,
+            Self::GetObjectTagging(op) => op as &'static dyn super::Operation,
+            Self::GetObjectTorrent(op) => op as &'static dyn super::Operation,
+            Self::GetPublicAccessBlock(op) => op as &'static dyn super::Operation,
+            Self::HeadBucket(op) => op as &'static dyn super::Operation,
+            Self::HeadObject(op) => op as &'static dyn super::Operation,
+            Self::ListBucketAnalyticsConfigurations(op) => op as &'static dyn super::Operation,
+            Self::ListBucketIntelligentTieringConfigurations(op) => op as &'static dyn super::Operation,
+            Self::ListBucketInventoryConfigurations(op) => op as &'static dyn super::Operation,
+            Self::ListBucketMetricsConfigurations(op) => op as &'static dyn super::Operation,
+            Self::ListBuckets(op) => op as &'static dyn super::Operation,
+            Self::ListMultipartUploads(op) => op as &'static dyn super::Operation,
+            Self::ListObjectVersions(op) => op as &'static dyn super::Operation,
+            Self::ListObjects(op) => op as &'static dyn super::Operation,
+            Self::ListObjectsV2(op) => op as &'static dyn super::Operation,
+            Self::ListParts(op) => op as &'static dyn super::Operation,
+            Self::PutBucketAccelerateConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketAcl(op) => op as &'static dyn super::Operation,
+            Self::PutBucketAnalyticsConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketCors(op) => op as &'static dyn super::Operation,
+            Self::PutBucketEncryption(op) => op as &'static dyn super::Operation,
+            Self::PutBucketIntelligentTieringConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketInventoryConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketLifecycleConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketLogging(op) => op as &'static dyn super::Operation,
+            Self::PutBucketMetricsConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketNotificationConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutBucketOwnershipControls(op) => op as &'static dyn super::Operation,
+            Self::PutBucketPolicy(op) => op as &'static dyn super::Operation,
+            Self::PutBucketReplication(op) => op as &'static dyn super::Operation,
+            Self::PutBucketRequestPayment(op) => op as &'static dyn super::Operation,
+            Self::PutBucketTagging(op) => op as &'static dyn super::Operation,
+            Self::PutBucketVersioning(op) => op as &'static dyn super::Operation,
+            Self::PutBucketWebsite(op) => op as &'static dyn super::Operation,
+            Self::PutObject(op) => op as &'static dyn super::Operation,
+            Self::PutObjectAcl(op) => op as &'static dyn super::Operation,
+            Self::PutObjectLegalHold(op) => op as &'static dyn super::Operation,
+            Self::PutObjectLockConfiguration(op) => op as &'static dyn super::Operation,
+            Self::PutObjectRetention(op) => op as &'static dyn super::Operation,
+            Self::PutObjectTagging(op) => op as &'static dyn super::Operation,
+            Self::PutPublicAccessBlock(op) => op as &'static dyn super::Operation,
+            Self::RestoreObject(op) => op as &'static dyn super::Operation,
+            Self::SelectObjectContent(op) => op as &'static dyn super::Operation,
+            Self::UploadPart(op) => op as &'static dyn super::Operation,
+            Self::UploadPartCopy(op) => op as &'static dyn super::Operation,
+            Self::WriteGetObjectResponse(op) => op as &'static dyn super::Operation,
+        }
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::AbortMultipartUpload(_) => "AbortMultipartUpload",
+            Self::CompleteMultipartUpload(_) => "CompleteMultipartUpload",
+            Self::CopyObject(_) => "CopyObject",
+            Self::CreateBucket(_) => "CreateBucket",
+            Self::CreateMultipartUpload(_) => "CreateMultipartUpload",
+            Self::DeleteBucket(_) => "DeleteBucket",
+            Self::DeleteBucketAnalyticsConfiguration(_) => "DeleteBucketAnalyticsConfiguration",
+            Self::DeleteBucketCors(_) => "DeleteBucketCors",
+            Self::DeleteBucketEncryption(_) => "DeleteBucketEncryption",
+            Self::DeleteBucketIntelligentTieringConfiguration(_) => "DeleteBucketIntelligentTieringConfiguration",
+            Self::DeleteBucketInventoryConfiguration(_) => "DeleteBucketInventoryConfiguration",
+            Self::DeleteBucketLifecycle(_) => "DeleteBucketLifecycle",
+            Self::DeleteBucketMetricsConfiguration(_) => "DeleteBucketMetricsConfiguration",
+            Self::DeleteBucketOwnershipControls(_) => "DeleteBucketOwnershipControls",
+            Self::DeleteBucketPolicy(_) => "DeleteBucketPolicy",
+            Self::DeleteBucketReplication(_) => "DeleteBucketReplication",
+            Self::DeleteBucketTagging(_) => "DeleteBucketTagging",
+            Self::DeleteBucketWebsite(_) => "DeleteBucketWebsite",
+            Self::DeleteObject(_) => "DeleteObject",
+            Self::DeleteObjectTagging(_) => "DeleteObjectTagging",
+            Self::DeleteObjects(_) => "DeleteObjects",
+            Self::DeletePublicAccessBlock(_) => "DeletePublicAccessBlock",
+            Self::GetBucketAccelerateConfiguration(_) => "GetBucketAccelerateConfiguration",
+            Self::GetBucketAcl(_) => "GetBucketAcl",
+            Self::GetBucketAnalyticsConfiguration(_) => "GetBucketAnalyticsConfiguration",
+            Self::GetBucketCors(_) => "GetBucketCors",
+            Self::GetBucketEncryption(_) => "GetBucketEncryption",
+            Self::GetBucketIntelligentTieringConfiguration(_) => "GetBucketIntelligentTieringConfiguration",
+            Self::GetBucketInventoryConfiguration(_) => "GetBucketInventoryConfiguration",
+            Self::GetBucketLifecycleConfiguration(_) => "GetBucketLifecycleConfiguration",
+            Self::GetBucketLocation(_) => "GetBucketLocation",
+            Self::GetBucketLogging(_) => "GetBucketLogging",
+            Self::GetBucketMetricsConfiguration(_) => "GetBucketMetricsConfiguration",
+            Self::GetBucketNotificationConfiguration(_) => "GetBucketNotificationConfiguration",
+            Self::GetBucketOwnershipControls(_) => "GetBucketOwnershipControls",
+            Self::GetBucketPolicy(_) => "GetBucketPolicy",
+            Self::GetBucketPolicyStatus(_) => "GetBucketPolicyStatus",
+            Self::GetBucketReplication(_) => "GetBucketReplication",
+            Self::GetBucketRequestPayment(_) => "GetBucketRequestPayment",
+            Self::GetBucketTagging(_) => "GetBucketTagging",
+            Self::GetBucketVersioning(_) => "GetBucketVersioning",
+            Self::GetBucketWebsite(_) => "GetBucketWebsite",
+            Self::GetObject(_) => "GetObject",
+            Self::GetObjectAcl(_) => "GetObjectAcl",
+            Self::GetObjectAttributes(_) => "GetObjectAttributes",
+            Self::GetObjectLegalHold(_) => "GetObjectLegalHold",
+            Self::GetObjectLockConfiguration(_) => "GetObjectLockConfiguration",
+            Self::GetObjectRetention(_) => "GetObjectRetention",
+            Self::GetObjectTagging(_) => "GetObjectTagging",
+            Self::GetObjectTorrent(_) => "GetObjectTorrent",
+            Self::GetPublicAccessBlock(_) => "GetPublicAccessBlock",
+            Self::HeadBucket(_) => "HeadBucket",
+            Self::HeadObject(_) => "HeadObject",
+            Self::ListBucketAnalyticsConfigurations(_) => "ListBucketAnalyticsConfigurations",
+            Self::ListBucketIntelligentTieringConfigurations(_) => "ListBucketIntelligentTieringConfigurations",
+            Self::ListBucketInventoryConfigurations(_) => "ListBucketInventoryConfigurations",
+            Self::ListBucketMetricsConfigurations(_) => "ListBucketMetricsConfigurations",
+            Self::ListBuckets(_) => "ListBuckets",
+            Self::ListMultipartUploads(_) => "ListMultipartUploads",
+            Self::ListObjectVersions(_) => "ListObjectVersions",
+            Self::ListObjects(_) => "ListObjects",
+            Self::ListObjectsV2(_) => "ListObjectsV2",
+            Self::ListParts(_) => "ListParts",
+            Self::PutBucketAccelerateConfiguration(_) => "PutBucketAccelerateConfiguration",
+            Self::PutBucketAcl(_) => "PutBucketAcl",
+            Self::PutBucketAnalyticsConfiguration(_) => "PutBucketAnalyticsConfiguration",
+            Self::PutBucketCors(_) => "PutBucketCors",
+            Self::PutBucketEncryption(_) => "PutBucketEncryption",
+            Self::PutBucketIntelligentTieringConfiguration(_) => "PutBucketIntelligentTieringConfiguration",
+            Self::PutBucketInventoryConfiguration(_) => "PutBucketInventoryConfiguration",
+            Self::PutBucketLifecycleConfiguration(_) => "PutBucketLifecycleConfiguration",
+            Self::PutBucketLogging(_) => "PutBucketLogging",
+            Self::PutBucketMetricsConfiguration(_) => "PutBucketMetricsConfiguration",
+            Self::PutBucketNotificationConfiguration(_) => "PutBucketNotificationConfiguration",
+            Self::PutBucketOwnershipControls(_) => "PutBucketOwnershipControls",
+            Self::PutBucketPolicy(_) => "PutBucketPolicy",
+            Self::PutBucketReplication(_) => "PutBucketReplication",
+            Self::PutBucketRequestPayment(_) => "PutBucketRequestPayment",
+            Self::PutBucketTagging(_) => "PutBucketTagging",
+            Self::PutBucketVersioning(_) => "PutBucketVersioning",
+            Self::PutBucketWebsite(_) => "PutBucketWebsite",
+            Self::PutObject(_) => "PutObject",
+            Self::PutObjectAcl(_) => "PutObjectAcl",
+            Self::PutObjectLegalHold(_) => "PutObjectLegalHold",
+            Self::PutObjectLockConfiguration(_) => "PutObjectLockConfiguration",
+            Self::PutObjectRetention(_) => "PutObjectRetention",
+            Self::PutObjectTagging(_) => "PutObjectTagging",
+            Self::PutPublicAccessBlock(_) => "PutPublicAccessBlock",
+            Self::RestoreObject(_) => "RestoreObject",
+            Self::SelectObjectContent(_) => "SelectObjectContent",
+            Self::UploadPart(_) => "UploadPart",
+            Self::UploadPartCopy(_) => "UploadPartCopy",
+            Self::WriteGetObjectResponse(_) => "WriteGetObjectResponse",
+        }
     }
 }
 
-pub fn resolve_route(
-    req: &http::Request,
-    s3_path: &S3Path,
-    qs: Option<&http::OrderedQs>,
-) -> S3Result<(&'static dyn super::Operation, bool)> {
+impl From<&'static AbortMultipartUpload> for OperationType {
+    fn from(op: &'static AbortMultipartUpload) -> Self {
+        Self::AbortMultipartUpload(op)
+    }
+}
+
+impl From<&'static CompleteMultipartUpload> for OperationType {
+    fn from(op: &'static CompleteMultipartUpload) -> Self {
+        Self::CompleteMultipartUpload(op)
+    }
+}
+
+impl From<&'static CopyObject> for OperationType {
+    fn from(op: &'static CopyObject) -> Self {
+        Self::CopyObject(op)
+    }
+}
+
+impl From<&'static CreateBucket> for OperationType {
+    fn from(op: &'static CreateBucket) -> Self {
+        Self::CreateBucket(op)
+    }
+}
+
+impl From<&'static CreateMultipartUpload> for OperationType {
+    fn from(op: &'static CreateMultipartUpload) -> Self {
+        Self::CreateMultipartUpload(op)
+    }
+}
+
+impl From<&'static DeleteBucket> for OperationType {
+    fn from(op: &'static DeleteBucket) -> Self {
+        Self::DeleteBucket(op)
+    }
+}
+
+impl From<&'static DeleteBucketAnalyticsConfiguration> for OperationType {
+    fn from(op: &'static DeleteBucketAnalyticsConfiguration) -> Self {
+        Self::DeleteBucketAnalyticsConfiguration(op)
+    }
+}
+
+impl From<&'static DeleteBucketCors> for OperationType {
+    fn from(op: &'static DeleteBucketCors) -> Self {
+        Self::DeleteBucketCors(op)
+    }
+}
+
+impl From<&'static DeleteBucketEncryption> for OperationType {
+    fn from(op: &'static DeleteBucketEncryption) -> Self {
+        Self::DeleteBucketEncryption(op)
+    }
+}
+
+impl From<&'static DeleteBucketIntelligentTieringConfiguration> for OperationType {
+    fn from(op: &'static DeleteBucketIntelligentTieringConfiguration) -> Self {
+        Self::DeleteBucketIntelligentTieringConfiguration(op)
+    }
+}
+
+impl From<&'static DeleteBucketInventoryConfiguration> for OperationType {
+    fn from(op: &'static DeleteBucketInventoryConfiguration) -> Self {
+        Self::DeleteBucketInventoryConfiguration(op)
+    }
+}
+
+impl From<&'static DeleteBucketLifecycle> for OperationType {
+    fn from(op: &'static DeleteBucketLifecycle) -> Self {
+        Self::DeleteBucketLifecycle(op)
+    }
+}
+
+impl From<&'static DeleteBucketMetricsConfiguration> for OperationType {
+    fn from(op: &'static DeleteBucketMetricsConfiguration) -> Self {
+        Self::DeleteBucketMetricsConfiguration(op)
+    }
+}
+
+impl From<&'static DeleteBucketOwnershipControls> for OperationType {
+    fn from(op: &'static DeleteBucketOwnershipControls) -> Self {
+        Self::DeleteBucketOwnershipControls(op)
+    }
+}
+
+impl From<&'static DeleteBucketPolicy> for OperationType {
+    fn from(op: &'static DeleteBucketPolicy) -> Self {
+        Self::DeleteBucketPolicy(op)
+    }
+}
+
+impl From<&'static DeleteBucketReplication> for OperationType {
+    fn from(op: &'static DeleteBucketReplication) -> Self {
+        Self::DeleteBucketReplication(op)
+    }
+}
+
+impl From<&'static DeleteBucketTagging> for OperationType {
+    fn from(op: &'static DeleteBucketTagging) -> Self {
+        Self::DeleteBucketTagging(op)
+    }
+}
+
+impl From<&'static DeleteBucketWebsite> for OperationType {
+    fn from(op: &'static DeleteBucketWebsite) -> Self {
+        Self::DeleteBucketWebsite(op)
+    }
+}
+
+impl From<&'static DeleteObject> for OperationType {
+    fn from(op: &'static DeleteObject) -> Self {
+        Self::DeleteObject(op)
+    }
+}
+
+impl From<&'static DeleteObjectTagging> for OperationType {
+    fn from(op: &'static DeleteObjectTagging) -> Self {
+        Self::DeleteObjectTagging(op)
+    }
+}
+
+impl From<&'static DeleteObjects> for OperationType {
+    fn from(op: &'static DeleteObjects) -> Self {
+        Self::DeleteObjects(op)
+    }
+}
+
+impl From<&'static DeletePublicAccessBlock> for OperationType {
+    fn from(op: &'static DeletePublicAccessBlock) -> Self {
+        Self::DeletePublicAccessBlock(op)
+    }
+}
+
+impl From<&'static GetBucketAccelerateConfiguration> for OperationType {
+    fn from(op: &'static GetBucketAccelerateConfiguration) -> Self {
+        Self::GetBucketAccelerateConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketAcl> for OperationType {
+    fn from(op: &'static GetBucketAcl) -> Self {
+        Self::GetBucketAcl(op)
+    }
+}
+
+impl From<&'static GetBucketAnalyticsConfiguration> for OperationType {
+    fn from(op: &'static GetBucketAnalyticsConfiguration) -> Self {
+        Self::GetBucketAnalyticsConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketCors> for OperationType {
+    fn from(op: &'static GetBucketCors) -> Self {
+        Self::GetBucketCors(op)
+    }
+}
+
+impl From<&'static GetBucketEncryption> for OperationType {
+    fn from(op: &'static GetBucketEncryption) -> Self {
+        Self::GetBucketEncryption(op)
+    }
+}
+
+impl From<&'static GetBucketIntelligentTieringConfiguration> for OperationType {
+    fn from(op: &'static GetBucketIntelligentTieringConfiguration) -> Self {
+        Self::GetBucketIntelligentTieringConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketInventoryConfiguration> for OperationType {
+    fn from(op: &'static GetBucketInventoryConfiguration) -> Self {
+        Self::GetBucketInventoryConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketLifecycleConfiguration> for OperationType {
+    fn from(op: &'static GetBucketLifecycleConfiguration) -> Self {
+        Self::GetBucketLifecycleConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketLocation> for OperationType {
+    fn from(op: &'static GetBucketLocation) -> Self {
+        Self::GetBucketLocation(op)
+    }
+}
+
+impl From<&'static GetBucketLogging> for OperationType {
+    fn from(op: &'static GetBucketLogging) -> Self {
+        Self::GetBucketLogging(op)
+    }
+}
+
+impl From<&'static GetBucketMetricsConfiguration> for OperationType {
+    fn from(op: &'static GetBucketMetricsConfiguration) -> Self {
+        Self::GetBucketMetricsConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketNotificationConfiguration> for OperationType {
+    fn from(op: &'static GetBucketNotificationConfiguration) -> Self {
+        Self::GetBucketNotificationConfiguration(op)
+    }
+}
+
+impl From<&'static GetBucketOwnershipControls> for OperationType {
+    fn from(op: &'static GetBucketOwnershipControls) -> Self {
+        Self::GetBucketOwnershipControls(op)
+    }
+}
+
+impl From<&'static GetBucketPolicy> for OperationType {
+    fn from(op: &'static GetBucketPolicy) -> Self {
+        Self::GetBucketPolicy(op)
+    }
+}
+
+impl From<&'static GetBucketPolicyStatus> for OperationType {
+    fn from(op: &'static GetBucketPolicyStatus) -> Self {
+        Self::GetBucketPolicyStatus(op)
+    }
+}
+
+impl From<&'static GetBucketReplication> for OperationType {
+    fn from(op: &'static GetBucketReplication) -> Self {
+        Self::GetBucketReplication(op)
+    }
+}
+
+impl From<&'static GetBucketRequestPayment> for OperationType {
+    fn from(op: &'static GetBucketRequestPayment) -> Self {
+        Self::GetBucketRequestPayment(op)
+    }
+}
+
+impl From<&'static GetBucketTagging> for OperationType {
+    fn from(op: &'static GetBucketTagging) -> Self {
+        Self::GetBucketTagging(op)
+    }
+}
+
+impl From<&'static GetBucketVersioning> for OperationType {
+    fn from(op: &'static GetBucketVersioning) -> Self {
+        Self::GetBucketVersioning(op)
+    }
+}
+
+impl From<&'static GetBucketWebsite> for OperationType {
+    fn from(op: &'static GetBucketWebsite) -> Self {
+        Self::GetBucketWebsite(op)
+    }
+}
+
+impl From<&'static GetObject> for OperationType {
+    fn from(op: &'static GetObject) -> Self {
+        Self::GetObject(op)
+    }
+}
+
+impl From<&'static GetObjectAcl> for OperationType {
+    fn from(op: &'static GetObjectAcl) -> Self {
+        Self::GetObjectAcl(op)
+    }
+}
+
+impl From<&'static GetObjectAttributes> for OperationType {
+    fn from(op: &'static GetObjectAttributes) -> Self {
+        Self::GetObjectAttributes(op)
+    }
+}
+
+impl From<&'static GetObjectLegalHold> for OperationType {
+    fn from(op: &'static GetObjectLegalHold) -> Self {
+        Self::GetObjectLegalHold(op)
+    }
+}
+
+impl From<&'static GetObjectLockConfiguration> for OperationType {
+    fn from(op: &'static GetObjectLockConfiguration) -> Self {
+        Self::GetObjectLockConfiguration(op)
+    }
+}
+
+impl From<&'static GetObjectRetention> for OperationType {
+    fn from(op: &'static GetObjectRetention) -> Self {
+        Self::GetObjectRetention(op)
+    }
+}
+
+impl From<&'static GetObjectTagging> for OperationType {
+    fn from(op: &'static GetObjectTagging) -> Self {
+        Self::GetObjectTagging(op)
+    }
+}
+
+impl From<&'static GetObjectTorrent> for OperationType {
+    fn from(op: &'static GetObjectTorrent) -> Self {
+        Self::GetObjectTorrent(op)
+    }
+}
+
+impl From<&'static GetPublicAccessBlock> for OperationType {
+    fn from(op: &'static GetPublicAccessBlock) -> Self {
+        Self::GetPublicAccessBlock(op)
+    }
+}
+
+impl From<&'static HeadBucket> for OperationType {
+    fn from(op: &'static HeadBucket) -> Self {
+        Self::HeadBucket(op)
+    }
+}
+
+impl From<&'static HeadObject> for OperationType {
+    fn from(op: &'static HeadObject) -> Self {
+        Self::HeadObject(op)
+    }
+}
+
+impl From<&'static ListBucketAnalyticsConfigurations> for OperationType {
+    fn from(op: &'static ListBucketAnalyticsConfigurations) -> Self {
+        Self::ListBucketAnalyticsConfigurations(op)
+    }
+}
+
+impl From<&'static ListBucketIntelligentTieringConfigurations> for OperationType {
+    fn from(op: &'static ListBucketIntelligentTieringConfigurations) -> Self {
+        Self::ListBucketIntelligentTieringConfigurations(op)
+    }
+}
+
+impl From<&'static ListBucketInventoryConfigurations> for OperationType {
+    fn from(op: &'static ListBucketInventoryConfigurations) -> Self {
+        Self::ListBucketInventoryConfigurations(op)
+    }
+}
+
+impl From<&'static ListBucketMetricsConfigurations> for OperationType {
+    fn from(op: &'static ListBucketMetricsConfigurations) -> Self {
+        Self::ListBucketMetricsConfigurations(op)
+    }
+}
+
+impl From<&'static ListBuckets> for OperationType {
+    fn from(op: &'static ListBuckets) -> Self {
+        Self::ListBuckets(op)
+    }
+}
+
+impl From<&'static ListMultipartUploads> for OperationType {
+    fn from(op: &'static ListMultipartUploads) -> Self {
+        Self::ListMultipartUploads(op)
+    }
+}
+
+impl From<&'static ListObjectVersions> for OperationType {
+    fn from(op: &'static ListObjectVersions) -> Self {
+        Self::ListObjectVersions(op)
+    }
+}
+
+impl From<&'static ListObjects> for OperationType {
+    fn from(op: &'static ListObjects) -> Self {
+        Self::ListObjects(op)
+    }
+}
+
+impl From<&'static ListObjectsV2> for OperationType {
+    fn from(op: &'static ListObjectsV2) -> Self {
+        Self::ListObjectsV2(op)
+    }
+}
+
+impl From<&'static ListParts> for OperationType {
+    fn from(op: &'static ListParts) -> Self {
+        Self::ListParts(op)
+    }
+}
+
+impl From<&'static PutBucketAccelerateConfiguration> for OperationType {
+    fn from(op: &'static PutBucketAccelerateConfiguration) -> Self {
+        Self::PutBucketAccelerateConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketAcl> for OperationType {
+    fn from(op: &'static PutBucketAcl) -> Self {
+        Self::PutBucketAcl(op)
+    }
+}
+
+impl From<&'static PutBucketAnalyticsConfiguration> for OperationType {
+    fn from(op: &'static PutBucketAnalyticsConfiguration) -> Self {
+        Self::PutBucketAnalyticsConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketCors> for OperationType {
+    fn from(op: &'static PutBucketCors) -> Self {
+        Self::PutBucketCors(op)
+    }
+}
+
+impl From<&'static PutBucketEncryption> for OperationType {
+    fn from(op: &'static PutBucketEncryption) -> Self {
+        Self::PutBucketEncryption(op)
+    }
+}
+
+impl From<&'static PutBucketIntelligentTieringConfiguration> for OperationType {
+    fn from(op: &'static PutBucketIntelligentTieringConfiguration) -> Self {
+        Self::PutBucketIntelligentTieringConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketInventoryConfiguration> for OperationType {
+    fn from(op: &'static PutBucketInventoryConfiguration) -> Self {
+        Self::PutBucketInventoryConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketLifecycleConfiguration> for OperationType {
+    fn from(op: &'static PutBucketLifecycleConfiguration) -> Self {
+        Self::PutBucketLifecycleConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketLogging> for OperationType {
+    fn from(op: &'static PutBucketLogging) -> Self {
+        Self::PutBucketLogging(op)
+    }
+}
+
+impl From<&'static PutBucketMetricsConfiguration> for OperationType {
+    fn from(op: &'static PutBucketMetricsConfiguration) -> Self {
+        Self::PutBucketMetricsConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketNotificationConfiguration> for OperationType {
+    fn from(op: &'static PutBucketNotificationConfiguration) -> Self {
+        Self::PutBucketNotificationConfiguration(op)
+    }
+}
+
+impl From<&'static PutBucketOwnershipControls> for OperationType {
+    fn from(op: &'static PutBucketOwnershipControls) -> Self {
+        Self::PutBucketOwnershipControls(op)
+    }
+}
+
+impl From<&'static PutBucketPolicy> for OperationType {
+    fn from(op: &'static PutBucketPolicy) -> Self {
+        Self::PutBucketPolicy(op)
+    }
+}
+
+impl From<&'static PutBucketReplication> for OperationType {
+    fn from(op: &'static PutBucketReplication) -> Self {
+        Self::PutBucketReplication(op)
+    }
+}
+
+impl From<&'static PutBucketRequestPayment> for OperationType {
+    fn from(op: &'static PutBucketRequestPayment) -> Self {
+        Self::PutBucketRequestPayment(op)
+    }
+}
+
+impl From<&'static PutBucketTagging> for OperationType {
+    fn from(op: &'static PutBucketTagging) -> Self {
+        Self::PutBucketTagging(op)
+    }
+}
+
+impl From<&'static PutBucketVersioning> for OperationType {
+    fn from(op: &'static PutBucketVersioning) -> Self {
+        Self::PutBucketVersioning(op)
+    }
+}
+
+impl From<&'static PutBucketWebsite> for OperationType {
+    fn from(op: &'static PutBucketWebsite) -> Self {
+        Self::PutBucketWebsite(op)
+    }
+}
+
+impl From<&'static PutObject> for OperationType {
+    fn from(op: &'static PutObject) -> Self {
+        Self::PutObject(op)
+    }
+}
+
+impl From<&'static PutObjectAcl> for OperationType {
+    fn from(op: &'static PutObjectAcl) -> Self {
+        Self::PutObjectAcl(op)
+    }
+}
+
+impl From<&'static PutObjectLegalHold> for OperationType {
+    fn from(op: &'static PutObjectLegalHold) -> Self {
+        Self::PutObjectLegalHold(op)
+    }
+}
+
+impl From<&'static PutObjectLockConfiguration> for OperationType {
+    fn from(op: &'static PutObjectLockConfiguration) -> Self {
+        Self::PutObjectLockConfiguration(op)
+    }
+}
+
+impl From<&'static PutObjectRetention> for OperationType {
+    fn from(op: &'static PutObjectRetention) -> Self {
+        Self::PutObjectRetention(op)
+    }
+}
+
+impl From<&'static PutObjectTagging> for OperationType {
+    fn from(op: &'static PutObjectTagging) -> Self {
+        Self::PutObjectTagging(op)
+    }
+}
+
+impl From<&'static PutPublicAccessBlock> for OperationType {
+    fn from(op: &'static PutPublicAccessBlock) -> Self {
+        Self::PutPublicAccessBlock(op)
+    }
+}
+
+impl From<&'static RestoreObject> for OperationType {
+    fn from(op: &'static RestoreObject) -> Self {
+        Self::RestoreObject(op)
+    }
+}
+
+impl From<&'static SelectObjectContent> for OperationType {
+    fn from(op: &'static SelectObjectContent) -> Self {
+        Self::SelectObjectContent(op)
+    }
+}
+
+impl From<&'static UploadPart> for OperationType {
+    fn from(op: &'static UploadPart) -> Self {
+        Self::UploadPart(op)
+    }
+}
+
+impl From<&'static UploadPartCopy> for OperationType {
+    fn from(op: &'static UploadPartCopy) -> Self {
+        Self::UploadPartCopy(op)
+    }
+}
+
+impl From<&'static WriteGetObjectResponse> for OperationType {
+    fn from(op: &'static WriteGetObjectResponse) -> Self {
+        Self::WriteGetObjectResponse(op)
+    }
+}
+
+pub fn resolve_route(req: &http::Request, s3_path: &S3Path, qs: Option<&http::OrderedQs>) -> S3Result<(OperationType, bool)> {
     match req.method {
         hyper::Method::HEAD => match s3_path {
             S3Path::Root => Err(super::unknown_operation()),
-            S3Path::Bucket { .. } => Ok((&HeadBucket as &'static dyn super::Operation, false)),
-            S3Path::Object { .. } => Ok((&HeadObject as &'static dyn super::Operation, false)),
+            S3Path::Bucket { .. } => Ok((OperationType::from(&HeadBucket), false)),
+            S3Path::Object { .. } => Ok((OperationType::from(&HeadObject), false)),
         },
         hyper::Method::GET => match s3_path {
-            S3Path::Root => Ok((&ListBuckets as &'static dyn super::Operation, false)),
+            S3Path::Root => Ok((OperationType::from(&ListBuckets), false)),
             S3Path::Bucket { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("analytics") {
-                        return Ok((&GetBucketAnalyticsConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketAnalyticsConfiguration), false));
                     }
                     if qs.has("intelligent-tiering") {
-                        return Ok((&GetBucketIntelligentTieringConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketIntelligentTieringConfiguration), false));
                     }
                     if qs.has("inventory") {
-                        return Ok((&GetBucketInventoryConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketInventoryConfiguration), false));
                     }
                     if qs.has("metrics") {
-                        return Ok((&GetBucketMetricsConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketMetricsConfiguration), false));
                     }
                     if qs.has("accelerate") {
-                        return Ok((&GetBucketAccelerateConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketAccelerateConfiguration), false));
                     }
                     if qs.has("acl") {
-                        return Ok((&GetBucketAcl as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketAcl), false));
                     }
                     if qs.has("cors") {
-                        return Ok((&GetBucketCors as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketCors), false));
                     }
                     if qs.has("encryption") {
-                        return Ok((&GetBucketEncryption as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketEncryption), false));
                     }
                     if qs.has("lifecycle") {
-                        return Ok((&GetBucketLifecycleConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketLifecycleConfiguration), false));
                     }
                     if qs.has("location") {
-                        return Ok((&GetBucketLocation as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketLocation), false));
                     }
                     if qs.has("logging") {
-                        return Ok((&GetBucketLogging as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketLogging), false));
                     }
                     if qs.has("notification") {
-                        return Ok((&GetBucketNotificationConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketNotificationConfiguration), false));
                     }
                     if qs.has("ownershipControls") {
-                        return Ok((&GetBucketOwnershipControls as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketOwnershipControls), false));
                     }
                     if qs.has("policy") {
-                        return Ok((&GetBucketPolicy as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketPolicy), false));
                     }
                     if qs.has("policyStatus") {
-                        return Ok((&GetBucketPolicyStatus as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketPolicyStatus), false));
                     }
                     if qs.has("replication") {
-                        return Ok((&GetBucketReplication as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketReplication), false));
                     }
                     if qs.has("requestPayment") {
-                        return Ok((&GetBucketRequestPayment as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketRequestPayment), false));
                     }
                     if qs.has("tagging") {
-                        return Ok((&GetBucketTagging as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketTagging), false));
                     }
                     if qs.has("versioning") {
-                        return Ok((&GetBucketVersioning as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketVersioning), false));
                     }
                     if qs.has("website") {
-                        return Ok((&GetBucketWebsite as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetBucketWebsite), false));
                     }
                     if qs.has("object-lock") {
-                        return Ok((&GetObjectLockConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectLockConfiguration), false));
                     }
                     if qs.has("publicAccessBlock") {
-                        return Ok((&GetPublicAccessBlock as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetPublicAccessBlock), false));
                     }
                     if qs.has("analytics") {
-                        return Ok((&ListBucketAnalyticsConfigurations as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListBucketAnalyticsConfigurations), false));
                     }
                     if qs.has("intelligent-tiering") {
-                        return Ok((&ListBucketIntelligentTieringConfigurations as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListBucketIntelligentTieringConfigurations), false));
                     }
                     if qs.has("inventory") {
-                        return Ok((&ListBucketInventoryConfigurations as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListBucketInventoryConfigurations), false));
                     }
                     if qs.has("metrics") {
-                        return Ok((&ListBucketMetricsConfigurations as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListBucketMetricsConfigurations), false));
                     }
                     if qs.has("uploads") {
-                        return Ok((&ListMultipartUploads as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListMultipartUploads), false));
                     }
                     if qs.has("versions") {
-                        return Ok((&ListObjectVersions as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListObjectVersions), false));
                     }
                     if super::check_query_pattern(qs, "list-type", "2") {
-                        return Ok((&ListObjectsV2 as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListObjectsV2), false));
                     }
                 }
-                Ok((&ListObjects as &'static dyn super::Operation, false))
+                Ok((OperationType::from(&ListObjects), false))
             }
             S3Path::Object { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("attributes") {
-                        return Ok((&GetObjectAttributes as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectAttributes), false));
                     }
                     if qs.has("acl") {
-                        return Ok((&GetObjectAcl as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectAcl), false));
                     }
                     if qs.has("legal-hold") {
-                        return Ok((&GetObjectLegalHold as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectLegalHold), false));
                     }
                     if qs.has("retention") {
-                        return Ok((&GetObjectRetention as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectRetention), false));
                     }
                     if qs.has("tagging") {
-                        return Ok((&GetObjectTagging as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectTagging), false));
                     }
                     if qs.has("torrent") {
-                        return Ok((&GetObjectTorrent as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&GetObjectTorrent), false));
                     }
                 }
                 if let Some(qs) = qs {
                     if qs.has("uploadId") {
-                        return Ok((&ListParts as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&ListParts), false));
                     }
                 }
-                Ok((&GetObject as &'static dyn super::Operation, false))
+                Ok((OperationType::from(&GetObject), false))
             }
         },
         hyper::Method::POST => match s3_path {
@@ -6216,29 +10015,29 @@ pub fn resolve_route(
             S3Path::Bucket { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("delete") {
-                        return Ok((&DeleteObjects as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&DeleteObjects), true));
                     }
                 }
                 if req.headers.contains_key("x-amz-request-route") && req.headers.contains_key("x-amz-request-token") {
-                    return Ok((&WriteGetObjectResponse as &'static dyn super::Operation, false));
+                    return Ok((OperationType::from(&WriteGetObjectResponse), false));
                 }
                 Err(super::unknown_operation())
             }
             S3Path::Object { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("select") && super::check_query_pattern(qs, "select-type", "2") {
-                        return Ok((&SelectObjectContent as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&SelectObjectContent), true));
                     }
                     if qs.has("uploads") {
-                        return Ok((&CreateMultipartUpload as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&CreateMultipartUpload), false));
                     }
                     if qs.has("restore") {
-                        return Ok((&RestoreObject as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&RestoreObject), true));
                     }
                 }
                 if let Some(qs) = qs {
                     if qs.has("uploadId") {
-                        return Ok((&CompleteMultipartUpload as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&CompleteMultipartUpload), true));
                     }
                 }
                 Err(super::unknown_operation())
@@ -6249,97 +10048,97 @@ pub fn resolve_route(
             S3Path::Bucket { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("analytics") {
-                        return Ok((&PutBucketAnalyticsConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketAnalyticsConfiguration), true));
                     }
                     if qs.has("intelligent-tiering") {
-                        return Ok((&PutBucketIntelligentTieringConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketIntelligentTieringConfiguration), true));
                     }
                     if qs.has("inventory") {
-                        return Ok((&PutBucketInventoryConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketInventoryConfiguration), true));
                     }
                     if qs.has("metrics") {
-                        return Ok((&PutBucketMetricsConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketMetricsConfiguration), true));
                     }
                     if qs.has("accelerate") {
-                        return Ok((&PutBucketAccelerateConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketAccelerateConfiguration), true));
                     }
                     if qs.has("acl") {
-                        return Ok((&PutBucketAcl as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketAcl), true));
                     }
                     if qs.has("cors") {
-                        return Ok((&PutBucketCors as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketCors), true));
                     }
                     if qs.has("encryption") {
-                        return Ok((&PutBucketEncryption as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketEncryption), true));
                     }
                     if qs.has("lifecycle") {
-                        return Ok((&PutBucketLifecycleConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketLifecycleConfiguration), true));
                     }
                     if qs.has("logging") {
-                        return Ok((&PutBucketLogging as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketLogging), true));
                     }
                     if qs.has("notification") {
-                        return Ok((&PutBucketNotificationConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketNotificationConfiguration), true));
                     }
                     if qs.has("ownershipControls") {
-                        return Ok((&PutBucketOwnershipControls as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketOwnershipControls), true));
                     }
                     if qs.has("policy") {
-                        return Ok((&PutBucketPolicy as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketPolicy), true));
                     }
                     if qs.has("replication") {
-                        return Ok((&PutBucketReplication as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketReplication), true));
                     }
                     if qs.has("requestPayment") {
-                        return Ok((&PutBucketRequestPayment as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketRequestPayment), true));
                     }
                     if qs.has("tagging") {
-                        return Ok((&PutBucketTagging as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketTagging), true));
                     }
                     if qs.has("versioning") {
-                        return Ok((&PutBucketVersioning as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketVersioning), true));
                     }
                     if qs.has("website") {
-                        return Ok((&PutBucketWebsite as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutBucketWebsite), true));
                     }
                     if qs.has("object-lock") {
-                        return Ok((&PutObjectLockConfiguration as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutObjectLockConfiguration), true));
                     }
                     if qs.has("publicAccessBlock") {
-                        return Ok((&PutPublicAccessBlock as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutPublicAccessBlock), true));
                     }
                 }
-                Ok((&CreateBucket as &'static dyn super::Operation, true))
+                Ok((OperationType::from(&CreateBucket), true))
             }
             S3Path::Object { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("acl") {
-                        return Ok((&PutObjectAcl as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutObjectAcl), true));
                     }
                     if qs.has("legal-hold") {
-                        return Ok((&PutObjectLegalHold as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutObjectLegalHold), true));
                     }
                     if qs.has("retention") {
-                        return Ok((&PutObjectRetention as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutObjectRetention), true));
                     }
                     if qs.has("tagging") {
-                        return Ok((&PutObjectTagging as &'static dyn super::Operation, true));
+                        return Ok((OperationType::from(&PutObjectTagging), true));
                     }
                 }
                 if let Some(qs) = qs {
                     if qs.has("uploadId") && req.headers.contains_key("x-amz-copy-source") {
-                        return Ok((&UploadPartCopy as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&UploadPartCopy), false));
                     }
                 }
                 if let Some(qs) = qs {
                     if qs.has("uploadId") {
-                        return Ok((&UploadPart as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&UploadPart), false));
                     }
                 }
                 if req.headers.contains_key("x-amz-copy-source") {
-                    return Ok((&CopyObject as &'static dyn super::Operation, false));
+                    return Ok((OperationType::from(&CopyObject), false));
                 }
-                Ok((&PutObject as &'static dyn super::Operation, false))
+                Ok((OperationType::from(&PutObject), false))
             }
         },
         hyper::Method::DELETE => match s3_path {
@@ -6347,59 +10146,59 @@ pub fn resolve_route(
             S3Path::Bucket { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("analytics") {
-                        return Ok((&DeleteBucketAnalyticsConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketAnalyticsConfiguration), false));
                     }
                     if qs.has("intelligent-tiering") {
-                        return Ok((&DeleteBucketIntelligentTieringConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketIntelligentTieringConfiguration), false));
                     }
                     if qs.has("inventory") {
-                        return Ok((&DeleteBucketInventoryConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketInventoryConfiguration), false));
                     }
                     if qs.has("metrics") {
-                        return Ok((&DeleteBucketMetricsConfiguration as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketMetricsConfiguration), false));
                     }
                     if qs.has("cors") {
-                        return Ok((&DeleteBucketCors as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketCors), false));
                     }
                     if qs.has("encryption") {
-                        return Ok((&DeleteBucketEncryption as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketEncryption), false));
                     }
                     if qs.has("lifecycle") {
-                        return Ok((&DeleteBucketLifecycle as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketLifecycle), false));
                     }
                     if qs.has("ownershipControls") {
-                        return Ok((&DeleteBucketOwnershipControls as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketOwnershipControls), false));
                     }
                     if qs.has("policy") {
-                        return Ok((&DeleteBucketPolicy as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketPolicy), false));
                     }
                     if qs.has("replication") {
-                        return Ok((&DeleteBucketReplication as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketReplication), false));
                     }
                     if qs.has("tagging") {
-                        return Ok((&DeleteBucketTagging as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketTagging), false));
                     }
                     if qs.has("website") {
-                        return Ok((&DeleteBucketWebsite as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteBucketWebsite), false));
                     }
                     if qs.has("publicAccessBlock") {
-                        return Ok((&DeletePublicAccessBlock as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeletePublicAccessBlock), false));
                     }
                 }
-                Ok((&DeleteBucket as &'static dyn super::Operation, false))
+                Ok((OperationType::from(&DeleteBucket), false))
             }
             S3Path::Object { .. } => {
                 if let Some(qs) = qs {
                     if qs.has("tagging") {
-                        return Ok((&DeleteObjectTagging as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&DeleteObjectTagging), false));
                     }
                 }
                 if let Some(qs) = qs {
                     if qs.has("uploadId") {
-                        return Ok((&AbortMultipartUpload as &'static dyn super::Operation, false));
+                        return Ok((OperationType::from(&AbortMultipartUpload), false));
                     }
                 }
-                Ok((&DeleteObject as &'static dyn super::Operation, false))
+                Ok((OperationType::from(&DeleteObject), false))
             }
         },
         _ => Err(super::unknown_operation()),

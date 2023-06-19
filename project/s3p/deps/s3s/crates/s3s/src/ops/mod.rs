@@ -44,7 +44,15 @@ pub trait Operation: Send + Sync + 'static {
     fn as_any(&self) -> &dyn std::any::Any;
 }
 
-fn build_s3_request<T>(input: T, req: &mut Request) -> S3Request<T> {
+#[async_trait::async_trait]
+pub trait TypedOperation: Send + Sync + 'static {
+    type Input;
+    type Output;
+
+    async fn call(&self, s3: &Arc<dyn S3>, req: S3Request<Self::Input>) -> S3Result<crate::S3Response<Self::Output>>;
+}
+
+pub fn build_s3_request<T>(input: T, req: &mut Request) -> S3Request<T> {
     let credentials = req.s3ext.credentials.take();
     let extensions = mem::take(&mut req.extensions);
     let headers = mem::take(&mut req.headers);
@@ -56,6 +64,17 @@ fn build_s3_request<T>(input: T, req: &mut Request) -> S3Request<T> {
         extensions,
         headers,
         uri,
+    }
+}
+
+impl TryInto<Response> for S3Error {
+    type Error = S3Error;
+
+    fn try_into(self) -> S3Result<Response> {
+        let status = self.status_code().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let mut res = Response::with_status(status);
+        http::set_xml_body(&mut res, &self)?;
+        Ok(res)
     }
 }
 
@@ -193,11 +212,7 @@ pub async fn call(
     Ok(resp)
 }
 
-pub async fn prepare(
-    req: &mut Request,
-    auth: Option<&dyn S3Auth>,
-    base_domain: Option<&str>,
-) -> S3Result<&'static dyn Operation> {
+pub async fn prepare(req: &mut Request, auth: Option<&dyn S3Auth>, base_domain: Option<&str>) -> S3Result<OperationType> {
     let s3_path;
     let mut content_length;
     {
@@ -283,7 +298,7 @@ pub async fn prepare(
                         let vec_bytes = aggregate_unlimited(file_stream).await.map_err(S3Error::internal_error)?;
                         let vec_stream = VecByteStream::new(vec_bytes);
                         req.s3ext.vec_stream = Some(vec_stream);
-                        break 'resolve (&PutObject as &'static dyn Operation, false);
+                        break 'resolve (OperationType::from(&PutObject), false);
                     }
                     // FIXME: POST /bucket/key hits this branch
                     S3Path::Object { .. } => return Err(s3_error!(MethodNotAllowed)),
