@@ -95,6 +95,7 @@ mod tests {
             todo!()
         }
     }
+
     impl Client for StubClient {
         fn send(&self, _request: Request) -> impl Future<Output = Result<Response>> + Send {
             async { todo!() }

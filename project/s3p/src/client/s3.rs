@@ -6,9 +6,12 @@ use std::{
     task::Poll,
 };
 
-use crate::req::{
-    s3::{S3Operation, S3RequestExt},
-    Request, Response, S3Extension,
+use crate::{
+    config::{ClientConfig, S3ClientConfig},
+    req::{
+        s3::{S3Operation, S3RequestExt},
+        Request, Response, S3Extension,
+    },
 };
 use aws_credential_types::{provider::SharedCredentialsProvider, Credentials};
 use aws_sdk_s3::config::Region;
@@ -41,7 +44,7 @@ impl<'a> S3ClientBuilder<'a> {
         Self::default()
     }
 
-    pub fn endpoint_url(self, endpoint_url: impl Into<&'a str>) -> Self {
+    pub fn endpoint_url(self, endpoint_url: &'a str) -> Self {
         let mut this = self;
         this.endpoint_url = Some(endpoint_url.into());
         this
@@ -111,6 +114,21 @@ impl<'a> S3ClientBuilder<'a> {
         };
 
         Ok(S3Client::from_config(config))
+    }
+}
+
+impl From<&S3ClientConfig> for S3Client {
+    fn from(value: &S3ClientConfig) -> Self {
+        let mut builder = Self::builder()
+            .force_path_style(value.force_path_style)
+            .endpoint_url(&value.endpoint_url);
+
+        if let Some(creds) = &value.credentials {
+            builder = builder.credentials_from_single(&creds.access_key_id, &creds.secret_key);
+        }
+
+        // Unwrap should be safe. build() only fail if endpoint_url was not set, which will alwas be set here.
+        builder.build().unwrap()
     }
 }
 

@@ -25,7 +25,7 @@ use std::{fs::File, path::Path, time::Duration};
 
 use clap::Parser;
 use client::s3::S3Client;
-use middleware::{CacheLayer, Chain, Identity, MiddlewareBuilder};
+use middleware::{CacheLayer, Chain, Identity, MiddlewareUtil};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 use s3s::auth::SimpleAuth;
@@ -113,7 +113,7 @@ async fn main() -> Result<()> {
         CacheLayer::new(4192, Duration::from_secs(10), None),
         Identity,
     );*/
-    let middleware = MiddlewareBuilder::from_config(&config.middlewares);
+    let middleware = MiddlewareUtil::from_config(&config.middlewares);
 
     let client = S3Client::builder()
         .endpoint_url(endpoint_url.as_str())

@@ -31,6 +31,7 @@ pub(crate) fn generate(file: impl AsRef<Path>) -> Result<()> {
     // Add client credentials to show config format
     match config.client {
         ClientType::S3(ref mut c) => c.credentials = Some(S3Credentials::default()),
+        _ => unimplemented!(),
     }
 
     let mut f = File::create(file.as_path())
@@ -269,6 +270,7 @@ pub struct ClientConfig {}
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientType {
     S3(S3ClientConfig),
+    Stub,
 }
 
 impl Default for ClientType {

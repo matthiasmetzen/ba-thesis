@@ -21,9 +21,9 @@ pub trait Layer: Send + Sync {
     fn unsubscribe(&mut self) {}
 }
 
-pub struct MiddlewareBuilder;
+pub struct MiddlewareUtil;
 
-impl MiddlewareBuilder {
+impl MiddlewareUtil {
     pub fn from_config(config: &Vec<MiddlewareType>) -> impl Layer {
         let mut chain = DynChain::new(Box::new(Identity), Box::new(Identity));
 
