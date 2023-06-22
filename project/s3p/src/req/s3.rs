@@ -4,6 +4,8 @@ use std::cell::OnceCell;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::ops::Deref;
+use std::ops::DerefMut;
 use std::pin::Pin;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -16,6 +18,7 @@ use parking_lot::Mutex;
 use s3s::auth::Credentials;
 use s3s::dto::SplitMetadata;
 use s3s::http::{Multipart, OrderedQs};
+use s3s::ops::Operation;
 use s3s::ops::TypedOperation;
 use s3s::path::S3Path;
 use s3s::stream::ByteStream;
@@ -24,43 +27,6 @@ use s3s::Body;
 
 use super::Response;
 use super::{HttpExtension, Request};
-
-pub(crate) struct Operation(pub &'static dyn s3s::ops::Operation);
-
-#[allow(unused)]
-impl Operation {
-    pub fn try_as_ref<T: s3s::ops::Operation>(&self) -> Result<&T> {
-        let op = self.0.as_any().downcast_ref::<T>();
-
-        op.ok_or_else(|| {
-            miette!("Could not downcast ref").context(format!(
-                "Expected T to be type {}, but got {}",
-                std::any::type_name::<T>(),
-                self.0.name()
-            ))
-        })
-    }
-
-    pub fn is_type<T: s3s::ops::Operation>(&self) -> bool {
-        self.0.as_any().type_id() == std::any::TypeId::of::<T>()
-    }
-
-    pub fn inner_type_id(&self) -> TypeId {
-        self.0.as_any().type_id()
-    }
-}
-
-impl std::fmt::Debug for Operation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(self.0.name()).finish()
-    }
-}
-
-impl From<&'static dyn s3s::ops::Operation> for Operation {
-    fn from(value: &'static dyn s3s::ops::Operation) -> Self {
-        Self(value)
-    }
-}
 
 #[derive(Default)]
 pub struct S3Extension {
@@ -73,6 +39,7 @@ pub struct S3Extension {
     pub credentials: Option<Credentials>,
     pub(crate) op: Option<s3s::ops::OperationType>, // TODO: can be non-optional
     //pub(crate) input: Mutex<Option<Pin<Arc<dyn Any + Send + Sync>>>>,
+    // FIXME: Cow<'static, ..> might be better
     pub(crate) data: OnceLock<Arc<dyn Any + Send + Sync>>,
 }
 
@@ -186,25 +153,7 @@ pub(crate) trait S3RequestExt {
         Op: s3s::ops::TypedOperation,
         Op::Input: for<'a> TryFrom<&'a mut s3s::http::Request> + Send + Sync + 'static;*/
 
-    fn try_get_input<Op>(
-        &self,
-    ) -> Option<Arc<<<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>>
-    where
-        Op: TypedOperation,
-        Op::Input: for<'a> TryFrom<&'a mut s3s::http::Request>
-            + Send
-            + Sync
-            + s3s::dto::SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta: Send + Sync,
-        Op::Output: for<'a> TryInto<s3s::http::Response>
-            + Send
-            + Sync
-            + s3s::dto::SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta: Send + Sync;
+    fn try_get_input<Op: S3Operation>(&self) -> Option<Arc<Op::InputMeta>>;
 }
 
 impl S3RequestExt for Request {
@@ -235,26 +184,7 @@ impl S3RequestExt for Request {
         })
     }
 
-    fn try_get_input<Op>(
-        &self,
-    ) -> Option<Arc<<<Op as TypedOperation>::Input as SplitMetadata>::Meta>>
-    where
-        Op: TypedOperation,
-        Op::Input: for<'a> TryFrom<&'a mut s3s::http::Request>
-            + Send
-            + Sync
-            + SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Input as SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Input as SplitMetadata>::Meta: Send + Sync,
-        Op::Output: for<'a> TryInto<s3s::http::Response>
-            + Send
-            + Sync
-            + SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Output as SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Output as SplitMetadata>::Meta: Send + Sync,
-    {
+    fn try_get_input<Op: S3Operation>(&self) -> Option<Arc<Op::InputMeta>> {
         let s3_ext = self.extensions.get::<S3Extension>()?;
 
         let val = s3_ext
@@ -267,40 +197,18 @@ impl S3RequestExt for Request {
             })
             .ok()?;
 
-        Some(
-            val.clone()
-                .downcast::<<<Op as TypedOperation>::Input as SplitMetadata>::Meta>()
-                .ok()?,
-        )
+        Some(val.clone().downcast::<Op::InputMeta>().ok()?)
     }
 }
 
 pub(crate) trait S3ResponseExt {
-    fn as_s3_response(&self) -> s3s::http::Response;
+    fn as_s3s_response(&self) -> s3s::http::Response;
 
-    fn try_get_output<Op>(
-        &self,
-    ) -> Option<Arc<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>>
-    where
-        Op: TypedOperation,
-        Op::Input: for<'a> TryFrom<&'a mut s3s::http::Request>
-            + Send
-            + Sync
-            + s3s::dto::SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta: Send + Sync,
-        Op::Output: for<'a> TryInto<s3s::http::Response>
-            + Send
-            + Sync
-            + s3s::dto::SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta: Send + Sync;
+    fn try_get_output<Op: S3Operation>(&self) -> Option<Arc<Op::OutputMeta>>;
 }
 
 impl S3ResponseExt for Response {
-    fn as_s3_response(&self) -> s3s::http::Response {
+    fn as_s3s_response(&self) -> s3s::http::Response {
         s3s::http::Response {
             status: self.status.clone(),
             headers: self.headers.clone(),
@@ -309,35 +217,94 @@ impl S3ResponseExt for Response {
         }
     }
 
-    fn try_get_output<Op>(
-        &self,
-    ) -> Option<Arc<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>>
-    where
-        Op: TypedOperation,
-        Op::Input: for<'a> TryFrom<&'a mut s3s::http::Request>
-            + Send
-            + Sync
-            + s3s::dto::SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta: Send + Sync,
-        Op::Output: for<'a> TryInto<s3s::http::Response>
-            + Send
-            + Sync
-            + s3s::dto::SplitMetadata
-            + 'static
-            + From<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>,
-        <<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta: Send + Sync,
-    {
+    fn try_get_output<Op: S3Operation>(&self) -> Option<Arc<Op::OutputMeta>> {
         let s3_ext = self.extensions.get::<S3Extension>()?;
 
         let val = s3_ext.data.get()?;
 
-        Some(
-            val.clone()
-                .downcast::<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>()
-                .ok()?,
-        )
+        Some(val.clone().downcast::<Op::OutputMeta>().ok()?)
+    }
+}
+
+pub trait S3Operation:
+    TypedOperation<
+        Input: s3s::dto::SplitMetadata<Meta: Send + Sync>
+                   + Send
+                   + Sync
+                   + From<<<Self as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>
+                   + for<'a> TryFrom<&'a mut s3s::http::Request>,
+        Output: s3s::dto::SplitMetadata<Meta: Send + Sync>
+                    + Send
+                    + Sync
+                    + From<<<Self as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>
+                    + for<'a> TryInto<s3s::http::Response>,
+    > + Operation
+{
+    type InputMeta: Send + Sync + Clone + From<Self::Input> + Into<<Self as TypedOperation>::Input> =
+        <Self::Input as s3s::dto::SplitMetadata>::Meta where Self::Input: From<<Self::Input as s3s::dto::SplitMetadata>::Meta>;
+    type OutputMeta: Send + Sync + Clone + From<Self::Output> + Into<Self::Output> =
+        <Self::Output as s3s::dto::SplitMetadata>::Meta where Self::Output: From<<Self::Output as s3s::dto::SplitMetadata>::Meta>;
+}
+
+impl<Op> S3Operation for Op where
+    Op: TypedOperation<
+            Input: s3s::dto::SplitMetadata<Meta: Send + Sync>
+                       + Send
+                       + Sync
+                       + From<<<Self as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>
+                       + for<'a> TryFrom<&'a mut s3s::http::Request>,
+            Output: s3s::dto::SplitMetadata<Meta: Send + Sync>
+                        + Send
+                        + Sync
+                        + From<<<Self as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>
+                        + for<'a> TryInto<s3s::http::Response>,
+        > + Operation
+{
+}
+
+pub struct S3Response<'a, Op: S3Operation> {
+    response: &'a mut Response,
+    pub metadata: std::sync::Arc<Op::OutputMeta>,
+    _op: std::marker::PhantomData<Op>,
+}
+
+impl<'a, Op: S3Operation> S3Response<'a, Op> {
+    #[allow(unused)]
+    pub fn into_inner(self) -> &'a mut Response {
+        self.response
+    }
+}
+
+impl<'a, Op: S3Operation> TryFrom<&'a mut Response> for S3Response<'a, Op> {
+    type Error = miette::Error;
+
+    fn try_from(resp: &'a mut Response) -> Result<Self, Self::Error> {
+        let output = resp.try_get_output::<Op>().ok_or_else(|| {
+            miette!(
+                "No response data found for operation {}",
+                std::any::type_name::<Op>()
+            )
+        })?;
+
+        Ok(Self {
+            response: resp,
+            metadata: output,
+            _op: std::marker::PhantomData,
+        })
+    }
+}
+
+impl<Op: S3Operation> Deref for S3Response<'_, Op> {
+    type Target = Response;
+
+    fn deref(&self) -> &Self::Target {
+        self.response
+    }
+}
+
+impl<Op: S3Operation> DerefMut for S3Response<'_, Op> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.response
     }
 }
 
@@ -353,33 +320,5 @@ mod tests {
     #[ctor]
     fn prepare() {
         let _ = crate::try_init_tracing();
-    }
-
-    #[test]
-    fn try_cast_op_succ() -> Result<()> {
-        let op = Box::new(s3s::ops::GetObject);
-        // lazy way to make 'static ref
-        let op_ref: &dyn s3s::ops::Operation = Box::leak(op);
-
-        let wrapped = Operation::from(op_ref);
-
-        let _r: &s3s::ops::GetObject = wrapped.try_as_ref()?;
-
-        Ok(())
-    }
-
-    #[test]
-    fn try_cast_op_fail() -> Result<()> {
-        let op = Box::new(s3s::ops::GetObject);
-        // lazy way to make 'static ref
-        let op_ref: &dyn s3s::ops::Operation = Box::leak(op);
-
-        let wrapped = Operation::from(op_ref);
-
-        let r: Result<&s3s::ops::PutObject, _> = wrapped.try_as_ref();
-
-        assert!(r.is_err());
-
-        Ok(())
     }
 }

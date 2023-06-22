@@ -6,7 +6,10 @@ use std::{
     task::Poll,
 };
 
-use crate::req::{s3::S3RequestExt, Request, Response, S3Extension};
+use crate::req::{
+    s3::{S3Operation, S3RequestExt},
+    Request, Response, S3Extension,
+};
 use aws_credential_types::{provider::SharedCredentialsProvider, Credentials};
 use aws_sdk_s3::config::Region;
 use futures::Future;
@@ -16,7 +19,6 @@ use tower::Service;
 use s3s::{
     dto::SplitMetadata,
     ops::{self, OperationType},
-    ops::{Operation, TypedOperation},
     S3,
 };
 
@@ -172,24 +174,7 @@ impl Service<Request> for S3Client {
     }
 }
 
-impl<Op: s3s::ops::TypedOperation + s3s::ops::Operation> Service<(Request, &'static Op)>
-    for S3Client
-where
-    Op::Input: for<'a> TryFrom<&'a mut s3s::http::Request>
-        + Send
-        + Sync
-        + s3s::dto::SplitMetadata
-        + 'static
-        + From<<<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>,
-    <<Op as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta: Send + Sync,
-    Op::Output: for<'a> TryInto<s3s::http::Response>
-        + Send
-        + Sync
-        + s3s::dto::SplitMetadata
-        + 'static
-        + From<<<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>,
-    <<Op as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta: Send + Sync,
-{
+impl<Op: S3Operation> Service<(Request, &'static Op)> for S3Client {
     type Response = Response;
 
     type Error = Error;
@@ -223,7 +208,9 @@ where
             let req = {
                 let mut req: s3s::http::Request = req.try_into()?;
 
-                let input: Op::Input = input.deref().clone().into();
+                let input: Op::InputMeta = input.as_ref().clone();
+
+                let input: Op::Input = input.into();
 
                 s3s::ops::build_s3_request(input, &mut req)
             };
