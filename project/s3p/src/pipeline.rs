@@ -33,7 +33,8 @@ where
     }
 
     #[allow(unused)]
-    pub async fn run(self) -> Result<impl Server> {
+    pub async fn run(mut self) -> Result<impl Server> {
+        // TODO: make cap configurable
         let (mut tx, rx) = broadcast(256);
         let rx = rx.deactivate();
 
@@ -115,7 +116,7 @@ mod tests {
             Ok(StubServer)
         }
 
-        fn broadcast(self, _tx: &BroadcastSend) -> Self {
+        fn broadcast(&mut self, _tx: &BroadcastSend) -> &mut Self {
             self
         }
     }

@@ -270,7 +270,6 @@ pub struct ClientConfig {}
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientType {
     S3(S3ClientConfig),
-    Stub,
 }
 
 impl Default for ClientType {

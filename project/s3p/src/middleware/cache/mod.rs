@@ -222,23 +222,8 @@ pub struct CacheLayer {
     rx_abort: Option<AbortHandle>,
 }
 
-impl CacheLayer {
-    pub fn new(
-        capacity: u64,
-        ttl: impl Into<Option<Duration>>,
-        tti: impl Into<Option<Duration>>,
-    ) -> Self {
-        let config = CacheMiddlewareConfig {
-            cache_size: capacity,
-            ttl: ttl.into().map(|d: Duration| d.as_millis() as u64),
-            tti: tti.into().map(|d: Duration| d.as_millis() as u64),
-            ..Default::default()
-        };
-
-        Self::from_config(config)
-    }
-
-    pub fn from_config(config: CacheMiddlewareConfig) -> Self {
+impl From<CacheMiddlewareConfig> for CacheLayer {
+    fn from(config: CacheMiddlewareConfig) -> Self {
         let lut = Arc::new(RwLock::new(MultiIndexETagEntryMap::default()));
 
         let mut cache = Cache::builder()
@@ -268,9 +253,32 @@ impl CacheLayer {
         Self {
             cache: Arc::new(cache.build()),
             lut,
-            config,
+            config: config,
             rx_abort: None,
         }
+    }
+}
+
+impl From<&CacheMiddlewareConfig> for CacheLayer {
+    fn from(config: &CacheMiddlewareConfig) -> Self {
+        Self::from(config.clone())
+    }
+}
+
+impl CacheLayer {
+    pub fn new(
+        capacity: u64,
+        ttl: impl Into<Option<Duration>>,
+        tti: impl Into<Option<Duration>>,
+    ) -> Self {
+        let config = CacheMiddlewareConfig {
+            cache_size: capacity,
+            ttl: ttl.into().map(|d: Duration| d.as_millis() as u64),
+            tti: tti.into().map(|d: Duration| d.as_millis() as u64),
+            ..Default::default()
+        };
+
+        Self::from(config)
     }
 
     pub fn get_cached_response(&self, key: &Key) -> Result<Response> {

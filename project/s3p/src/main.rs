@@ -24,12 +24,12 @@ mod webhook;
 use std::{fs::File, path::Path, time::Duration};
 
 use clap::Parser;
-use client::s3::S3Client;
-use middleware::{CacheLayer, Chain, Identity, MiddlewareUtil};
+use client::{s3::S3Client, ClientDelegate};
+use middleware::{CacheLayer, Chain, DynChain, Identity};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 use s3s::auth::SimpleAuth;
-use server::{S3ServerBuilder, Server, ServerUtil};
+use server::{S3ServerBuilder, Server, ServerDelegate};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, util::TryInitError, EnvFilter};
 
 #[tokio::main]
@@ -69,7 +69,7 @@ async fn main() -> Result<()> {
     }
     .unwrap_or_default();
 
-    let host = std::env::var("S3_HOST").unwrap_or("localhost".to_string());
+    /*let host = std::env::var("S3_HOST").unwrap_or("localhost".to_string());
     let port: u16 = match std::env::var("S3_PORT") {
         Ok(p) => p.parse().into_diagnostic().wrap_err("invalid port")?,
         Err(_) => 4356,
@@ -105,21 +105,18 @@ async fn main() -> Result<()> {
             .wrap_err("Failed to parse S3_VALIDATE_CREDENTIALS")
             .with_context(|| format!("Expected bool, got {}", f))?,
         Err(_) => false,
-    };
+    };*/
 
-    let server = ServerUtil::from_config(config.server);
+    let server = ServerDelegate::from(&config.server);
 
     /*let middleware = Chain::new(
         CacheLayer::new(4192, Duration::from_secs(10), None),
         Identity,
     );*/
-    let middleware = MiddlewareUtil::from_config(&config.middlewares);
+    let middleware = DynChain::from(&config.middlewares);
 
-    let client = S3Client::builder()
-        .endpoint_url(endpoint_url.as_str())
-        .credentials_from_single(access_key_id.as_str(), secret_access_key.as_str())
-        .force_path_style(force_path_style)
-        .build()?;
+    let client = ClientDelegate::from(&config.client);
+
     let p = Pipeline::new(server, middleware, client);
     let server = p.run().await?;
 

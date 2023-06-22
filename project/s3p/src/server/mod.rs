@@ -13,7 +13,7 @@ pub mod s3;
 pub use s3::S3ServerBuilder;
 
 pub trait ServerBuilder {
-    fn broadcast(self, tx: &BroadcastSend) -> Self;
+    fn broadcast(&mut self, tx: &BroadcastSend) -> &mut Self;
     fn serve(&self, handler: impl Handler) -> Result<impl Server>;
 }
 
@@ -53,27 +53,30 @@ where
     }
 }
 
-pub struct ServerUtil;
+pub enum ServerDelegate {
+    S3(S3ServerBuilder),
+}
 
-impl ServerUtil {
-    pub fn from_config(config: ServerType) -> impl ServerBuilder {
+impl From<&ServerType> for ServerDelegate {
+    fn from(config: &ServerType) -> Self {
         match config {
-            ServerType::S3(c) => {
-                let mut builder = S3ServerBuilder::new(c.host, c.port);
+            ServerType::S3(c) => Self::S3(S3ServerBuilder::from(c)),
+        }
+    }
+}
 
-                if c.validate_credentials && c.credentials.is_some() {
-                    let creds = c.credentials.unwrap();
+impl ServerBuilder for ServerDelegate {
+    fn broadcast(&mut self, tx: &BroadcastSend) -> &mut Self {
+        match self {
+            Self::S3(s) => s.broadcast(tx),
+        };
 
-                    builder = builder.auth(Some(SimpleAuth::from_single(
-                        creds.access_key_id.as_str(),
-                        creds.secret_key.as_str(),
-                    )));
-                }
+        self
+    }
 
-                builder = builder.base_domain(c.base_domain);
-
-                builder
-            }
+    fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
+        match self {
+            Self::S3(s) => s.serve(handler),
         }
     }
 }

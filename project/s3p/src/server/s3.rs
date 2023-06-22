@@ -1,12 +1,13 @@
 use super::{Handler, Server, ServerBuilder};
 use crate::{
+    config::S3ServerConfig,
     req::{Request, S3Extension},
     webhook::{s3::S3WebhookServerBuilder, BroadcastSend, WebhookServer, WebhookServerBuilder},
 };
 use futures::{future::BoxFuture, FutureExt};
 use hyper::service::{make_service_fn, service_fn};
 use miette::{miette, Result};
-use s3s::auth::S3Auth;
+use s3s::auth::{S3Auth, SimpleAuth};
 
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -59,10 +60,9 @@ impl S3ServerBuilder {
 }
 
 impl ServerBuilder for S3ServerBuilder {
-    fn broadcast(self, tx: &BroadcastSend) -> Self {
-        let mut this = self;
-        this.broadcast_tx = Some(tx.clone());
-        this
+    fn broadcast(&mut self, tx: &BroadcastSend) -> &mut Self {
+        self.broadcast_tx = Some(tx.clone());
+        self
     }
 
     fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
@@ -162,6 +162,25 @@ impl ServerBuilder for S3ServerBuilder {
         };
 
         Ok(srv)
+    }
+}
+
+impl From<&S3ServerConfig> for S3ServerBuilder {
+    fn from(config: &S3ServerConfig) -> Self {
+        let mut builder = S3ServerBuilder::new(config.host.clone(), config.port);
+
+        if config.validate_credentials && config.credentials.is_some() {
+            let creds = config.credentials.as_ref().unwrap();
+
+            builder = builder.auth(Some(SimpleAuth::from_single(
+                creds.access_key_id.as_str(),
+                creds.secret_key.as_str(),
+            )));
+        }
+
+        builder = builder.base_domain(config.base_domain.clone());
+
+        builder
     }
 }
 

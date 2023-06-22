@@ -21,15 +21,13 @@ pub trait Layer: Send + Sync {
     fn unsubscribe(&mut self) {}
 }
 
-pub struct MiddlewareUtil;
-
-impl MiddlewareUtil {
-    pub fn from_config(config: &Vec<MiddlewareType>) -> impl Layer {
+impl From<&Vec<MiddlewareType>> for DynChain {
+    fn from(config: &Vec<MiddlewareType>) -> Self {
         let mut chain = DynChain::new(Box::new(Identity), Box::new(Identity));
 
         for t in config {
             let layer: Box<dyn Layer> = match t {
-                MiddlewareType::Cache(c) => Box::new(CacheLayer::from_config(c.clone())),
+                MiddlewareType::Cache(c) => Box::new(CacheLayer::from(c)),
                 MiddlewareType::Identity => Box::new(Identity),
             };
 

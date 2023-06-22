@@ -42,32 +42,24 @@ where
 
 pub struct ClientUtil;
 
-impl ClientUtil {
-    pub fn from_config(config: &ClientType) -> impl Client {
+impl ClientUtil {}
+
+pub enum ClientDelegate {
+    S3(S3Client),
+}
+
+impl From<&ClientType> for ClientDelegate {
+    fn from(config: &ClientType) -> Self {
         match config {
-            ClientType::S3(c) => ClientImpl::S3(S3Client::from(c)),
-            ClientType::Stub => ClientImpl::Stub(StubClient),
+            ClientType::S3(c) => ClientDelegate::S3(S3Client::from(c)),
         }
     }
 }
 
-enum ClientImpl {
-    S3(S3Client),
-    Stub(StubClient),
-}
-
-impl Client for ClientImpl {
+impl Client for ClientDelegate {
     fn send(&self, request: Request) -> impl Future<Output = Result<Response>> + Send {
         match &self {
             Self::S3(c) => c.send(request).boxed(),
-            Self::Stub(c) => c.send(request).boxed(),
         }
-    }
-}
-
-pub struct StubClient;
-impl Client for StubClient {
-    fn send(&self, request: Request) -> impl Future<Output = Result<Response>> + Send {
-        futures::future::ready(Err(miette::miette!("Foo")))
     }
 }
