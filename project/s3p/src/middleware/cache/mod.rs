@@ -5,7 +5,12 @@ use std::{
 
 use super::*;
 use crate::{
-    req::{s3::S3RequestExt, s3::S3ResponseExt, *},
+    config::CacheMiddlewareConfig,
+    req::{
+        s3::{S3Operation, S3RequestExt},
+        s3::{S3Response, S3ResponseExt},
+        *,
+    },
     webhook::{
         event_types::{LifecycleExpirationEvent, ObjectCreatedEvent, S3EventType},
         BroadcastRecv, ReceiverExt, WebhookEvent,
@@ -26,8 +31,8 @@ use s3s::{
         GetObjectOutput, GetObjectOutputMeta, HeadBucketOutput, HeadObjectOutput,
         ListBucketsOutput, ListObjectsOutput, ListObjectsV2Output, SplitMetadata, StreamingBlob,
     },
-    ops,
     ops::OperationType,
+    ops::{self, TypedOperation},
     Body,
 };
 use tokio::task::AbortHandle;
@@ -44,7 +49,6 @@ type ETag = String;
 struct CachedResponse {
     ttl: Option<Duration>,
     tti: Option<Duration>,
-    status_code: StatusCode,
     updated_at: Instant,
     data: CacheData,
 }
@@ -54,8 +58,6 @@ enum Either<L, R> {
     Left(L),
     Right(R),
 }
-
-type GetObjectOutputW = (HeadObjectOutput, Bytes);
 
 #[derive(Debug, Clone)]
 enum CacheData {
@@ -77,24 +79,17 @@ impl TryFrom<CachedResponse> for Response {
                     let body = s3s::http::Body::from(bytes);
                     output.set_data(Some(body.into()));
 
-                    debug!("{:#?}", output);
+                    // TODO: proper headers
+                    output.cache_control.get_or_insert("no-cache".to_string());
 
                     let res: s3s::http::Response = output
                         .try_into()
                         .into_diagnostic()
                         .wrap_err("Failed to cast to response")?;
-
-                    debug!("Constructed s3s::http::Response");
                     res
                 };
 
-                // TODO: proper headers
-                let mut resp: Response = resp.into();
-
-                resp.headers.append(
-                    "cache-control",
-                    HeaderValue::from_str("no-cache").into_diagnostic()?,
-                );
+                let resp: Response = resp.into();
 
                 Ok(resp)
             }
@@ -135,63 +130,6 @@ impl TryFrom<CachedResponse> for Response {
 }
 
 impl CachedResponse {
-    async fn new(resp: &mut Response) -> Result<Self> {
-        let s3_ext = resp
-            .extensions
-            .get::<S3Extension>()
-            .ok_or_else(|| miette!("Result is missing S3 Extension"))?;
-        let op = s3_ext
-            .op
-            .as_ref()
-            .ok_or_else(|| miette!("Operation type not set"))?;
-
-        return match op {
-            OperationType::GetObject(_op) => {
-                let output = resp
-                    .try_get_output::<ops::GetObject>()
-                    .ok_or_else(|| miette!("Missing response metadata"))?;
-                let mut body = std::mem::take(&mut resp.body);
-                let bytes = body.store_all_unlimited().await.ok();
-
-                Ok(Self {
-                    status_code: resp.status,
-                    ttl: Default::default(),
-                    tti: Default::default(),
-                    updated_at: Instant::now(),
-                    data: CacheData::GetObject(output.deref().clone(), bytes.unwrap()),
-                })
-            }
-            _ => unimplemented!(),
-        };
-
-        /*resp.body = match bytes.clone() {
-            Some(b) => Body::from(b),
-            None => Body::default(),
-        };
-
-        let etag = resp
-            .headers
-            .get("ETag")
-            .and_then(|header| header.to_str().ok())
-            .map(|s| s.to_string());
-
-        Self {
-            status_code: resp.status,
-            ttl: Default::default(),
-            tti: Default::default(),
-            updated_at: Instant::now(),
-            data: CacheData::Object(Object {
-                etag,
-                last_modified: Instant::now(),
-                bucket_owner: Owner {
-                    id: "".into(),
-                    display_name: "".into(),
-                },
-                bytes,
-            }),
-        }*/
-    }
-
     fn time_to_live(self, ttl: impl Into<Option<Duration>>) -> Self {
         let mut this = self;
         this.ttl = ttl.into();
@@ -206,10 +144,29 @@ impl CachedResponse {
 
     fn len(&self) -> usize {
         // +8 for size of status code + padding
-        if let CacheData::GetObject(obj, bytes) = &self.data {
-            return bytes.len();
+        match &self.data {
+            CacheData::GetObject(_, bytes) => bytes.len(),
+            _ => 1,
         }
-        return 1;
+    }
+}
+
+trait AsyncFrom<T>: Sized {
+    async fn async_from(value: T) -> Self;
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::GetObject>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::GetObject>) -> Self {
+        let mut body = std::mem::take(&mut resp.body);
+        // TODO: limit cachable body size
+        let bytes = body.store_all_unlimited().await.ok();
+
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: Instant::now(),
+            data: CacheData::GetObject(resp.metadata.as_ref().clone(), bytes.unwrap()),
+        }
     }
 }
 
@@ -249,8 +206,6 @@ impl Expiry<Key, Data> for PerItemExpiration {
     }
 }
 
-pub struct CacheLayerConfig;
-
 #[derive(MultiIndexMap, Clone, Debug)]
 pub struct ETagEntry {
     #[multi_index(hashed_unique)]
@@ -262,7 +217,7 @@ pub struct ETagEntry {
 pub struct CacheLayer {
     cache: Arc<Cache<Key, Data>>,
     lut: Arc<RwLock<MultiIndexETagEntryMap>>,
-    config: CacheLayerConfig,
+    config: CacheMiddlewareConfig,
     rx_abort: Option<AbortHandle>,
 }
 
@@ -272,10 +227,21 @@ impl CacheLayer {
         ttl: impl Into<Option<Duration>>,
         tti: impl Into<Option<Duration>>,
     ) -> Self {
+        let config = CacheMiddlewareConfig {
+            cache_size: capacity,
+            ttl: ttl.into().map(|d: Duration| d.as_millis() as u64),
+            tti: tti.into().map(|d: Duration| d.as_millis() as u64),
+            ..Default::default()
+        };
+
+        Self::from_config(config)
+    }
+
+    pub fn from_config(config: CacheMiddlewareConfig) -> Self {
         let lut = Arc::new(RwLock::new(MultiIndexETagEntryMap::default()));
 
         let mut cache = Cache::builder()
-            .max_capacity(capacity)
+            .max_capacity(config.cache_size)
             .weigher(|_k: &Key, v: &CachedResponse| -> u32 {
                 v.len().try_into().unwrap_or(u32::MAX)
             })
@@ -290,18 +256,18 @@ impl CacheLayer {
             })
         };
 
-        if let Some(ttl) = ttl.into() {
+        if let Some(ttl) = config.ttl.map(|d| Duration::from_millis(d)) {
             cache = cache.time_to_live(ttl)
         }
 
-        if let Some(tti) = tti.into() {
+        if let Some(tti) = config.tti.map(|d| Duration::from_millis(d)) {
             cache = cache.time_to_live(tti)
         }
 
         Self {
             cache: Arc::new(cache.build()),
             lut,
-            config: CacheLayerConfig,
+            config,
             rx_abort: None,
         }
     }
@@ -373,7 +339,7 @@ impl CacheLogic for CacheLayer {
     fn make_cache_intent(
         &self,
         request: &Request,
-        config: &CacheLayerConfig,
+        config: &CacheMiddlewareConfig,
     ) -> Option<CacheIntent> {
         if let Some(s3ext) = request.extensions.get::<S3Extension>() {
             return s3ext.make_cache_intent(request, config);
@@ -385,8 +351,9 @@ impl CacheLogic for CacheLayer {
 
 #[async_trait::async_trait]
 impl Layer for CacheLayer {
-    async fn call(&self, req: Request, next: impl NextLayer) -> Result<Response> {
+    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response> {
         let Some(intent) = self.make_cache_intent(&req, &self.config) else {
+            // Request is not cacheable
             return next.call(req).await;
         };
 
@@ -398,25 +365,37 @@ impl Layer for CacheLayer {
 
         let mut resp = next.call(req).await?;
 
-        // TODO: move and expand this check
-        if resp.status == StatusCode::OK {
-            let cr = CachedResponse::new(&mut resp)
-                .await
-                .wrap_err("Failed to construct cached response")?
+        if let Some(s3_ext) = resp.extensions.get::<S3Extension>() {
+            let Some(op) = s3_ext.op.as_ref() else {
+                return Err(miette!("Missing s3 operation"));
+            };
+
+            let cr = match op {
+                OperationType::GetObject(_) => {
+                    let mut resp: S3Response<ops::GetObject> = S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
+
+                    // TODO: Is this even needed anymore?
+                    if let Some(etag) = &resp.metadata.e_tag {
+                        let ee = ETagEntry {
+                            key: key.clone(),
+                            etag: etag.clone(),
+                        };
+                        let mut lut = self.lut.write();
+                        lut.remove_by_key(&ee.key);
+                        lut.insert(ee);
+                    }
+
+                    cr
+                }
+                _ => unimplemented!(),
+            };
+
+            let cr = cr
                 .time_to_live(intent.ttl.map(Duration::from_millis))
                 .time_to_idle(intent.tti.map(Duration::from_millis));
 
-            let ee = ETagEntry {
-                key: key.clone(),
-                etag: resp
-                    .headers
-                    .get("ETag")
-                    .map_or_else(|| key.clone(), |h| h.to_str().unwrap().to_string()),
-            };
             self.cache.insert(key, cr).await;
-            let mut lut = self.lut.write();
-            lut.remove_by_key(&ee.key);
-            lut.insert(ee);
         }
 
         Ok(resp)
