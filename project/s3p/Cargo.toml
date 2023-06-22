@@ -23,6 +23,10 @@ multi_index_map = "0.5.0"
 parking_lot = { version = "0.12", features = ["send_guard"] }
 # modified from: https://github.com/Nugine/s3s/tree/e8bba54/crates/s3s
 s3s = { version = "0.6.1-dev", path = "./deps/s3s/crates/s3s" }
+schematic = { version = "0.9.4", default-features = false, features = [
+    "toml",
+    "valid_url",
+] }
 # modified from: https://github.com/Nugine/s3s/tree/e8bba54/crates/s3s-aws
 s3s-aws = { version = "0.6.1-dev", path = "./deps/s3s/crates/s3s-aws" }
 serde = "1.0"
@@ -31,6 +35,7 @@ strum = "0.24"
 strum_macros = "0.24"
 thiserror = "1.0"
 tokio = { version = "1.27", features = ["full"] }
+toml = "0.7"
 tower = { version = "0.4", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = [
@@ -44,3 +49,4 @@ rustc-hash = { version = "1.1" }
 
 [dev-dependencies]
 ctor = "0.2"
+tempfile = "3.6.0"

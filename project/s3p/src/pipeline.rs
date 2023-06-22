@@ -22,7 +22,7 @@ impl<S, M, C> Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
     M: Layer + Send + Sync,
-    C: Client + Send + Sync,
+    C: Client + Send + Sync + 'static,
 {
     pub fn new(server: S, middleware: M, client: C) -> Self {
         Self {

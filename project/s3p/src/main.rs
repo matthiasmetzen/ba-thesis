@@ -10,22 +10,26 @@
 #![feature(type_name_of_val)]
 #![feature(once_cell_try)]
 #![feature(result_option_inspect)]
+#![feature(associated_type_bounds)]
 
+mod cli;
 mod client;
+mod config;
 mod middleware;
 mod pipeline;
 mod req;
 mod server;
 mod webhook;
 
-use std::time::Duration;
+use std::{fs::File, path::Path, time::Duration};
 
+use clap::Parser;
 use client::s3::S3Client;
-use middleware::{CacheLayer, Chain, Identity};
+use middleware::{CacheLayer, Chain, Identity, MiddlewareBuilder};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 use s3s::auth::SimpleAuth;
-use server::{S3ServerBuilder, Server};
+use server::{S3ServerBuilder, Server, ServerUtil};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, util::TryInitError, EnvFilter};
 
 #[tokio::main]
@@ -35,6 +39,35 @@ async fn main() -> Result<()> {
     dotenvy::dotenv()
         .into_diagnostic()
         .wrap_err("Loading environment failed")?;
+
+    let args = cli::CliArgs::parse();
+
+    let config = if let Some(file) = args.config.config_file {
+        match (
+            file.exists(),
+            args.config.generate_if_missing,
+            args.config.regenerate,
+        ) {
+            (_, _, true) => {
+                if file.is_file() {
+                    std::fs::remove_file(file.as_path())
+                        .into_diagnostic()
+                        .wrap_err_with(|| format!("Could not delete file {:?}", file))?;
+                }
+                config::generate(file.as_path())?;
+                Some(config::load(file.as_path())?)
+            }
+            (true, _, _) => Some(config::load(file)?),
+            (false, true, _) => {
+                config::generate(file.as_path())?;
+                Some(config::load(file.as_path())?)
+            }
+            _ => None,
+        }
+    } else {
+        None
+    }
+    .unwrap_or_default();
 
     let host = std::env::var("S3_HOST").unwrap_or("localhost".to_string());
     let port: u16 = match std::env::var("S3_PORT") {
@@ -74,25 +107,20 @@ async fn main() -> Result<()> {
         Err(_) => false,
     };
 
-    let mut s3 = S3ServerBuilder::new(host, port).base_domain(base_domain);
+    let server = ServerUtil::from_config(config.server);
 
-    if validate_credentials {
-        s3 = s3.auth(Some(SimpleAuth::from_single(
-            access_key_id.as_str(),
-            secret_access_key.as_str(),
-        )));
-    }
-
-    let middleware = Chain::new(
+    /*let middleware = Chain::new(
         CacheLayer::new(4192, Duration::from_secs(10), None),
         Identity,
-    );
+    );*/
+    let middleware = MiddlewareBuilder::from_config(&config.middlewares);
+
     let client = S3Client::builder()
         .endpoint_url(endpoint_url.as_str())
         .credentials_from_single(access_key_id.as_str(), secret_access_key.as_str())
         .force_path_style(force_path_style)
         .build()?;
-    let p = Pipeline::new(s3, middleware, client);
+    let p = Pipeline::new(server, middleware, client);
     let server = p.run().await?;
 
     tokio::signal::ctrl_c()

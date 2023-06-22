@@ -1,7 +1,16 @@
+use std::ops::{Deref, DerefMut};
+
 use http::{Extensions, HeaderMap, HeaderValue, StatusCode};
 use hyper::body::Bytes;
-use miette::Report;
-use s3s::Body;
+use miette::{miette, Report};
+use s3s::{
+    ops::{Operation, TypedOperation},
+    Body,
+};
+
+use crate::req::S3Extension;
+
+use super::s3::S3ResponseExt;
 
 #[derive(Debug, Default)]
 pub struct Response {

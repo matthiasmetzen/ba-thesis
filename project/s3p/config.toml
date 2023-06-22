@@ -1,0 +1,41 @@
+logLevel = "critical"
+
+[server]
+type = "s3"
+host = "127.0.0.1"
+port = 4356
+validateCredentials = true
+
+[[middlewares]]
+type = "cache"
+cacheSize = 500000
+
+[middlewares.ops.GetObject]
+enabled = true
+
+[middlewares.ops.HeadObject]
+enabled = true
+
+[middlewares.ops.ListObjects]
+enabled = true
+
+[middlewares.ops.ListObjectVersions]
+enabled = true
+
+[middlewares.ops.HeadBucket]
+enabled = true
+
+[middlewares.ops.ListBuckets]
+enabled = true
+
+[[middlewares]]
+type = "identity"
+
+[client]
+type = "s3"
+endpointUrl = "http://localhost:9000"
+forcePathStyle = false
+
+[client.credentials]
+accessKeyId = ""
+secretKey = ""

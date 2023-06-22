@@ -1,5 +1,7 @@
 use miette::Result;
+use s3s::auth::SimpleAuth;
 
+use crate::config::ServerType;
 use crate::req::{Request, Response};
 use crate::webhook::BroadcastSend;
 
@@ -48,5 +50,30 @@ where
 
     fn handle(&self, msg: Req) -> Self::Future {
         self.deref().handle(msg)
+    }
+}
+
+pub struct ServerUtil;
+
+impl ServerUtil {
+    pub fn from_config(config: ServerType) -> impl ServerBuilder {
+        match config {
+            ServerType::S3(c) => {
+                let mut builder = S3ServerBuilder::new(c.host, c.port);
+
+                if c.validate_credentials && c.credentials.is_some() {
+                    let creds = c.credentials.unwrap();
+
+                    builder = builder.auth(Some(SimpleAuth::from_single(
+                        creds.access_key_id.as_str(),
+                        creds.secret_key.as_str(),
+                    )));
+                }
+
+                builder = builder.base_domain(c.base_domain);
+
+                builder
+            }
+        }
     }
 }
