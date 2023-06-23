@@ -52,16 +52,14 @@ impl CacheLogic for ops::GetObject {
             return None;
         }
 
-        let key = format!(
-            "op={}, {}:{}:{}",
-            self.name(),
-            des.bucket,
-            des.key,
-            des.version_id.as_ref().unwrap_or(&"".to_string())
-        );
+        let key_data = KeyData::Object {
+            bucket: des.bucket.as_str(),
+            object: des.key.as_str(),
+            version_id: des.version_id.as_ref().map(|s| s.as_str()).unwrap_or(""),
+        };
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )
@@ -85,15 +83,14 @@ impl CacheLogic for ops::HeadObject {
             return None;
         }
 
-        let key = format!(
-            "op={}, {}, {}",
-            self.name(),
-            des.bucket,
-            des.version_id.as_deref().unwrap_or_default()
-        );
+        let key_data = KeyData::Object {
+            bucket: des.bucket.as_str(),
+            object: des.key.as_str(),
+            version_id: des.version_id.as_ref().map(|s| s.as_str()).unwrap_or(""),
+        };
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )
@@ -117,10 +114,14 @@ impl CacheLogic for ops::ListObjects {
             return None;
         }
 
-        let key = format!("op={}, {}", self.name(), des.bucket);
+        let key_data = KeyData::ObjectList {
+            bucket: des.bucket.as_str(),
+            prefix: des.prefix.as_deref(),
+            delim: des.delimiter.as_deref(),
+        };
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )
@@ -147,15 +148,14 @@ impl CacheLogic for ops::ListObjectsV2 {
             return None;
         }
 
-        let key = format!(
-            "op={}, {}, {}",
-            self.name(),
-            des.bucket,
-            des.prefix.as_deref().unwrap_or_default()
-        );
+        let key_data = KeyData::ObjectList {
+            bucket: des.bucket.as_str(),
+            prefix: des.prefix.as_deref(),
+            delim: None,
+        };
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )
@@ -180,16 +180,14 @@ impl CacheLogic for ops::ListObjectVersions {
             return None;
         }
 
-        let key = format!(
-            "op={}, {}, {}, {}",
-            self.name(),
-            des.bucket,
-            des.prefix.as_deref().unwrap_or_default(),
-            des.delimiter.as_deref().unwrap_or_default()
-        );
+        let key_data = KeyData::ObjectVersionList {
+            bucket: des.bucket.as_str(),
+            prefix: des.prefix.as_deref(),
+            delim: des.delimiter.as_deref(),
+        };
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )
@@ -213,10 +211,12 @@ impl CacheLogic for ops::HeadBucket {
             return None;
         }
 
-        let key = format!("op={}, {}", self.name(), des.bucket);
+        let key_data = KeyData::Bucket {
+            bucket: des.bucket.as_str(),
+        };
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )
@@ -234,10 +234,10 @@ impl CacheLogic for ops::ListBuckets {
             return None;
         }
 
-        let key = format!("op={}", self.name());
+        let key_data = KeyData::BucketList;
 
         Some(
-            CacheIntent::new(key)
+            CacheIntent::new(key_data.as_key())
                 .time_to_live(op_config.ttl)
                 .time_to_idle(op_config.tti),
         )

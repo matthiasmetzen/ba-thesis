@@ -12,7 +12,10 @@ use crate::{
         *,
     },
     webhook::{
-        event_types::{LifecycleExpirationEvent, ObjectCreatedEvent, S3EventType},
+        event_types::{
+            LifecycleExpirationEvent, ObjectCreatedEvent, ObjectRemovedEvent, ObjectRestoreEvent,
+            S3EventType,
+        },
         BroadcastRecv, ReceiverExt, WebhookEvent,
     },
 };
@@ -71,7 +74,6 @@ enum CacheData {
 impl TryFrom<CachedResponse> for Response {
     type Error = miette::Report;
 
-    #[tracing::instrument]
     fn try_from(value: CachedResponse) -> Result<Self> {
         match value.data {
             CacheData::GetObject(meta, bytes) => {
@@ -80,7 +82,7 @@ impl TryFrom<CachedResponse> for Response {
                     let body = s3s::http::Body::from(bytes);
                     output.set_data(Some(body.into()));
 
-                    // TODO: proper headers
+                    // TODO: proper headers, http cache semantics
                     output.cache_control.get_or_insert("no-cache".to_string());
 
                     let res: s3s::http::Response = output
@@ -253,7 +255,7 @@ impl From<CacheMiddlewareConfig> for CacheLayer {
         Self {
             cache: Arc::new(cache.build()),
             lut,
-            config: config,
+            config,
             rx_abort: None,
         }
     }
@@ -266,6 +268,7 @@ impl From<&CacheMiddlewareConfig> for CacheLayer {
 }
 
 impl CacheLayer {
+    #[allow(unused)]
     pub fn new(
         capacity: u64,
         ttl: impl Into<Option<Duration>>,
@@ -320,27 +323,143 @@ impl CacheLayer {
                     for record in event.records {
                         debug!("{:?}", record);
                         match record.event_type {
+                            /*
+                                TODOs:
+                                    - refetch when possible
+                                    - delete ListObject caches matching updated prefixes
+                            */
                             S3EventType::ObjectCreated(ev) => match ev {
-                                ObjectCreatedEvent::Post => {
-                                    // Existing object was updated
-                                    let key = format!(
-                                        "op=GetObject, {}, {}, {}",
-                                        record.s3.bucket.name, record.s3.object.key, ""
-                                    );
-                                    cache.invalidate(key.as_str());
+                                ObjectCreatedEvent::Any
+                                | ObjectCreatedEvent::CompleteMultipartUpload
+                                | ObjectCreatedEvent::Copy
+                                | ObjectCreatedEvent::Put => {
+                                    let key_data = KeyData::Object {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
                                 }
-                                _ => continue,
+                                ObjectCreatedEvent::Post => {
+                                    //Existing object was updated. Refetch possible
+                                    let key_data = KeyData::Object {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+
+                                    //TODO: fetch updated
+                                }
+                                _ => unimplemented!(),
                             },
-                            S3EventType::ObjectRemoved(_) => {}
+                            S3EventType::ObjectRemoved(ev) => match ev {
+                                ObjectRemovedEvent::Any | ObjectRemovedEvent::Delete => {
+                                    let key_data = KeyData::Object {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+                                }
+                                _ => unimplemented!(),
+                            },
                             S3EventType::LifecycleExpiration(ev) => match ev {
-                                LifecycleExpirationEvent::Delete => {}
-                                _ => continue,
+                                LifecycleExpirationEvent::Delete => {
+                                    let key_data = KeyData::Object {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+                                }
+                                _ => unimplemented!(),
                             },
-                            _ => continue,
+                            S3EventType::ObjectRestore(ev) => match ev {
+                                ObjectRestoreEvent::Any
+                                | ObjectRestoreEvent::Completed
+                                | ObjectRestoreEvent::Delete
+                                | ObjectRestoreEvent::Post => {
+                                    let key_data = KeyData::Object {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+                                }
+                            },
+                            _ => unimplemented!(),
                         }
                     }
                 }
             })
+    }
+}
+
+enum KeyData<'a> {
+    Object {
+        bucket: &'a str,
+        object: &'a str,
+        version_id: &'a str,
+    },
+    ObjectList {
+        bucket: &'a str,
+        prefix: Option<&'a str>,
+        delim: Option<&'a str>,
+    },
+    ObjectVersionList {
+        bucket: &'a str,
+        prefix: Option<&'a str>,
+        delim: Option<&'a str>,
+    },
+    Bucket {
+        bucket: &'a str,
+    },
+    BucketList,
+}
+
+impl From<&KeyData<'_>> for Key {
+    fn from(value: &KeyData<'_>) -> Self {
+        match value {
+            KeyData::Object {
+                bucket,
+                object,
+                version_id,
+            } => format!("Object {}, {}, {}", bucket, object, version_id),
+            KeyData::ObjectList {
+                bucket,
+                prefix,
+                delim,
+            } => format!(
+                "ObjectList {}, {}, {}",
+                bucket,
+                prefix.unwrap_or_default(),
+                delim.unwrap_or_default()
+            ),
+            KeyData::ObjectVersionList {
+                bucket,
+                prefix,
+                delim,
+            } => format!(
+                "ObjectVersionList {}, {}, {}",
+                bucket,
+                prefix.unwrap_or_default(),
+                delim.unwrap_or_default()
+            ),
+            KeyData::Bucket { bucket } => format!("Bucket {}", bucket),
+            KeyData::BucketList => "BucketList".into(),
+        }
+    }
+}
+
+impl KeyData<'_> {
+    fn as_key(&self) -> Key {
+        self.into()
     }
 }
 
