@@ -135,7 +135,7 @@ impl<T: std::str::FromStr<Err = strum::ParseError>> ParseEnumExt for T {
     fn from_opt_str(name: Option<&str>) -> Result<Self, TypeParseError> {
         let name = name.ok_or(TypeParseError::MissingVariant)?;
 
-        Self::from_str(name).map_err(|e| TypeParseError::from(e))
+        Self::from_str(name).map_err(TypeParseError::from)
     }
 }
 

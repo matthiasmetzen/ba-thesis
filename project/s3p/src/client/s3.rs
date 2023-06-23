@@ -1,13 +1,12 @@
 use std::{
     any::Any,
-    ops::Deref,
     pin::Pin,
-    sync::{Arc, OnceLock},
+    sync::{Arc},
     task::Poll,
 };
 
 use crate::{
-    config::{ClientConfig, S3ClientConfig},
+    config::{S3ClientConfig},
     req::{
         s3::{S3Operation, S3RequestExt},
         Request, Response, S3Extension,
@@ -16,12 +15,12 @@ use crate::{
 use aws_credential_types::{provider::SharedCredentialsProvider, Credentials};
 use aws_sdk_s3::config::Region;
 use futures::Future;
-use miette::{miette, Error, IntoDiagnostic, Result};
+use miette::{miette, Error, Result};
 use tower::Service;
 
 use s3s::{
     dto::SplitMetadata,
-    ops::{self, OperationType},
+    ops::{OperationType},
     S3,
 };
 
@@ -46,7 +45,7 @@ impl<'a> S3ClientBuilder<'a> {
 
     pub fn endpoint_url(self, endpoint_url: &'a str) -> Self {
         let mut this = self;
-        this.endpoint_url = Some(endpoint_url.into());
+        this.endpoint_url = Some(endpoint_url);
         this
     }
 
@@ -266,8 +265,7 @@ impl Client for S3Client {
         let op = req
             .extensions
             .get::<S3Extension>()
-            .map(|ext| ext.op.clone())
-            .flatten();
+            .and_then(|ext| ext.op.clone());
 
         if op.is_none() {
             return client.call(req);

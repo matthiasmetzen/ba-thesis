@@ -132,7 +132,7 @@ impl ServerBuilder for S3ServerBuilder {
 
         let webhook = match broadcast.as_ref() {
             Some(tx) => {
-                Some(S3WebhookServerBuilder::new(self.host.clone(), self.port + 1).serve(&tx)?)
+                Some(S3WebhookServerBuilder::new(self.host.clone(), self.port + 1).serve(tx)?)
             }
             None => None,
         };

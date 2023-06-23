@@ -1,7 +1,7 @@
 use super::*;
 use crate::req::s3::S3RequestExt;
 
-use s3s::ops::Operation;
+
 use s3s::ops::{self, OperationType};
 
 pub trait CacheLogic {
@@ -55,7 +55,7 @@ impl CacheLogic for ops::GetObject {
         let key_data = KeyData::Object {
             bucket: des.bucket.as_str(),
             object: des.key.as_str(),
-            version_id: des.version_id.as_ref().map(|s| s.as_str()).unwrap_or(""),
+            version_id: des.version_id.as_deref().unwrap_or(""),
         };
 
         Some(
@@ -86,7 +86,7 @@ impl CacheLogic for ops::HeadObject {
         let key_data = KeyData::Object {
             bucket: des.bucket.as_str(),
             object: des.key.as_str(),
-            version_id: des.version_id.as_ref().map(|s| s.as_str()).unwrap_or(""),
+            version_id: des.version_id.as_deref().unwrap_or(""),
         };
 
         Some(

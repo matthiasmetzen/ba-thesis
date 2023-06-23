@@ -6,11 +6,7 @@ use std::{
 use super::*;
 use crate::{
     config::CacheMiddlewareConfig,
-    req::{
-        s3::{S3Operation, S3RequestExt},
-        s3::{S3Response, S3ResponseExt},
-        *,
-    },
+    req::{s3::S3Response, *},
     webhook::{
         event_types::{
             LifecycleExpirationEvent, ObjectCreatedEvent, ObjectRemovedEvent, ObjectRestoreEvent,
@@ -22,7 +18,7 @@ use crate::{
 
 use async_broadcast::RecvError;
 use futures::{StreamExt, TryStreamExt};
-use http::{HeaderMap, HeaderValue, StatusCode};
+
 use hyper::body::Bytes;
 use miette::{miette, Context, IntoDiagnostic};
 use moka::future::Cache;
@@ -32,14 +28,13 @@ use parking_lot::RwLock;
 use s3s::{
     dto::{
         GetObjectOutput, GetObjectOutputMeta, HeadBucketOutput, HeadObjectOutput,
-        ListBucketsOutput, ListObjectsOutput, ListObjectsV2Output, SplitMetadata, StreamingBlob,
+        ListBucketsOutput, ListObjectsOutput, ListObjectsV2Output, SplitMetadata,
     },
+    ops,
     ops::OperationType,
-    ops::{self, TypedOperation},
-    Body,
 };
 use tokio::task::AbortHandle;
-use tracing::{debug, error, warn};
+use tracing::{debug, warn};
 
 mod logic;
 pub use logic::*;
@@ -244,11 +239,11 @@ impl From<CacheMiddlewareConfig> for CacheLayer {
             })
         };
 
-        if let Some(ttl) = config.ttl.map(|d| Duration::from_millis(d)) {
+        if let Some(ttl) = config.ttl.map(Duration::from_millis) {
             cache = cache.time_to_live(ttl)
         }
 
-        if let Some(tti) = config.tti.map(|d| Duration::from_millis(d)) {
+        if let Some(tti) = config.tti.map(Duration::from_millis) {
             cache = cache.time_to_live(tti)
         }
 
@@ -296,7 +291,6 @@ impl CacheLayer {
 
     fn event_handler(&self, rx: BroadcastRecv) -> impl Future<Output = ()> {
         let cache = self.cache.clone();
-        let lut = self.lut.clone();
 
         rx.recv_stream()
             .inspect_err(|e| match e {

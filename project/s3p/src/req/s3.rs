@@ -1,20 +1,20 @@
 use std::any::Any;
-use std::any::TypeId;
-use std::cell::OnceCell;
-use std::cell::Ref;
-use std::cell::RefCell;
-use std::marker::PhantomData;
+
+
+
+
+
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::pin::Pin;
-use std::ptr::NonNull;
+
+
 use std::sync::Arc;
 use std::sync::OnceLock;
 
 use http::Extensions;
 use miette::miette;
 use miette::Result;
-use parking_lot::Mutex;
+
 use s3s::auth::Credentials;
 use s3s::dto::SplitMetadata;
 use s3s::http::{Multipart, OrderedQs};
@@ -197,7 +197,7 @@ impl S3RequestExt for Request {
             })
             .ok()?;
 
-        Some(val.clone().downcast::<Op::InputMeta>().ok()?)
+        val.clone().downcast::<Op::InputMeta>().ok()
     }
 }
 
@@ -210,7 +210,7 @@ pub(crate) trait S3ResponseExt {
 impl S3ResponseExt for Response {
     fn as_s3s_response(&self) -> s3s::http::Response {
         s3s::http::Response {
-            status: self.status.clone(),
+            status: self.status,
             headers: self.headers.clone(),
             body: Body::empty(),
             extensions: Extensions::new(),
@@ -222,7 +222,7 @@ impl S3ResponseExt for Response {
 
         let val = s3_ext.data.get()?;
 
-        Some(val.clone().downcast::<Op::OutputMeta>().ok()?)
+        val.clone().downcast::<Op::OutputMeta>().ok()
     }
 }
 
@@ -313,9 +313,9 @@ mod tests {
 
     use ctor::ctor;
 
-    use miette::Result;
+    
 
-    use super::*;
+    
 
     #[ctor]
     fn prepare() {

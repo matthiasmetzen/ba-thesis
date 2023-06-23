@@ -1,5 +1,5 @@
 use miette::Result;
-use s3s::auth::SimpleAuth;
+
 
 use crate::config::ServerType;
 use crate::req::{Request, Response};

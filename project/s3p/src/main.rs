@@ -21,15 +21,15 @@ mod req;
 mod server;
 mod webhook;
 
-use std::{fs::File, path::Path, time::Duration};
+
 
 use clap::Parser;
-use client::{s3::S3Client, ClientDelegate};
-use middleware::{CacheLayer, Chain, DynChain, Identity};
+use client::{ClientDelegate};
+use middleware::{DynChain};
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
-use s3s::auth::SimpleAuth;
-use server::{S3ServerBuilder, Server, ServerDelegate};
+
+use server::{Server, ServerDelegate};
 use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, util::TryInitError, EnvFilter};
 
 #[tokio::main]

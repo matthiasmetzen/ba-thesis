@@ -1,5 +1,5 @@
 use crate::{
-    config::{ClientConfig, ClientType},
+    config::{ClientType},
     req::{Request, Response},
 };
 use futures::{Future, FutureExt};
