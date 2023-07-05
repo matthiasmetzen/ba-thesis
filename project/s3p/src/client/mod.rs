@@ -1,9 +1,10 @@
 use crate::{
-    config::{ClientType},
-    req::{Request, Response},
+    config::ClientType,
+    req::{Request, Response, SendError},
 };
 use futures::{Future, FutureExt};
 use miette::{ErrReport, Result};
+use thiserror::Error;
 use tower::Service;
 
 use self::s3::S3Client;
@@ -11,7 +12,7 @@ use self::s3::S3Client;
 pub mod s3;
 
 pub trait Client: Send + Sync {
-    fn send(&self, request: Request) -> impl Future<Output = Result<Response>> + Send;
+    fn send(&self, request: Request) -> impl Future<Output = Result<Response, SendError>> + Send;
 }
 
 /* pub trait Client:
@@ -23,26 +24,6 @@ pub trait Client: Send + Sync {
 >
 {
 } */
-
-pub trait ToOwnedClient {
-    fn to_owned_client(&self) -> Self;
-}
-
-impl<T> Client for T
-where
-    T: Service<Request, Response = Response, Error = ErrReport> + Send + Sync,
-    T::Future: Future<Output = Result<T::Response, T::Error>> + Send,
-    Self: ToOwnedClient,
-{
-    fn send(&self, request: Request) -> impl Future<Output = Result<Response>> {
-        let mut client = self.to_owned_client();
-        client.call(request)
-    }
-}
-
-pub struct ClientUtil;
-
-impl ClientUtil {}
 
 pub enum ClientDelegate {
     S3(S3Client),
@@ -57,7 +38,7 @@ impl From<&ClientType> for ClientDelegate {
 }
 
 impl Client for ClientDelegate {
-    fn send(&self, request: Request) -> impl Future<Output = Result<Response>> + Send {
+    fn send(&self, request: Request) -> impl Future<Output = Result<Response, SendError>> + Send {
         match &self {
             Self::S3(c) => c.send(request).boxed(),
         }

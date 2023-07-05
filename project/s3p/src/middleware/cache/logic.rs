@@ -1,8 +1,7 @@
 use super::*;
 use crate::req::s3::S3RequestExt;
 
-
-use s3s::ops::{self, OperationType};
+use s3s::ops::{self, Operation, OperationType};
 
 pub trait CacheLogic {
     fn make_cache_intent(
@@ -46,7 +45,10 @@ impl CacheLogic for ops::GetObject {
             return None;
         }
 
-        let des = request.try_get_input::<Self>()?;
+        let Some(des) = request.try_get_input::<Self>() else {
+            error!("Failed to get InputMeta for {}", Self.name());
+            return None;
+        };
 
         if des.range.is_some() || des.part_number.is_some() {
             return None;

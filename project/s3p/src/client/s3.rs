@@ -1,30 +1,57 @@
-use std::{
-    any::Any,
-    pin::Pin,
-    sync::{Arc},
-    task::Poll,
-};
+use std::{any::Any, pin::Pin, sync::Arc, task::Poll};
 
 use crate::{
-    config::{S3ClientConfig},
+    config::S3ClientConfig,
     req::{
         s3::{S3Operation, S3RequestExt},
-        Request, Response, S3Extension,
+        Request, Response, S3Extension, SendError,
     },
 };
 use aws_credential_types::{provider::SharedCredentialsProvider, Credentials};
 use aws_sdk_s3::config::Region;
-use futures::Future;
-use miette::{miette, Error, Result};
+use futures::{Future, TryFutureExt};
+use miette::{miette, Diagnostic, Report, Result};
+use thiserror::Error as ThisError;
 use tower::Service;
 
-use s3s::{
-    dto::SplitMetadata,
-    ops::{OperationType},
-    S3,
-};
+use s3s::{dto::SplitMetadata, ops::OperationType, S3};
+use tracing::debug;
 
 use super::Client;
+
+#[derive(ThisError, Diagnostic, Debug)]
+#[diagnostic()]
+pub enum S3Error {
+    #[error("Could not get S3 Extension from Request")]
+    MissingExt,
+    #[error("S3 Extension has no operation")]
+    MissingOp,
+    #[error("Could not construct input")]
+    InputErr(s3s::S3Error),
+    #[error("Could not construct output")]
+    OutputErr(s3s::S3Error),
+    #[error("Could not construct request")]
+    RequestErr(s3s::S3Error),
+    #[error(transparent)]
+    ResponseErr(#[from] s3s::S3Error),
+    #[error("Other")]
+    Other(miette::Report),
+}
+
+impl From<S3Error> for SendError {
+    fn from(err: S3Error) -> SendError {
+        match err {
+            S3Error::MissingExt | S3Error::MissingOp => SendError::Internal(err.into()),
+            S3Error::Other(e) => SendError::Internal(e),
+            S3Error::InputErr(ref e) | S3Error::RequestErr(ref e) => {
+                SendError::RequestErr(Response::from(e), err.into())
+            }
+            S3Error::OutputErr(ref e) | S3Error::ResponseErr(ref e) => {
+                SendError::ResponseErr(Response::from(e), err.into())
+            }
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct S3ClientBuilder<'a> {
@@ -131,10 +158,21 @@ impl From<&S3ClientConfig> for S3Client {
     }
 }
 
-pub struct S3Client(Arc<s3s_aws::Proxy>);
+pub struct S3Client {
+    inner: S3ClientInner,
+}
+
+#[derive(Clone)]
+pub struct S3ClientInner(Arc<dyn s3s::S3>);
 
 #[allow(unused)]
 impl S3Client {
+    pub fn new(client: impl s3s::S3) -> Self {
+        Self {
+            inner: S3ClientInner(Arc::new(client)),
+        }
+    }
+
     pub fn builder<'a>() -> S3ClientBuilder<'a> {
         S3ClientBuilder::new()
     }
@@ -147,16 +185,16 @@ impl S3Client {
     pub fn from_client(client: aws_sdk_s3::Client) -> Self {
         let proxy = s3s_aws::Proxy::from(client);
 
-        S3Client(Arc::new(proxy))
+        S3Client::new(proxy)
     }
 }
 
-impl Service<Request> for S3Client {
+impl Service<Request> for S3ClientInner {
     type Response = Response;
 
-    type Error = Error;
+    type Error = S3Error;
 
-    type Future = Pin<Box<dyn Future<Output = Result<Response, Error>> + Send>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(
         &mut self,
@@ -166,23 +204,21 @@ impl Service<Request> for S3Client {
     }
 
     fn call(&mut self, mut req: Request) -> Self::Future {
-        let client = self.0.clone() as Arc<dyn S3>;
+        let s3 = self.0.clone();
 
         let fut = async move {
             let s3_ext = req
                 .extensions
                 .get_mut::<S3Extension>()
-                .ok_or_else(|| miette!("Could not get S3 Extension from Request"))?;
+                .ok_or_else(|| S3Error::MissingExt)?;
 
-            let op = s3_ext.op.take().ok_or_else(|| {
-                miette!("S3 Extension has no operation").context(format!("{:#?}", s3_ext))
-            })?;
+            let op = s3_ext.op.take().ok_or_else(|| S3Error::MissingOp)?;
 
-            let mut req: s3s::http::Request = req.try_into()?;
+            let mut req: s3s::http::Request = req.try_into().map_err(|e| S3Error::Other(e))?;
             let res = op
-                .call(&client, &mut req)
+                .call(&s3, &mut req)
                 .await
-                .map_err(|err| miette!(err))?;
+                .map_err(|err| S3Error::ResponseErr(err))?;
 
             Ok(res.into())
         };
@@ -191,12 +227,12 @@ impl Service<Request> for S3Client {
     }
 }
 
-impl<Op: S3Operation> Service<(Request, &'static Op)> for S3Client {
+impl<Op: S3Operation> Service<(Request, &'static Op)> for S3ClientInner {
     type Response = Response;
 
-    type Error = Error;
+    type Error = S3Error;
 
-    type Future = Pin<Box<dyn Future<Output = Result<Response, Error>> + Send>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(
         &mut self,
@@ -206,61 +242,74 @@ impl<Op: S3Operation> Service<(Request, &'static Op)> for S3Client {
     }
 
     fn call(&mut self, (req, op): (Request, &'static Op)) -> Self::Future {
-        let client = self.0.clone() as Arc<dyn S3>;
+        let s3 = self.0.clone();
 
         let fut = async move {
-            let input = req
-                .try_get_input::<Op>()
-                .ok_or_else(|| miette!("Request missing input data"))?;
+            /*let input = req
+            .try_get_input::<Op>()
+            .ok_or_else(|| miette!("Request missing input data"))?;*/
 
             let s3_ext = {
                 let ext = req
                     .extensions
                     .get::<S3Extension>()
-                    .ok_or_else(|| miette!("Could not get S3 Extension from Request"))?;
+                    .ok_or_else(|| S3Error::MissingExt)?;
 
                 S3Extension::new_from(ext)
             };
 
             let req = {
-                let mut req: s3s::http::Request = req.try_into()?;
+                let mut req: s3s::http::Request = req.try_into().map_err(|e| S3Error::Other(e))?;
 
-                let input: Op::InputMeta = input.as_ref().clone();
-
-                let input: Op::Input = input.into();
+                // Do not use input from S3Extension to ensure body data
+                let input = Op::Input::try_from(&mut req).map_err(|e| S3Error::InputErr(e))?;
 
                 s3s::ops::build_s3_request(input, &mut req)
             };
 
-            let res = s3s::ops::TypedOperation::call(op, &client, req)
+            let res = s3s::ops::TypedOperation::call(op, &s3, req)
                 .await
-                .map_err(|err| miette!(err))?;
+                .map_err(|err| S3Error::ResponseErr(err))?;
 
             let (meta, data) = res.output.split_metadata();
             let output = Arc::new(meta.clone());
             s3_ext
                 .data
                 .set(output as Arc<dyn Any + Send + Sync + 'static>)
-                .map_err(|_| miette!("Could not set output data on response extension"))?;
+                .unwrap(); //Not shared, can not fail
 
             let mut output: Op::Output = meta.into();
             output.set_data(data);
-            let mut resp: s3s::http::Response = output
-                .try_into()
-                .map_err(|_| miette!("Failed to construct response"))?;
+            let mut resp: s3s::http::Response =
+                output.try_into().map_err(|e| S3Error::OutputErr(e))?;
 
             resp.extensions.insert(s3_ext);
 
-            Ok(resp.into())
+            let resp = Response::from(resp);
+            debug!("{:#?}", resp);
+            Ok(resp)
         };
 
         Box::pin(fut)
     }
 }
 
-impl Client for S3Client {
-    fn send(&self, req: Request) -> impl Future<Output = Result<Response>> + Send {
-        let mut client = S3Client(self.0.clone());
+impl Service<Request> for S3Client {
+    type Response = Response;
+
+    type Error = S3Error;
+
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+
+    fn poll_ready(
+        &mut self,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<std::result::Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
+
+    fn call(&mut self, req: Request) -> Self::Future {
+        let client = &mut self.inner;
 
         let op = req
             .extensions
@@ -372,11 +421,13 @@ impl Client for S3Client {
     }
 }
 
-impl ToOwned for S3Client {
-    type Owned = Self;
+impl Client for S3Client {
+    fn send(&self, req: Request) -> impl Future<Output = Result<Response, SendError>> + Send {
+        let mut this = S3Client {
+            inner: self.inner.clone(),
+        };
 
-    fn to_owned(&self) -> Self::Owned {
-        Self(self.0.clone())
+        this.call(req).map_err(S3Error::into)
     }
 }
 

@@ -21,11 +21,9 @@ mod req;
 mod server;
 mod webhook;
 
-
-
 use clap::Parser;
-use client::{ClientDelegate};
-use middleware::{DynChain};
+use client::ClientDelegate;
+use middleware::DynChain;
 use miette::{IntoDiagnostic, Result, WrapErr};
 use pipeline::Pipeline;
 

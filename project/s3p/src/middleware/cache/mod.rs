@@ -69,7 +69,7 @@ enum CacheData {
 impl TryFrom<CachedResponse> for Response {
     type Error = miette::Report;
 
-    fn try_from(value: CachedResponse) -> Result<Self> {
+    fn try_from(value: CachedResponse) -> Result<Self, Report> {
         match value.data {
             CacheData::GetObject(meta, bytes) => {
                 let resp = {
@@ -109,6 +109,11 @@ impl TryFrom<CachedResponse> for Response {
                         .into_diagnostic()
                         .wrap_err("Failed to cast to response")?,
                 };
+
+                Ok(resp.into())
+            }
+            CacheData::ListObjectVersions(lst) => {
+                let resp: s3s::http::Response = lst.try_into().into_diagnostic()?;
 
                 Ok(resp.into())
             }
@@ -473,7 +478,7 @@ impl CacheLogic for CacheLayer {
 
 #[async_trait::async_trait]
 impl Layer for CacheLayer {
-    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response> {
+    async fn call(&self, mut req: Request, next: &dyn NextLayer) -> Result<Response, SendError> {
         let Some(intent) = self.make_cache_intent(&req, &self.config) else {
             // Request is not cacheable
             return next.call(req).await;
@@ -489,7 +494,7 @@ impl Layer for CacheLayer {
 
         if let Some(s3_ext) = resp.extensions.get::<S3Extension>() {
             let Some(op) = s3_ext.op.as_ref() else {
-                return Err(miette!("Missing s3 operation"));
+                return Err(S3Error::MissingOp.into());
             };
 
             let cr = match op {
@@ -510,7 +515,10 @@ impl Layer for CacheLayer {
 
                     cr
                 }
-                _ => unimplemented!(),
+                _ => {
+                    error!("Unimplemented cached response for {}", op.name());
+                    return Ok(resp);
+                }
             };
 
             let cr = cr

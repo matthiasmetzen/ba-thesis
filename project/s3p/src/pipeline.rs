@@ -60,7 +60,7 @@ mod tests {
     use crate::{
         client::s3::S3Client,
         middleware::{Chain, Identity},
-        req::{Request, Response},
+        req::{Request, Response, SendError},
         server::{Handler, S3ServerBuilder, Server},
         webhook::BroadcastSend,
     };
@@ -98,7 +98,10 @@ mod tests {
     }
 
     impl Client for StubClient {
-        fn send(&self, _request: Request) -> impl Future<Output = Result<Response>> + Send {
+        fn send(
+            &self,
+            _request: Request,
+        ) -> impl Future<Output = Result<Response, SendError>> + Send {
             async { todo!() }
         }
     }

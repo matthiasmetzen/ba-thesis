@@ -1,9 +1,8 @@
 use crate::{
     config::MiddlewareType,
-    req::{Request, Response},
+    req::{Request, Response, SendError},
     webhook::BroadcastSend,
 };
-use miette::Result;
 
 pub mod cache;
 pub use self::cache::CacheLayer;
@@ -14,7 +13,7 @@ use std::{future::Future, sync::Arc};
 
 #[async_trait::async_trait]
 pub trait Layer: Send + Sync {
-    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response>;
+    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response, SendError>;
 
     fn subscribe(&mut self, _tx: &BroadcastSend) {}
 
@@ -55,7 +54,7 @@ impl DynChain {
 
 #[async_trait::async_trait]
 impl Layer for DynChain {
-    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response> {
+    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response, SendError> {
         let then = |req| self.next.call(req, next);
         self.current.call(req, &then).await
     }
@@ -91,16 +90,16 @@ impl<C: Layer, N: Layer> Chain<C, N> {
 
 #[async_trait::async_trait]
 pub trait NextLayer: Send + Sync {
-    async fn call(&self, req: Request) -> Result<Response>;
+    async fn call(&self, req: Request) -> Result<Response, SendError>;
 }
 
 #[async_trait::async_trait]
 impl<Fun, Fut> NextLayer for Fun
 where
     Fun: Fn(Request) -> Fut + Send + Sync,
-    Fut: Future<Output = Result<Response>> + Send,
+    Fut: Future<Output = Result<Response, SendError>> + Send,
 {
-    async fn call(&self, req: Request) -> Result<Response> {
+    async fn call(&self, req: Request) -> Result<Response, SendError> {
         self(req).await
     }
 }
@@ -111,18 +110,18 @@ where
     Fun: Fn(
             Request,
             &dyn NextLayer,
-        ) -> std::pin::Pin<Box<dyn Future<Output = Result<Response>> + Send>>
+        ) -> std::pin::Pin<Box<dyn Future<Output = Result<Response, SendError>> + Send>>
         + Send
         + Sync,
 {
-    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response> {
+    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response, SendError> {
         self(req, next).await
     }
 }
 
 #[async_trait::async_trait]
 impl<C: Layer, N: Layer> Layer for Chain<C, N> {
-    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response> {
+    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response, SendError> {
         let then = |req| self.next.call(req, next);
         self.current.call(req, &then).await
     }
@@ -142,7 +141,7 @@ pub struct Identity;
 
 #[async_trait::async_trait]
 impl Layer for Identity {
-    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response> {
+    async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response, SendError> {
         next.call(req).await
     }
 }
@@ -192,7 +191,7 @@ impl<C: Client + 'static, L: Layer> RequestProcessor<C, L> {
         }
     }
 
-    pub async fn call(&self, req: Request) -> Result<Response> {
+    pub async fn call(&self, req: Request) -> Result<Response, SendError> {
         let client = self.client.clone();
         let send = move |req| client.send(req);
         self.layer.call(req, &send).await

@@ -1,8 +1,7 @@
-use miette::Result;
-
+use miette::Report;
 
 use crate::config::ServerType;
-use crate::req::{Request, Response};
+use crate::req::{Request, Response, SendError};
 use crate::webhook::BroadcastSend;
 
 use std::future::Future;
@@ -14,15 +13,15 @@ pub use s3::S3ServerBuilder;
 
 pub trait ServerBuilder {
     fn broadcast(&mut self, tx: &BroadcastSend) -> &mut Self;
-    fn serve(&self, handler: impl Handler) -> Result<impl Server>;
+    fn serve(&self, handler: impl Handler) -> Result<impl Server, Report>;
 }
 
 pub trait Server: Send {
-    async fn stop(self) -> Result<()>;
+    async fn stop(self) -> Result<(), Report>;
 }
 
 pub trait Handler<Req = Request, Resp = Response>: Send + Sync {
-    type Future: Future<Output = Result<Resp>> + Send;
+    type Future: Future<Output = Result<Resp, SendError>> + Send;
 
     fn handle(&self, msg: Req) -> Self::Future;
 }
@@ -32,9 +31,9 @@ impl<Fun, Fut, Req, Resp> Handler<Req, Resp> for Fun
 where
     Req: Send + Sync + 'static,
     Fun: Fn(Req) -> Fut + Send + Sync,
-    Fut: Future<Output = Result<Resp>> + Send,
+    Fut: Future<Output = Result<Resp, SendError>> + Send,
 {
-    type Future = impl Future<Output = Result<Resp>> + Send;
+    type Future = impl Future<Output = Result<Resp, SendError>> + Send;
 
     fn handle(&self, msg: Req) -> Self::Future {
         self(msg)
@@ -74,7 +73,7 @@ impl ServerBuilder for ServerDelegate {
         self
     }
 
-    fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
+    fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server, Report> {
         match self {
             Self::S3(s) => s.serve(handler),
         }

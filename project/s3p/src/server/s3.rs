@@ -1,26 +1,27 @@
 use super::{Handler, Server, ServerBuilder};
 use crate::{
+    client::s3::S3Error,
     config::S3ServerConfig,
-    req::{Request, S3Extension},
+    req::{Request, Response, S3Extension, SendError},
     webhook::{s3::S3WebhookServerBuilder, BroadcastSend, WebhookServer, WebhookServerBuilder},
 };
 use futures::{future::BoxFuture, FutureExt};
 use hyper::service::{make_service_fn, service_fn};
-use miette::{miette, Result};
+use miette::{miette, Report};
 use s3s::auth::{S3Auth, SimpleAuth};
 
 use std::net::TcpListener;
 use std::sync::Arc;
 
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 struct S3Server<'a> {
-    fut: BoxFuture<'a, Result<()>>,
+    fut: BoxFuture<'a, Result<(), Report>>,
     term_sig: tokio::sync::oneshot::Sender<()>,
 }
 
 impl<'a> Server for S3Server<'a> {
-    async fn stop(self) -> Result<()> {
+    async fn stop(self) -> Result<(), Report> {
         self.term_sig
             .send(())
             .map_err(|_| miette!("Failed to send stop signal"))?;
@@ -65,7 +66,7 @@ impl ServerBuilder for S3ServerBuilder {
         self
     }
 
-    fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server> {
+    fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server, Report> {
         let h = Arc::new(handler);
         let auth = self.auth.clone();
         let base_domain = Arc::new(self.base_domain.clone());
@@ -87,22 +88,19 @@ impl ServerBuilder for S3ServerBuilder {
 
                 let op = s3s::ops::prepare(&mut req, auth, base_domain)
                     .await
-                    .map_err(|e| miette!(e))?;
+                    .map_err(|e| S3Error::MissingOp)?;
 
                 let mut req = Request::from(req);
                 let s3_ext = req
                     .extensions
                     .get_mut::<S3Extension>()
-                    .ok_or_else(|| miette!("Could not find S3Extension"))?;
+                    .ok_or_else(|| S3Error::MissingExt)?;
                 s3_ext.op = Some(op);
 
                 debug!("{:#?}", req);
 
-                let resp = h.handle(req).await;
-                match resp {
-                    Ok(r) => Ok(r.into()),
-                    Err(e) => Err(e),
-                }
+                let resp = h.handle(req).await?;
+                Ok(resp)
             }
         };
 
@@ -110,16 +108,26 @@ impl ServerBuilder for S3ServerBuilder {
         let make_svc = make_service_fn(move |_| {
             let svc_fn = svc_fn.clone();
             std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| {
-                svc_fn.call((req,)).map(|res| match res {
-                    Ok(_) => res,
-                    Err(err) => {
-                        let body = hyper::Body::from(err.to_string());
-                        hyper::Response::builder()
-                            .status(500)
-                            .body(body)
-                            .map_err(|e| miette!(e))
-                    }
-                })
+                svc_fn.call((req,)).map(
+                    |res: Result<Response, SendError>| -> Result<hyper::Response<hyper::Body>, Report> {
+                        match res {
+                            Ok(resp) => Ok(resp.into()),
+                            Err(err) => {
+
+                                match err {
+                                    SendError::RequestErr(resp, rep) | SendError::ResponseErr(resp, rep) => {
+                                        error!("{:#?}", rep);
+                                        Ok(resp.into())
+                                    }
+                                    SendError::Internal(rep) => {
+                                        error!("{:#?}", rep);
+                                        Err(rep)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                )
             })))
         });
 
@@ -201,7 +209,7 @@ mod tests {
 
     // Runs until Ctrl+C is received
     #[tokio::test]
-    async fn run_s3_server() -> Result<()> {
+    async fn run_s3_server() -> Result<(), Report> {
         let server = S3ServerBuilder::new("localhost".into(), 3000);
 
         let handler = |_req| async { Ok(Response::default()) };

@@ -232,12 +232,12 @@ pub trait S3Operation:
                    + Send
                    + Sync
                    + From<<<Self as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>
-                   + for<'a> TryFrom<&'a mut s3s::http::Request>,
+                   + for<'a> TryFrom<&'a mut s3s::http::Request, Error = s3s::S3Error>,
         Output: s3s::dto::SplitMetadata<Meta: Send + Sync>
                     + Send
                     + Sync
                     + From<<<Self as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>
-                    + for<'a> TryInto<s3s::http::Response>,
+                    + for<'a> TryInto<s3s::http::Response, Error = s3s::S3Error>,
     > + Operation
 {
     type InputMeta: Send + Sync + Clone + From<Self::Input> + Into<<Self as TypedOperation>::Input> =
@@ -252,12 +252,12 @@ impl<Op> S3Operation for Op where
                        + Send
                        + Sync
                        + From<<<Self as TypedOperation>::Input as s3s::dto::SplitMetadata>::Meta>
-                       + for<'a> TryFrom<&'a mut s3s::http::Request>,
+                       + for<'a> TryFrom<&'a mut s3s::http::Request, Error = s3s::S3Error>,
             Output: s3s::dto::SplitMetadata<Meta: Send + Sync>
                         + Send
                         + Sync
                         + From<<<Self as TypedOperation>::Output as s3s::dto::SplitMetadata>::Meta>
-                        + for<'a> TryInto<s3s::http::Response>,
+                        + for<'a> TryInto<s3s::http::Response, Error = s3s::S3Error>,
         > + Operation
 {
 }
@@ -276,14 +276,14 @@ impl<'a, Op: S3Operation> S3Response<'a, Op> {
 }
 
 impl<'a, Op: S3Operation> TryFrom<&'a mut Response> for S3Response<'a, Op> {
-    type Error = miette::Error;
+    type Error = S3Error;
 
     fn try_from(resp: &'a mut Response) -> Result<Self, Self::Error> {
         let output = resp.try_get_output::<Op>().ok_or_else(|| {
-            miette!(
+            S3Error::Other(miette!(
                 "No response data found for operation {}",
                 std::any::type_name::<Op>()
-            )
+            ))
         })?;
 
         Ok(Self {
@@ -305,6 +305,25 @@ impl<Op: S3Operation> Deref for S3Response<'_, Op> {
 impl<Op: S3Operation> DerefMut for S3Response<'_, Op> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.response
+    }
+}
+
+impl From<&s3s::S3Error> for Response {
+    fn from(err: &s3s::S3Error) -> Self {
+        let status = err
+            .status_code()
+            .unwrap_or(http::StatusCode::INTERNAL_SERVER_ERROR);
+        let mut resp = s3s::http::Response::with_status(status);
+        let res = s3s::http::set_xml_body(&mut resp, err);
+
+        match res {
+            Ok(_) => resp.into(),
+            Err(_e) => {
+                let mut resp = Response::with_status(http::StatusCode::INTERNAL_SERVER_ERROR);
+                resp.body = Body::from("Error serializing s3s::S3Error".to_string());
+                resp
+            }
+        }
     }
 }
 
