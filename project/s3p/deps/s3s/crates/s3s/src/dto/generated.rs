@@ -35,8 +35,8 @@ impl fmt::Debug for AbortIncompleteMultipartUpload {
 impl SplitMetadata for AbortIncompleteMultipartUpload {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -81,8 +81,8 @@ impl AbortMultipartUploadInput {
 impl SplitMetadata for AbortMultipartUploadInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -104,8 +104,8 @@ impl fmt::Debug for AbortMultipartUploadOutput {
 impl SplitMetadata for AbortMultipartUploadOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -133,8 +133,8 @@ impl fmt::Debug for AccelerateConfiguration {
 impl SplitMetadata for AccelerateConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -165,8 +165,8 @@ impl fmt::Debug for AccessControlPolicy {
 impl SplitMetadata for AccessControlPolicy {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -189,8 +189,8 @@ impl fmt::Debug for AccessControlTranslation {
 impl SplitMetadata for AccessControlTranslation {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -240,8 +240,8 @@ impl fmt::Debug for AnalyticsAndOperator {
 impl SplitMetadata for AnalyticsAndOperator {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -275,8 +275,8 @@ impl fmt::Debug for AnalyticsConfiguration {
 impl SplitMetadata for AnalyticsConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -300,8 +300,8 @@ impl fmt::Debug for AnalyticsExportDestination {
 impl SplitMetadata for AnalyticsExportDestination {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -358,8 +358,8 @@ impl fmt::Debug for AnalyticsS3BucketDestination {
 impl SplitMetadata for AnalyticsS3BucketDestination {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -464,8 +464,8 @@ impl fmt::Debug for Bucket {
 impl SplitMetadata for Bucket {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -522,8 +522,8 @@ impl fmt::Debug for BucketAlreadyExists {
 impl SplitMetadata for BucketAlreadyExists {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -544,8 +544,8 @@ impl fmt::Debug for BucketAlreadyOwnedByYou {
 impl SplitMetadata for BucketAlreadyOwnedByYou {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -613,8 +613,8 @@ impl fmt::Debug for BucketLifecycleConfiguration {
 impl SplitMetadata for BucketLifecycleConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -723,8 +723,8 @@ impl fmt::Debug for BucketLoggingStatus {
 impl SplitMetadata for BucketLoggingStatus {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -840,8 +840,8 @@ impl fmt::Debug for CORSConfiguration {
 impl SplitMetadata for CORSConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -890,8 +890,8 @@ impl fmt::Debug for CORSRule {
 impl SplitMetadata for CORSRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -980,8 +980,8 @@ impl fmt::Debug for CSVInput {
 impl SplitMetadata for CSVInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1041,8 +1041,8 @@ impl fmt::Debug for CSVOutput {
 impl SplitMetadata for CSVOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1095,8 +1095,8 @@ impl fmt::Debug for Checksum {
 impl SplitMetadata for Checksum {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1215,8 +1215,8 @@ impl fmt::Debug for CommonPrefix {
 impl SplitMetadata for CommonPrefix {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1324,8 +1324,8 @@ impl CompleteMultipartUploadInput {
 impl SplitMetadata for CompleteMultipartUploadInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1438,8 +1438,8 @@ impl fmt::Debug for CompleteMultipartUploadOutput {
 impl SplitMetadata for CompleteMultipartUploadOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1465,8 +1465,8 @@ impl fmt::Debug for CompletedMultipartUpload {
 impl SplitMetadata for CompletedMultipartUpload {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1526,8 +1526,8 @@ impl fmt::Debug for CompletedPart {
 impl SplitMetadata for CompletedPart {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1617,8 +1617,8 @@ impl fmt::Debug for Condition {
 impl SplitMetadata for Condition {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1650,8 +1650,8 @@ impl fmt::Debug for ContinuationEvent {
 impl SplitMetadata for ContinuationEvent {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -1942,8 +1942,8 @@ impl CopyObjectInput {
 impl SplitMetadata for CopyObjectInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2021,8 +2021,8 @@ impl fmt::Debug for CopyObjectOutput {
 impl SplitMetadata for CopyObjectOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2084,8 +2084,8 @@ impl fmt::Debug for CopyObjectResult {
 impl SplitMetadata for CopyObjectResult {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2146,8 +2146,8 @@ impl fmt::Debug for CopyPartResult {
 impl SplitMetadata for CopyPartResult {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2190,8 +2190,8 @@ impl fmt::Debug for CreateBucketConfiguration {
 impl SplitMetadata for CreateBucketConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2265,8 +2265,8 @@ impl CreateBucketInput {
 impl SplitMetadata for CreateBucketInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2289,8 +2289,8 @@ impl fmt::Debug for CreateBucketOutput {
 impl SplitMetadata for CreateBucketOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2494,8 +2494,8 @@ impl CreateMultipartUploadInput {
 impl SplitMetadata for CreateMultipartUploadInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2595,8 +2595,8 @@ impl fmt::Debug for CreateMultipartUploadOutput {
 impl SplitMetadata for CreateMultipartUploadOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2651,8 +2651,8 @@ impl fmt::Debug for DefaultRetention {
 impl SplitMetadata for DefaultRetention {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2678,8 +2678,8 @@ impl fmt::Debug for Delete {
 impl SplitMetadata for Delete {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2714,8 +2714,8 @@ impl DeleteBucketAnalyticsConfigurationInput {
 impl SplitMetadata for DeleteBucketAnalyticsConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2732,8 +2732,8 @@ impl fmt::Debug for DeleteBucketAnalyticsConfigurationOutput {
 impl SplitMetadata for DeleteBucketAnalyticsConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2765,8 +2765,8 @@ impl DeleteBucketCorsInput {
 impl SplitMetadata for DeleteBucketCorsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2783,8 +2783,8 @@ impl fmt::Debug for DeleteBucketCorsOutput {
 impl SplitMetadata for DeleteBucketCorsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2817,8 +2817,8 @@ impl DeleteBucketEncryptionInput {
 impl SplitMetadata for DeleteBucketEncryptionInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2835,8 +2835,8 @@ impl fmt::Debug for DeleteBucketEncryptionOutput {
 impl SplitMetadata for DeleteBucketEncryptionOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2868,8 +2868,8 @@ impl DeleteBucketInput {
 impl SplitMetadata for DeleteBucketInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2899,8 +2899,8 @@ impl DeleteBucketIntelligentTieringConfigurationInput {
 impl SplitMetadata for DeleteBucketIntelligentTieringConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2917,8 +2917,8 @@ impl fmt::Debug for DeleteBucketIntelligentTieringConfigurationOutput {
 impl SplitMetadata for DeleteBucketIntelligentTieringConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2953,8 +2953,8 @@ impl DeleteBucketInventoryConfigurationInput {
 impl SplitMetadata for DeleteBucketInventoryConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -2971,8 +2971,8 @@ impl fmt::Debug for DeleteBucketInventoryConfigurationOutput {
 impl SplitMetadata for DeleteBucketInventoryConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3004,8 +3004,8 @@ impl DeleteBucketLifecycleInput {
 impl SplitMetadata for DeleteBucketLifecycleInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3022,8 +3022,8 @@ impl fmt::Debug for DeleteBucketLifecycleOutput {
 impl SplitMetadata for DeleteBucketLifecycleOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3059,8 +3059,8 @@ impl DeleteBucketMetricsConfigurationInput {
 impl SplitMetadata for DeleteBucketMetricsConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3077,8 +3077,8 @@ impl fmt::Debug for DeleteBucketMetricsConfigurationOutput {
 impl SplitMetadata for DeleteBucketMetricsConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3095,8 +3095,8 @@ impl fmt::Debug for DeleteBucketOutput {
 impl SplitMetadata for DeleteBucketOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3128,8 +3128,8 @@ impl DeleteBucketOwnershipControlsInput {
 impl SplitMetadata for DeleteBucketOwnershipControlsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3146,8 +3146,8 @@ impl fmt::Debug for DeleteBucketOwnershipControlsOutput {
 impl SplitMetadata for DeleteBucketOwnershipControlsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3179,8 +3179,8 @@ impl DeleteBucketPolicyInput {
 impl SplitMetadata for DeleteBucketPolicyInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3197,8 +3197,8 @@ impl fmt::Debug for DeleteBucketPolicyOutput {
 impl SplitMetadata for DeleteBucketPolicyOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3230,8 +3230,8 @@ impl DeleteBucketReplicationInput {
 impl SplitMetadata for DeleteBucketReplicationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3248,8 +3248,8 @@ impl fmt::Debug for DeleteBucketReplicationOutput {
 impl SplitMetadata for DeleteBucketReplicationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3281,8 +3281,8 @@ impl DeleteBucketTaggingInput {
 impl SplitMetadata for DeleteBucketTaggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3299,8 +3299,8 @@ impl fmt::Debug for DeleteBucketTaggingOutput {
 impl SplitMetadata for DeleteBucketTaggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3332,8 +3332,8 @@ impl DeleteBucketWebsiteInput {
 impl SplitMetadata for DeleteBucketWebsiteInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3350,8 +3350,8 @@ impl fmt::Debug for DeleteBucketWebsiteOutput {
 impl SplitMetadata for DeleteBucketWebsiteOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3396,8 +3396,8 @@ impl fmt::Debug for DeleteMarkerEntry {
 impl SplitMetadata for DeleteMarkerEntry {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3435,8 +3435,8 @@ impl fmt::Debug for DeleteMarkerReplication {
 impl SplitMetadata for DeleteMarkerReplication {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3539,8 +3539,8 @@ impl DeleteObjectInput {
 impl SplitMetadata for DeleteObjectInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3572,8 +3572,8 @@ impl fmt::Debug for DeleteObjectOutput {
 impl SplitMetadata for DeleteObjectOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3616,8 +3616,8 @@ impl DeleteObjectTaggingInput {
 impl SplitMetadata for DeleteObjectTaggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3640,8 +3640,8 @@ impl fmt::Debug for DeleteObjectTaggingOutput {
 impl SplitMetadata for DeleteObjectTaggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3710,8 +3710,8 @@ impl DeleteObjectsInput {
 impl SplitMetadata for DeleteObjectsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3745,8 +3745,8 @@ impl fmt::Debug for DeleteObjectsOutput {
 impl SplitMetadata for DeleteObjectsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3779,8 +3779,8 @@ impl DeletePublicAccessBlockInput {
 impl SplitMetadata for DeletePublicAccessBlockInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3797,8 +3797,8 @@ impl fmt::Debug for DeletePublicAccessBlockOutput {
 impl SplitMetadata for DeletePublicAccessBlockOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3839,8 +3839,8 @@ impl fmt::Debug for DeletedObject {
 impl SplitMetadata for DeletedObject {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -3917,8 +3917,8 @@ impl fmt::Debug for Destination {
 impl SplitMetadata for Destination {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -4004,8 +4004,8 @@ impl fmt::Debug for Encryption {
 impl SplitMetadata for Encryption {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -4035,8 +4035,8 @@ impl fmt::Debug for EncryptionConfiguration {
 impl SplitMetadata for EncryptionConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -4058,8 +4058,8 @@ impl fmt::Debug for EndEvent {
 impl SplitMetadata for EndEvent {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -5965,8 +5965,8 @@ impl fmt::Debug for Error {
 impl SplitMetadata for Error {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -5995,8 +5995,8 @@ impl fmt::Debug for ErrorDocument {
 impl SplitMetadata for ErrorDocument {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6018,8 +6018,8 @@ impl fmt::Debug for EventBridgeConfiguration {
 impl SplitMetadata for EventBridgeConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6045,8 +6045,8 @@ impl fmt::Debug for ExistingObjectReplication {
 impl SplitMetadata for ExistingObjectReplication {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6247,8 +6247,8 @@ impl fmt::Debug for FilterRule {
 impl SplitMetadata for FilterRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6324,8 +6324,8 @@ impl GetBucketAccelerateConfigurationInput {
 impl SplitMetadata for GetBucketAccelerateConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6348,8 +6348,8 @@ impl fmt::Debug for GetBucketAccelerateConfigurationOutput {
 impl SplitMetadata for GetBucketAccelerateConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6386,8 +6386,8 @@ impl GetBucketAclInput {
 impl SplitMetadata for GetBucketAclInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6415,8 +6415,8 @@ impl fmt::Debug for GetBucketAclOutput {
 impl SplitMetadata for GetBucketAclOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6451,8 +6451,8 @@ impl GetBucketAnalyticsConfigurationInput {
 impl SplitMetadata for GetBucketAnalyticsConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6475,8 +6475,8 @@ impl fmt::Debug for GetBucketAnalyticsConfigurationOutput {
 impl SplitMetadata for GetBucketAnalyticsConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6513,8 +6513,8 @@ impl GetBucketCorsInput {
 impl SplitMetadata for GetBucketCorsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6538,8 +6538,8 @@ impl fmt::Debug for GetBucketCorsOutput {
 impl SplitMetadata for GetBucketCorsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6572,8 +6572,8 @@ impl GetBucketEncryptionInput {
 impl SplitMetadata for GetBucketEncryptionInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6595,8 +6595,8 @@ impl fmt::Debug for GetBucketEncryptionOutput {
 impl SplitMetadata for GetBucketEncryptionOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6626,8 +6626,8 @@ impl GetBucketIntelligentTieringConfigurationInput {
 impl SplitMetadata for GetBucketIntelligentTieringConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6650,8 +6650,8 @@ impl fmt::Debug for GetBucketIntelligentTieringConfigurationOutput {
 impl SplitMetadata for GetBucketIntelligentTieringConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6686,8 +6686,8 @@ impl GetBucketInventoryConfigurationInput {
 impl SplitMetadata for GetBucketInventoryConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6710,8 +6710,8 @@ impl fmt::Debug for GetBucketInventoryConfigurationOutput {
 impl SplitMetadata for GetBucketInventoryConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6743,8 +6743,8 @@ impl GetBucketLifecycleConfigurationInput {
 impl SplitMetadata for GetBucketLifecycleConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6767,8 +6767,8 @@ impl fmt::Debug for GetBucketLifecycleConfigurationOutput {
 impl SplitMetadata for GetBucketLifecycleConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6805,8 +6805,8 @@ impl GetBucketLocationInput {
 impl SplitMetadata for GetBucketLocationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6831,8 +6831,8 @@ impl fmt::Debug for GetBucketLocationOutput {
 impl SplitMetadata for GetBucketLocationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6864,8 +6864,8 @@ impl GetBucketLoggingInput {
 impl SplitMetadata for GetBucketLoggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6887,8 +6887,8 @@ impl fmt::Debug for GetBucketLoggingOutput {
 impl SplitMetadata for GetBucketLoggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6924,8 +6924,8 @@ impl GetBucketMetricsConfigurationInput {
 impl SplitMetadata for GetBucketMetricsConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6948,8 +6948,8 @@ impl fmt::Debug for GetBucketMetricsConfigurationOutput {
 impl SplitMetadata for GetBucketMetricsConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -6986,8 +6986,8 @@ impl GetBucketNotificationConfigurationInput {
 impl SplitMetadata for GetBucketNotificationConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7030,8 +7030,8 @@ impl fmt::Debug for GetBucketNotificationConfigurationOutput {
 impl SplitMetadata for GetBucketNotificationConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7064,8 +7064,8 @@ impl GetBucketOwnershipControlsInput {
 impl SplitMetadata for GetBucketOwnershipControlsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7089,8 +7089,8 @@ impl fmt::Debug for GetBucketOwnershipControlsOutput {
 impl SplitMetadata for GetBucketOwnershipControlsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7127,8 +7127,8 @@ impl GetBucketPolicyInput {
 impl SplitMetadata for GetBucketPolicyInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7151,8 +7151,8 @@ impl fmt::Debug for GetBucketPolicyOutput {
 impl SplitMetadata for GetBucketPolicyOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7184,8 +7184,8 @@ impl GetBucketPolicyStatusInput {
 impl SplitMetadata for GetBucketPolicyStatusInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7208,8 +7208,8 @@ impl fmt::Debug for GetBucketPolicyStatusOutput {
 impl SplitMetadata for GetBucketPolicyStatusOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7241,8 +7241,8 @@ impl GetBucketReplicationInput {
 impl SplitMetadata for GetBucketReplicationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7264,8 +7264,8 @@ impl fmt::Debug for GetBucketReplicationOutput {
 impl SplitMetadata for GetBucketReplicationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7297,8 +7297,8 @@ impl GetBucketRequestPaymentInput {
 impl SplitMetadata for GetBucketRequestPaymentInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7321,8 +7321,8 @@ impl fmt::Debug for GetBucketRequestPaymentOutput {
 impl SplitMetadata for GetBucketRequestPaymentOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7354,8 +7354,8 @@ impl GetBucketTaggingInput {
 impl SplitMetadata for GetBucketTaggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7376,8 +7376,8 @@ impl fmt::Debug for GetBucketTaggingOutput {
 impl SplitMetadata for GetBucketTaggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7409,8 +7409,8 @@ impl GetBucketVersioningInput {
 impl SplitMetadata for GetBucketVersioningInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7440,8 +7440,8 @@ impl fmt::Debug for GetBucketVersioningOutput {
 impl SplitMetadata for GetBucketVersioningOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7473,8 +7473,8 @@ impl GetBucketWebsiteInput {
 impl SplitMetadata for GetBucketWebsiteInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7514,8 +7514,8 @@ impl fmt::Debug for GetBucketWebsiteOutput {
 impl SplitMetadata for GetBucketWebsiteOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7560,8 +7560,8 @@ impl GetObjectAclInput {
 impl SplitMetadata for GetObjectAclInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7593,8 +7593,8 @@ impl fmt::Debug for GetObjectAclOutput {
 impl SplitMetadata for GetObjectAclOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7676,8 +7676,8 @@ impl GetObjectAttributesInput {
 impl SplitMetadata for GetObjectAttributesInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7740,8 +7740,8 @@ impl fmt::Debug for GetObjectAttributesOutput {
 impl SplitMetadata for GetObjectAttributesOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7789,8 +7789,8 @@ impl fmt::Debug for GetObjectAttributesParts {
 impl SplitMetadata for GetObjectAttributesParts {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7935,8 +7935,8 @@ impl GetObjectInput {
 impl SplitMetadata for GetObjectInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -7981,8 +7981,8 @@ impl GetObjectLegalHoldInput {
 impl SplitMetadata for GetObjectLegalHoldInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8005,8 +8005,8 @@ impl fmt::Debug for GetObjectLegalHoldOutput {
 impl SplitMetadata for GetObjectLegalHoldOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8039,8 +8039,8 @@ impl GetObjectLockConfigurationInput {
 impl SplitMetadata for GetObjectLockConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8063,8 +8063,8 @@ impl fmt::Debug for GetObjectLockConfigurationOutput {
 impl SplitMetadata for GetObjectLockConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8578,15 +8578,15 @@ impl From<GetObjectOutputMeta> for GetObjectOutput {
 
 impl SplitMetadata for GetObjectOutput {
     type Meta = GetObjectOutputMeta;
-    type Data = Option<StreamingBlob>;
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+    type Data = StreamingBlob;
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
         let mut this = self;
         let data = this.body.take();
         let meta = Self::Meta::from(this);
         (meta, data)
     }
 
-    fn set_data(&mut self, data: Self::Data) {
+    fn set_data(&mut self, data: Option<Self::Data>) {
         self.body = data;
     }
 }
@@ -8634,8 +8634,8 @@ impl GetObjectRetentionInput {
 impl SplitMetadata for GetObjectRetentionInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8658,8 +8658,8 @@ impl fmt::Debug for GetObjectRetentionOutput {
 impl SplitMetadata for GetObjectRetentionOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8706,8 +8706,8 @@ impl GetObjectTaggingInput {
 impl SplitMetadata for GetObjectTaggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8733,8 +8733,8 @@ impl fmt::Debug for GetObjectTaggingOutput {
 impl SplitMetadata for GetObjectTaggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8773,8 +8773,8 @@ impl GetObjectTorrentInput {
 impl SplitMetadata for GetObjectTorrentInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8832,15 +8832,15 @@ impl From<GetObjectTorrentOutputMeta> for GetObjectTorrentOutput {
 
 impl SplitMetadata for GetObjectTorrentOutput {
     type Meta = GetObjectTorrentOutputMeta;
-    type Data = Option<StreamingBlob>;
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+    type Data = StreamingBlob;
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
         let mut this = self;
         let data = this.body.take();
         let meta = Self::Meta::from(this);
         (meta, data)
     }
 
-    fn set_data(&mut self, data: Self::Data) {
+    fn set_data(&mut self, data: Option<Self::Data>) {
         self.body = data;
     }
 }
@@ -8874,8 +8874,8 @@ impl GetPublicAccessBlockInput {
 impl SplitMetadata for GetPublicAccessBlockInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8899,8 +8899,8 @@ impl fmt::Debug for GetPublicAccessBlockOutput {
 impl SplitMetadata for GetPublicAccessBlockOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8922,8 +8922,8 @@ impl fmt::Debug for GlacierJobParameters {
 impl SplitMetadata for GlacierJobParameters {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -8952,8 +8952,8 @@ impl fmt::Debug for Grant {
 impl SplitMetadata for Grant {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9035,8 +9035,8 @@ impl fmt::Debug for Grantee {
 impl SplitMetadata for Grantee {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9077,8 +9077,8 @@ impl HeadBucketInput {
 impl SplitMetadata for HeadBucketInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9095,8 +9095,8 @@ impl fmt::Debug for HeadBucketOutput {
 impl SplitMetadata for HeadBucketOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9210,8 +9210,8 @@ impl HeadObjectInput {
 impl SplitMetadata for HeadObjectInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9476,8 +9476,8 @@ impl fmt::Debug for HeadObjectOutput {
 impl SplitMetadata for HeadObjectOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9523,8 +9523,8 @@ impl fmt::Debug for IndexDocument {
 impl SplitMetadata for IndexDocument {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9556,8 +9556,8 @@ impl fmt::Debug for Initiator {
 impl SplitMetadata for Initiator {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9597,8 +9597,8 @@ impl fmt::Debug for InputSerialization {
 impl SplitMetadata for InputSerialization {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9668,8 +9668,8 @@ impl fmt::Debug for IntelligentTieringAndOperator {
 impl SplitMetadata for IntelligentTieringAndOperator {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9706,8 +9706,8 @@ impl fmt::Debug for IntelligentTieringConfiguration {
 impl SplitMetadata for IntelligentTieringConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9753,8 +9753,8 @@ impl fmt::Debug for IntelligentTieringFilter {
 impl SplitMetadata for IntelligentTieringFilter {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9821,8 +9821,8 @@ impl fmt::Debug for InvalidObjectState {
 impl SplitMetadata for InvalidObjectState {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9874,8 +9874,8 @@ impl fmt::Debug for InventoryConfiguration {
 impl SplitMetadata for InventoryConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9900,8 +9900,8 @@ impl fmt::Debug for InventoryDestination {
 impl SplitMetadata for InventoryDestination {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9931,8 +9931,8 @@ impl fmt::Debug for InventoryEncryption {
 impl SplitMetadata for InventoryEncryption {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -9955,8 +9955,8 @@ impl fmt::Debug for InventoryFilter {
 impl SplitMetadata for InventoryFilter {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10184,8 +10184,8 @@ impl fmt::Debug for InventoryS3BucketDestination {
 impl SplitMetadata for InventoryS3BucketDestination {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10207,8 +10207,8 @@ impl fmt::Debug for InventorySchedule {
 impl SplitMetadata for InventorySchedule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10240,8 +10240,8 @@ impl fmt::Debug for JSONInput {
 impl SplitMetadata for JSONInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10266,8 +10266,8 @@ impl fmt::Debug for JSONOutput {
 impl SplitMetadata for JSONOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10351,8 +10351,8 @@ impl fmt::Debug for LambdaFunctionConfiguration {
 impl SplitMetadata for LambdaFunctionConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10396,8 +10396,8 @@ impl fmt::Debug for LifecycleExpiration {
 impl SplitMetadata for LifecycleExpiration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10474,8 +10474,8 @@ impl fmt::Debug for LifecycleRule {
 impl SplitMetadata for LifecycleRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10513,8 +10513,8 @@ impl fmt::Debug for LifecycleRuleAndOperator {
 impl SplitMetadata for LifecycleRuleAndOperator {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10576,8 +10576,8 @@ impl ListBucketAnalyticsConfigurationsInput {
 impl SplitMetadata for ListBucketAnalyticsConfigurationsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10620,8 +10620,8 @@ impl fmt::Debug for ListBucketAnalyticsConfigurationsOutput {
 impl SplitMetadata for ListBucketAnalyticsConfigurationsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10654,8 +10654,8 @@ impl ListBucketIntelligentTieringConfigurationsInput {
 impl SplitMetadata for ListBucketIntelligentTieringConfigurationsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10696,8 +10696,8 @@ impl fmt::Debug for ListBucketIntelligentTieringConfigurationsOutput {
 impl SplitMetadata for ListBucketIntelligentTieringConfigurationsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10736,8 +10736,8 @@ impl ListBucketInventoryConfigurationsInput {
 impl SplitMetadata for ListBucketInventoryConfigurationsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10778,8 +10778,8 @@ impl fmt::Debug for ListBucketInventoryConfigurationsOutput {
 impl SplitMetadata for ListBucketInventoryConfigurationsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10819,8 +10819,8 @@ impl ListBucketMetricsConfigurationsInput {
 impl SplitMetadata for ListBucketMetricsConfigurationsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10862,8 +10862,8 @@ impl fmt::Debug for ListBucketMetricsConfigurationsOutput {
 impl SplitMetadata for ListBucketMetricsConfigurationsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10886,8 +10886,8 @@ impl ListBucketsInput {
 impl SplitMetadata for ListBucketsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -10915,8 +10915,8 @@ impl fmt::Debug for ListBucketsOutput {
 impl SplitMetadata for ListBucketsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11000,8 +11000,8 @@ impl ListMultipartUploadsInput {
 impl SplitMetadata for ListMultipartUploadsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11092,8 +11092,8 @@ impl fmt::Debug for ListMultipartUploadsOutput {
 impl SplitMetadata for ListMultipartUploadsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11166,8 +11166,8 @@ impl ListObjectVersionsInput {
 impl SplitMetadata for ListObjectVersionsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11264,8 +11264,8 @@ impl fmt::Debug for ListObjectVersionsOutput {
 impl SplitMetadata for ListObjectVersionsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11333,8 +11333,8 @@ impl ListObjectsInput {
 impl SplitMetadata for ListObjectsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11418,8 +11418,8 @@ impl fmt::Debug for ListObjectsOutput {
 impl SplitMetadata for ListObjectsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11501,8 +11501,8 @@ impl ListObjectsV2Input {
 impl SplitMetadata for ListObjectsV2Input {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11608,8 +11608,8 @@ impl fmt::Debug for ListObjectsV2Output {
 impl SplitMetadata for ListObjectsV2Output {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11689,8 +11689,8 @@ impl ListPartsInput {
 impl SplitMetadata for ListPartsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11799,8 +11799,8 @@ impl fmt::Debug for ListPartsOutput {
 impl SplitMetadata for ListPartsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -11845,8 +11845,8 @@ impl fmt::Debug for LoggingEnabled {
 impl SplitMetadata for LoggingEnabled {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12005,8 +12005,8 @@ impl fmt::Debug for MetadataEntry {
 impl SplitMetadata for MetadataEntry {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12039,8 +12039,8 @@ impl fmt::Debug for Metrics {
 impl SplitMetadata for Metrics {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12076,8 +12076,8 @@ impl fmt::Debug for MetricsAndOperator {
 impl SplitMetadata for MetricsAndOperator {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12111,8 +12111,8 @@ impl fmt::Debug for MetricsConfiguration {
 impl SplitMetadata for MetricsConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12230,8 +12230,8 @@ impl fmt::Debug for MultipartUpload {
 impl SplitMetadata for MultipartUpload {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12265,8 +12265,8 @@ impl fmt::Debug for NoSuchBucket {
 impl SplitMetadata for NoSuchBucket {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12284,8 +12284,8 @@ impl fmt::Debug for NoSuchKey {
 impl SplitMetadata for NoSuchKey {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12303,8 +12303,8 @@ impl fmt::Debug for NoSuchUpload {
 impl SplitMetadata for NoSuchUpload {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12339,8 +12339,8 @@ impl fmt::Debug for NoncurrentVersionExpiration {
 impl SplitMetadata for NoncurrentVersionExpiration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12383,8 +12383,8 @@ impl fmt::Debug for NoncurrentVersionTransition {
 impl SplitMetadata for NoncurrentVersionTransition {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12404,8 +12404,8 @@ impl fmt::Debug for NotFound {
 impl SplitMetadata for NotFound {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12448,8 +12448,8 @@ impl fmt::Debug for NotificationConfiguration {
 impl SplitMetadata for NotificationConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12473,8 +12473,8 @@ impl fmt::Debug for NotificationConfigurationFilter {
 impl SplitMetadata for NotificationConfigurationFilter {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12552,8 +12552,8 @@ impl fmt::Debug for Object {
 impl SplitMetadata for Object {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12571,8 +12571,8 @@ impl fmt::Debug for ObjectAlreadyInActiveTierError {
 impl SplitMetadata for ObjectAlreadyInActiveTierError {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12698,8 +12698,8 @@ impl fmt::Debug for ObjectIdentifier {
 impl SplitMetadata for ObjectIdentifier {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12740,8 +12740,8 @@ impl fmt::Debug for ObjectLockConfiguration {
 impl SplitMetadata for ObjectLockConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12803,8 +12803,8 @@ impl fmt::Debug for ObjectLockLegalHold {
 impl SplitMetadata for ObjectLockLegalHold {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12911,8 +12911,8 @@ impl fmt::Debug for ObjectLockRetention {
 impl SplitMetadata for ObjectLockRetention {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12977,8 +12977,8 @@ impl fmt::Debug for ObjectLockRule {
 impl SplitMetadata for ObjectLockRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -12999,8 +12999,8 @@ impl fmt::Debug for ObjectNotInActiveTierError {
 impl SplitMetadata for ObjectNotInActiveTierError {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13109,8 +13109,8 @@ impl fmt::Debug for ObjectPart {
 impl SplitMetadata for ObjectPart {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13231,8 +13231,8 @@ impl fmt::Debug for ObjectVersion {
 impl SplitMetadata for ObjectVersion {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13296,8 +13296,8 @@ impl fmt::Debug for OutputLocation {
 impl SplitMetadata for OutputLocation {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13326,8 +13326,8 @@ impl fmt::Debug for OutputSerialization {
 impl SplitMetadata for OutputSerialization {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13383,8 +13383,8 @@ impl fmt::Debug for Owner {
 impl SplitMetadata for Owner {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13442,8 +13442,8 @@ impl fmt::Debug for OwnershipControls {
 impl SplitMetadata for OwnershipControls {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13464,8 +13464,8 @@ impl fmt::Debug for OwnershipControlsRule {
 impl SplitMetadata for OwnershipControlsRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13485,8 +13485,8 @@ impl fmt::Debug for ParquetInput {
 impl SplitMetadata for ParquetInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13554,8 +13554,8 @@ impl fmt::Debug for Part {
 impl SplitMetadata for Part {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13672,8 +13672,8 @@ impl fmt::Debug for PolicyStatus {
 impl SplitMetadata for PolicyStatus {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13705,8 +13705,8 @@ impl fmt::Debug for Progress {
 impl SplitMetadata for Progress {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13730,8 +13730,8 @@ impl fmt::Debug for ProgressEvent {
 impl SplitMetadata for ProgressEvent {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13829,8 +13829,8 @@ impl fmt::Debug for PublicAccessBlockConfiguration {
 impl SplitMetadata for PublicAccessBlockConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13876,8 +13876,8 @@ impl PutBucketAccelerateConfigurationInput {
 impl SplitMetadata for PutBucketAccelerateConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13894,8 +13894,8 @@ impl fmt::Debug for PutBucketAccelerateConfigurationOutput {
 impl SplitMetadata for PutBucketAccelerateConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -13986,8 +13986,8 @@ impl PutBucketAclInput {
 impl SplitMetadata for PutBucketAclInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14004,8 +14004,8 @@ impl fmt::Debug for PutBucketAclOutput {
 impl SplitMetadata for PutBucketAclOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14043,8 +14043,8 @@ impl PutBucketAnalyticsConfigurationInput {
 impl SplitMetadata for PutBucketAnalyticsConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14061,8 +14061,8 @@ impl fmt::Debug for PutBucketAnalyticsConfigurationOutput {
 impl SplitMetadata for PutBucketAnalyticsConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14121,8 +14121,8 @@ impl PutBucketCorsInput {
 impl SplitMetadata for PutBucketCorsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14139,8 +14139,8 @@ impl fmt::Debug for PutBucketCorsOutput {
 impl SplitMetadata for PutBucketCorsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14197,8 +14197,8 @@ impl PutBucketEncryptionInput {
 impl SplitMetadata for PutBucketEncryptionInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14215,8 +14215,8 @@ impl fmt::Debug for PutBucketEncryptionOutput {
 impl SplitMetadata for PutBucketEncryptionOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14249,8 +14249,8 @@ impl PutBucketIntelligentTieringConfigurationInput {
 impl SplitMetadata for PutBucketIntelligentTieringConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14267,8 +14267,8 @@ impl fmt::Debug for PutBucketIntelligentTieringConfigurationOutput {
 impl SplitMetadata for PutBucketIntelligentTieringConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14306,8 +14306,8 @@ impl PutBucketInventoryConfigurationInput {
 impl SplitMetadata for PutBucketInventoryConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14324,8 +14324,8 @@ impl fmt::Debug for PutBucketInventoryConfigurationOutput {
 impl SplitMetadata for PutBucketInventoryConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14373,8 +14373,8 @@ impl PutBucketLifecycleConfigurationInput {
 impl SplitMetadata for PutBucketLifecycleConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14391,8 +14391,8 @@ impl fmt::Debug for PutBucketLifecycleConfigurationOutput {
 impl SplitMetadata for PutBucketLifecycleConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14444,8 +14444,8 @@ impl PutBucketLoggingInput {
 impl SplitMetadata for PutBucketLoggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14462,8 +14462,8 @@ impl fmt::Debug for PutBucketLoggingOutput {
 impl SplitMetadata for PutBucketLoggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14502,8 +14502,8 @@ impl PutBucketMetricsConfigurationInput {
 impl SplitMetadata for PutBucketMetricsConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14520,8 +14520,8 @@ impl fmt::Debug for PutBucketMetricsConfigurationOutput {
 impl SplitMetadata for PutBucketMetricsConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14561,8 +14561,8 @@ impl PutBucketNotificationConfigurationInput {
 impl SplitMetadata for PutBucketNotificationConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14579,8 +14579,8 @@ impl fmt::Debug for PutBucketNotificationConfigurationOutput {
 impl SplitMetadata for PutBucketNotificationConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14622,8 +14622,8 @@ impl PutBucketOwnershipControlsInput {
 impl SplitMetadata for PutBucketOwnershipControlsInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14640,8 +14640,8 @@ impl fmt::Debug for PutBucketOwnershipControlsOutput {
 impl SplitMetadata for PutBucketOwnershipControlsOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14699,8 +14699,8 @@ impl PutBucketPolicyInput {
 impl SplitMetadata for PutBucketPolicyInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14717,8 +14717,8 @@ impl fmt::Debug for PutBucketPolicyOutput {
 impl SplitMetadata for PutBucketPolicyOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14776,8 +14776,8 @@ impl PutBucketReplicationInput {
 impl SplitMetadata for PutBucketReplicationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14794,8 +14794,8 @@ impl fmt::Debug for PutBucketReplicationOutput {
 impl SplitMetadata for PutBucketReplicationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14849,8 +14849,8 @@ impl PutBucketRequestPaymentInput {
 impl SplitMetadata for PutBucketRequestPaymentInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14867,8 +14867,8 @@ impl fmt::Debug for PutBucketRequestPaymentOutput {
 impl SplitMetadata for PutBucketRequestPaymentOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14922,8 +14922,8 @@ impl PutBucketTaggingInput {
 impl SplitMetadata for PutBucketTaggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -14940,8 +14940,8 @@ impl fmt::Debug for PutBucketTaggingOutput {
 impl SplitMetadata for PutBucketTaggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15002,8 +15002,8 @@ impl PutBucketVersioningInput {
 impl SplitMetadata for PutBucketVersioningInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15020,8 +15020,8 @@ impl fmt::Debug for PutBucketVersioningOutput {
 impl SplitMetadata for PutBucketVersioningOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15075,8 +15075,8 @@ impl PutBucketWebsiteInput {
 impl SplitMetadata for PutBucketWebsiteInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15093,8 +15093,8 @@ impl fmt::Debug for PutBucketWebsiteOutput {
 impl SplitMetadata for PutBucketWebsiteOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15206,8 +15206,8 @@ impl PutObjectAclInput {
 impl SplitMetadata for PutObjectAclInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15229,8 +15229,8 @@ impl fmt::Debug for PutObjectAclOutput {
 impl SplitMetadata for PutObjectAclOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15865,15 +15865,15 @@ impl From<PutObjectInputMeta> for PutObjectInput {
 
 impl SplitMetadata for PutObjectInput {
     type Meta = PutObjectInputMeta;
-    type Data = Option<StreamingBlob>;
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+    type Data = StreamingBlob;
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
         let mut this = self;
         let data = this.body.take();
         let meta = Self::Meta::from(this);
         (meta, data)
     }
 
-    fn set_data(&mut self, data: Self::Data) {
+    fn set_data(&mut self, data: Option<Self::Data>) {
         self.body = data;
     }
 }
@@ -15942,8 +15942,8 @@ impl PutObjectLegalHoldInput {
 impl SplitMetadata for PutObjectLegalHoldInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -15965,8 +15965,8 @@ impl fmt::Debug for PutObjectLegalHoldOutput {
 impl SplitMetadata for PutObjectLegalHoldOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16029,8 +16029,8 @@ impl PutObjectLockConfigurationInput {
 impl SplitMetadata for PutObjectLockConfigurationInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16052,8 +16052,8 @@ impl fmt::Debug for PutObjectLockConfigurationOutput {
 impl SplitMetadata for PutObjectLockConfigurationOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16164,8 +16164,8 @@ impl fmt::Debug for PutObjectOutput {
 impl SplitMetadata for PutObjectOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16240,8 +16240,8 @@ impl PutObjectRetentionInput {
 impl SplitMetadata for PutObjectRetentionInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16263,8 +16263,8 @@ impl fmt::Debug for PutObjectRetentionOutput {
 impl SplitMetadata for PutObjectRetentionOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16331,8 +16331,8 @@ impl PutObjectTaggingInput {
 impl SplitMetadata for PutObjectTaggingInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16355,8 +16355,8 @@ impl fmt::Debug for PutObjectTaggingOutput {
 impl SplitMetadata for PutObjectTaggingOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16411,8 +16411,8 @@ impl PutPublicAccessBlockInput {
 impl SplitMetadata for PutPublicAccessBlockInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16429,8 +16429,8 @@ impl fmt::Debug for PutPublicAccessBlockOutput {
 impl SplitMetadata for PutPublicAccessBlockOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16467,8 +16467,8 @@ impl fmt::Debug for QueueConfiguration {
 impl SplitMetadata for QueueConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16540,8 +16540,8 @@ impl fmt::Debug for RecordsEvent {
 impl SplitMetadata for RecordsEvent {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16605,8 +16605,8 @@ impl fmt::Debug for Redirect {
 impl SplitMetadata for Redirect {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16635,8 +16635,8 @@ impl fmt::Debug for RedirectAllRequestsTo {
 impl SplitMetadata for RedirectAllRequestsTo {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16672,8 +16672,8 @@ impl fmt::Debug for ReplicaModifications {
 impl SplitMetadata for ReplicaModifications {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16740,8 +16740,8 @@ impl fmt::Debug for ReplicationConfiguration {
 impl SplitMetadata for ReplicationConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16817,8 +16817,8 @@ impl fmt::Debug for ReplicationRule {
 impl SplitMetadata for ReplicationRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -16860,8 +16860,8 @@ impl fmt::Debug for ReplicationRuleAndOperator {
 impl SplitMetadata for ReplicationRuleAndOperator {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17004,8 +17004,8 @@ impl fmt::Debug for ReplicationTime {
 impl SplitMetadata for ReplicationTime {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17067,8 +17067,8 @@ impl fmt::Debug for ReplicationTimeValue {
 impl SplitMetadata for ReplicationTimeValue {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17168,8 +17168,8 @@ impl fmt::Debug for RequestPaymentConfiguration {
 impl SplitMetadata for RequestPaymentConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17193,8 +17193,8 @@ impl fmt::Debug for RequestProgress {
 impl SplitMetadata for RequestProgress {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17274,8 +17274,8 @@ impl RestoreObjectInput {
 impl SplitMetadata for RestoreObjectInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17303,8 +17303,8 @@ impl fmt::Debug for RestoreObjectOutput {
 impl SplitMetadata for RestoreObjectOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17362,8 +17362,8 @@ impl fmt::Debug for RestoreRequest {
 impl SplitMetadata for RestoreRequest {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17435,8 +17435,8 @@ impl fmt::Debug for RoutingRule {
 impl SplitMetadata for RoutingRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17461,8 +17461,8 @@ impl fmt::Debug for S3KeyFilter {
 impl SplitMetadata for S3KeyFilter {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17516,8 +17516,8 @@ impl fmt::Debug for S3Location {
 impl SplitMetadata for S3Location {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17546,8 +17546,8 @@ impl fmt::Debug for SSEKMS {
 impl SplitMetadata for SSEKMS {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17569,8 +17569,8 @@ impl fmt::Debug for SSES3 {
 impl SplitMetadata for SSES3 {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17607,8 +17607,8 @@ impl fmt::Debug for ScanRange {
 impl SplitMetadata for ScanRange {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17691,8 +17691,8 @@ impl SelectObjectContentInput {
 impl SplitMetadata for SelectObjectContentInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17736,15 +17736,15 @@ impl From<SelectObjectContentOutputMeta> for SelectObjectContentOutput {
 
 impl SplitMetadata for SelectObjectContentOutput {
     type Meta = SelectObjectContentOutputMeta;
-    type Data = Option<SelectObjectContentEventStream>;
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+    type Data = SelectObjectContentEventStream;
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
         let mut this = self;
         let data = this.payload.take();
         let meta = Self::Meta::from(this);
         (meta, data)
     }
 
-    fn set_data(&mut self, data: Self::Data) {
+    fn set_data(&mut self, data: Option<Self::Data>) {
         self.payload = data;
     }
 }
@@ -17814,8 +17814,8 @@ impl fmt::Debug for SelectObjectContentRequest {
 impl SplitMetadata for SelectObjectContentRequest {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17846,8 +17846,8 @@ impl fmt::Debug for SelectParameters {
 impl SplitMetadata for SelectParameters {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17940,8 +17940,8 @@ impl fmt::Debug for ServerSideEncryptionByDefault {
 impl SplitMetadata for ServerSideEncryptionByDefault {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17964,8 +17964,8 @@ impl fmt::Debug for ServerSideEncryptionConfiguration {
 impl SplitMetadata for ServerSideEncryptionConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -17999,8 +17999,8 @@ impl fmt::Debug for ServerSideEncryptionRule {
 impl SplitMetadata for ServerSideEncryptionRule {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18051,8 +18051,8 @@ impl fmt::Debug for SourceSelectionCriteria {
 impl SplitMetadata for SourceSelectionCriteria {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18076,8 +18076,8 @@ impl fmt::Debug for SseKmsEncryptedObjects {
 impl SplitMetadata for SseKmsEncryptedObjects {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18147,8 +18147,8 @@ impl fmt::Debug for Stats {
 impl SplitMetadata for Stats {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18172,8 +18172,8 @@ impl fmt::Debug for StatsEvent {
 impl SplitMetadata for StatsEvent {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18253,8 +18253,8 @@ impl fmt::Debug for StorageClassAnalysis {
 impl SplitMetadata for StorageClassAnalysis {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18281,8 +18281,8 @@ impl fmt::Debug for StorageClassAnalysisDataExport {
 impl SplitMetadata for StorageClassAnalysisDataExport {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18345,8 +18345,8 @@ impl fmt::Debug for Tag {
 impl SplitMetadata for Tag {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18372,8 +18372,8 @@ impl fmt::Debug for Tagging {
 impl SplitMetadata for Tagging {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18447,8 +18447,8 @@ impl fmt::Debug for TargetGrant {
 impl SplitMetadata for TargetGrant {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18524,8 +18524,8 @@ impl fmt::Debug for Tiering {
 impl SplitMetadata for Tiering {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18568,8 +18568,8 @@ impl fmt::Debug for TopicConfiguration {
 impl SplitMetadata for TopicConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18607,8 +18607,8 @@ impl fmt::Debug for Transition {
 impl SplitMetadata for Transition {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18849,8 +18849,8 @@ impl UploadPartCopyInput {
 impl SplitMetadata for UploadPartCopyInput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -18912,8 +18912,8 @@ impl fmt::Debug for UploadPartCopyOutput {
 impl SplitMetadata for UploadPartCopyOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -19208,15 +19208,15 @@ impl From<UploadPartInputMeta> for UploadPartInput {
 
 impl SplitMetadata for UploadPartInput {
     type Meta = UploadPartInputMeta;
-    type Data = Option<StreamingBlob>;
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+    type Data = StreamingBlob;
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
         let mut this = self;
         let data = this.body.take();
         let meta = Self::Meta::from(this);
         (meta, data)
     }
 
-    fn set_data(&mut self, data: Self::Data) {
+    fn set_data(&mut self, data: Option<Self::Data>) {
         self.body = data;
     }
 }
@@ -19305,8 +19305,8 @@ impl fmt::Debug for UploadPartOutput {
 impl SplitMetadata for UploadPartOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -19346,8 +19346,8 @@ impl fmt::Debug for VersioningConfiguration {
 impl SplitMetadata for VersioningConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -19389,8 +19389,8 @@ impl fmt::Debug for WebsiteConfiguration {
 impl SplitMetadata for WebsiteConfiguration {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 
@@ -20175,15 +20175,15 @@ impl From<WriteGetObjectResponseInputMeta> for WriteGetObjectResponseInput {
 
 impl SplitMetadata for WriteGetObjectResponseInput {
     type Meta = WriteGetObjectResponseInputMeta;
-    type Data = Option<StreamingBlob>;
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
+    type Data = StreamingBlob;
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
         let mut this = self;
         let data = this.body.take();
         let meta = Self::Meta::from(this);
         (meta, data)
     }
 
-    fn set_data(&mut self, data: Self::Data) {
+    fn set_data(&mut self, data: Option<Self::Data>) {
         self.body = data;
     }
 }
@@ -20201,8 +20201,8 @@ impl fmt::Debug for WriteGetObjectResponseOutput {
 impl SplitMetadata for WriteGetObjectResponseOutput {
     type Meta = Self;
     type Data = ();
-    fn split_metadata(self) -> (Self::Meta, Self::Data) {
-        (self, ())
+    fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {
+        (self, None)
     }
 }
 

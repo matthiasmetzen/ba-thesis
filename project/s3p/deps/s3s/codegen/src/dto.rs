@@ -522,15 +522,15 @@ fn codegen_struct(ty: &rust::Struct, rust_types: &RustTypes, ops: &Operations) {
 
         g!("impl SplitMetadata for {} {{", ty.name);
         g!("type Meta = {}Meta;", ty.name);
-        g!("type Data = Option<{}>;", target.type_);
-        g!("fn split_metadata(self) -> (Self::Meta, Self::Data) {{");
+        g!("type Data = {};", target.type_);
+        g!("fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {{");
         g!("let mut this = self;");
         g!("let data = this.{}.take();", target.name);
         g!("let meta = Self::Meta::from(this);");
         g!("(meta, data)");
         g!("}}");
         g!();
-        g!("fn set_data(&mut self, data: Self::Data) {{");
+        g!("fn set_data(&mut self, data: Option<Self::Data>) {{");
         g!("self.{} = data;", target.name);
         g!("}}");
         g!("}}");
@@ -539,8 +539,8 @@ fn codegen_struct(ty: &rust::Struct, rust_types: &RustTypes, ops: &Operations) {
         g!("impl SplitMetadata for {} {{", ty.name);
         g!("type Meta = Self;");
         g!("type Data = ();");
-        g!("fn split_metadata(self) -> (Self::Meta, Self::Data) {{");
-        g!("(self, ())");
+        g!("fn split_metadata(self) -> (Self::Meta, Option<Self::Data>) {{");
+        g!("(self, None)");
         g!("}}");
         g!("}}");
         g!();
