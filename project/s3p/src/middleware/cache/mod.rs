@@ -26,8 +26,6 @@ use hyper::body::Bytes;
 use miette::{miette, Context, IntoDiagnostic};
 use moka::future::Cache;
 use moka::Expiry;
-use multi_index_map::MultiIndexMap;
-use parking_lot::RwLock;
 use s3s::{
     dto::{
         GetObjectOutput, GetObjectOutputMeta, HeadBucketOutput, HeadObjectOutput,
@@ -45,7 +43,6 @@ pub use logic::*;
 
 type Key = String;
 type Data = CachedResponse;
-type ETag = String;
 
 #[derive(Debug, Clone)]
 struct CachedResponse {
@@ -288,40 +285,20 @@ impl Expiry<Key, Data> for PerItemExpiration {
     }
 }
 
-#[derive(Clone, MultiIndexMap)]
-struct ETagEntry {
-    #[multi_index(hashed_unique)]
-    key: Key,
-    #[multi_index(hashed_unique)]
-    etag: ETag,
-}
-
 pub struct CacheLayer {
     cache: Arc<Cache<Key, Data>>,
-    lut: Arc<RwLock<MultiIndexETagEntryMap>>,
     config: CacheMiddlewareConfig,
     rx_abort: Option<AbortHandle>,
 }
 
 impl From<CacheMiddlewareConfig> for CacheLayer {
     fn from(config: CacheMiddlewareConfig) -> Self {
-        let lut = Arc::new(RwLock::new(MultiIndexETagEntryMap::default()));
-
         let mut cache = Cache::builder()
             .max_capacity(config.cache_size)
             .weigher(|_k: &Key, v: &CachedResponse| -> u32 {
                 v.len().try_into().unwrap_or(u32::MAX)
             })
             .expire_after(PerItemExpiration);
-
-        cache = {
-            let lut = lut.clone();
-
-            cache.eviction_listener_with_queued_delivery_mode(move |k, _v, _cause| {
-                let mut lut_w = lut.write();
-                lut_w.remove_by_key(k.deref());
-            })
-        };
 
         if let Some(ttl) = config.ttl.map(Duration::from_millis) {
             cache = cache.time_to_live(ttl)
@@ -333,7 +310,6 @@ impl From<CacheMiddlewareConfig> for CacheLayer {
 
         Self {
             cache: Arc::new(cache.build()),
-            lut,
             config,
             rx_abort: None,
         }
