@@ -1,0 +1,38 @@
+\chapter{Fundamentals}
+
+\section{RESTful API}
+
+\section{Simple Storage Service}
+Simple Storage Service (S3) is a cloud storage service originally developed by Amazon Web Services (AWS) that offers reliable and scalable cloud storage for data through a HTTP based API \cite{AWS_S3_Release} \cite{S3_API}. Since its initial release in 2006, many alternative implementations and competing S3-compatible services have been developed. Although the term S3 originally only referred to the service offered by AWS, it has now often used as a general term for any compatible solution.
+In S3, individual data entries are called \textit{objects}, which consist of the \textit{value}, which can consist of any sequence of bytes ranging from 0 to 5 TB in size\cite{AWS_S3_Object}, and \textit{metadata}, a set of key-value pairs that stores additional information about the object. Objects are grouped in container structure called \textit{buckets}, where each object belongs to exactly one bucket, and every bucket can contain any number of objects. Within a bucket, each object is uniquely identified through a \textit{key} and a \textit{version ID}.
+The data stored in S3 can be accessed and managed through a HTTP-based REST API, which currently defines 97\cite{S3_API_Actions} operations through which data can be accessed and manipulated.
+Access to the REST API is configured through policies that can be defined for each bucket which enable granular control over which operation can be executed by which user. The way user accounts are managed differs between implementations, but generally it can be said that users will be associated with \textit{credentials} consisting of an \textit{access key id} and a \textit{secret key}. To authorize requests to the API, users need to provide a signature for each request. This signature is calculated using multiple points of data like the contents of the request, a timestamp at which the request was made, as well as the user's credentials. The signature can be sent either through the request's \textbf{Authorization} header or its URL and is validated by the server.
+
+With the ever increasing amount of data that companies manage and the inherent need for storage capacity, S3 offers an easily manageable abstraction where developers do not have to think about the underlying filesystems and storage mediums. The decoupling of storage and access also make it possible to expand storage capacity by spreading objects over multiple devices and even adding more capacity when necessary, allowing for near infinite scalability. With managed solutions like the one provided by AWS, pricing is commonly calculated only by the amount of storage in use, which allows users to build solutions that can effortlessly scale to large amounts of data without wasting money on unused capacity caused by overprovisioning.
+
+\section{MinIO}
+MinIO is an implementation of a S3-compatible object store. It supports most of the S3 core features. It's greatest advantage is that it offers various means to create self-hosted instances, making it not only versatile, but also favored by companies in regards to data protection.
+
+\section{Composable Proxy}
+In this work, the term \textit{composable proxy} is used to describe proxy servers that are both \textit{internally composable} by dynamically combining internal components through simple configuration, as well as \textit{externally composable} by allowing multiple proxy servers to work together in order to enhance their abilities.
+
+\section{Caching}
+
+\section{HTTP Cache Policy}
+
+
+\section{Dependencies}
+This is an overview over the most relevant code dependencies used for this work. The list is non-exhaustive and only contains dependencies referenced in the following work.
+
+\begin{enumerate}
+	\item[tokio] tokio\cite{TOKIO_GITHUB}
+	\item[hyper] hyper\cite{HYPER_GITHUB} is a library for implementing asynchronous HTTP based servers and clients. It supports both HTTP/1 and HTTP/2 and describes itself as "a relatively low-level library, meant to be a building block for libraries and applications"\cite{HYPER_GITHUB}. With over 2800\cite{HYPER_CRATESIO} direct dependents listed on crates.io, it is widely used in the Rust ecosystem.
+	\item[tower] tower\cite{TOWER_GITHUB}
+	\item[s3s] s3s\cite{S3S_GITHUB}
+	\item[moka] moka\cite{MOKA_GITHUB}
+\end{enumerate}
+
+\section{Similar Software}
+\subsection{SeaweedFS}
+\subsection{Alluxio}
+\subsection{Noobaa}

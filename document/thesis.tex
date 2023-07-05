@@ -3,36 +3,22 @@
 
 \documentclass{class/thesis}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Bitte ergänzen Sie Ihre persönlichen Daten innerhalb     %
-% der im Folgenden inkludierten Datei properties.tex       %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 \include{properties}
+\bibliography{references.bib}
 
 \begin{document}
-
   \begin{thesis}
-
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % Die folgenden Kapitel dienen lediglich als Hilfestellung      %
-    % und müssen somit mit der Fertigstellung des finalen Dokuments %
-    % unbedingt entfernt werden.                                    %
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-    \include{chap/einleitung}
-    \include{chap/gliederung}
-    \include{chap/struktur}
-    \include{chap/organisation}
-    \include{chap/text}
-    \include{chap/zitieren}
-    \include{chap/auflistungen}
-    \include{chap/bilder}
-    \include{chap/tabellen}
-    \include{chap/matheumgebung}
+    \include{chap/introduction}
+    %\include{chap/structure}
+    \include{chap/basics}
+    \include{chap/architecture}
+    \include{chap/implementation}
+    \include{chap/evaluation}
+    \include{chap/summary}
+    \include{chap/future_work}
+    \include{chap/appendix}
     \include{chap/code}
 
   \end{thesis}
 
 \end{document}
-

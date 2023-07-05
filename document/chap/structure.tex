@@ -1,0 +1,52 @@
+\chapter{Structure}
+\label{Structure}
+
+Eine sinnvolle und korrekte Unterteilung der Arbeit ist nicht nur wichtig für den Leser, sondern hilft auch dem Verfasser bei der Anfertigung.\\
+Allgemeiner grundlegender Aufbau mit den wichtigsten inhaltlichen Aspekten:
+
+\begin{enumerate}
+	\item Abstract
+	\item Introduction
+	\begin{enumerate}
+		\item Problem Description
+		\item Motivation
+		\item Goals
+	\end{enumerate}
+	\item Foundation
+	\begin{enumerate}
+		\item Related Work
+		\item Simple Storage Service
+		\item Composable Proxy
+	\end{enumerate}
+	\item Architecture
+	\item Implementation
+	\begin{enumerate}
+		\item Decisions
+		\begin{enumerate}
+			\item Modularity
+			\item Configurability
+			\item HTTP Cache Headers
+			\item ACL
+		\end{enumerate}
+		\item Components
+		\begin{enumerate}
+			\item Server
+			\item Middleware
+			\item Client
+			\item Webhook
+		\end{enumerate}
+		\item Challenges: s3s
+	\end{enumerate}
+	\item Evaluation
+	\begin{enumerate}
+		\item Benchmark Results
+		\begin{enumerate}
+			\item Same Server
+			\item Clientside Proxy, Remote Server
+			\item Proxy Tunnel, Remote Server
+		\end{enumerate}
+		\item Bandwidth
+	\end{enumerate}
+	\item Summary
+	\item Future Work
+\end{enumerate}
