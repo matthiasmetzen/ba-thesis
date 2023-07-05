@@ -1,15 +1,11 @@
-
-
-use http::{Extensions, HeaderMap, HeaderValue, StatusCode};
+use http::{header, Extensions, HeaderMap, HeaderValue, StatusCode};
+use http_cache_semantics::ResponseLike;
 use hyper::body::Bytes;
-use miette::{Report};
+use miette::Report;
 use s3s::{
+    stream::{ByteStream, RemainingLength},
     Body,
 };
-
-
-
-
 
 #[derive(Debug, Default)]
 pub struct Response {
@@ -17,6 +13,15 @@ pub struct Response {
     pub headers: HeaderMap<HeaderValue>,
     pub body: Body,
     pub extensions: Extensions,
+}
+
+impl Response {
+    pub fn with_status(status: StatusCode) -> Self {
+        Self {
+            status,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -37,7 +42,17 @@ impl From<Response> for hyper::Response<hyper::Body> {
         // FIXME: temporary
         let mut res_builder = hyper::Response::builder().status(value.status);
 
-        res_builder.headers_mut().unwrap().extend(value.headers);
+        let headers = res_builder.headers_mut().unwrap();
+        headers.extend(value.headers);
+
+        /*let content_len = value.body.remaining_length();
+        if let Some(len) = content_len.exact() {
+            if len > 0 {
+                headers.insert(header::CONTENT_LENGTH, len.into());
+            } else {
+                headers.remove(header::CONTENT_LENGTH);
+            }
+        }*/
 
         res_builder.body(value.body.into()).unwrap()
     }
@@ -81,5 +96,15 @@ impl From<RawResponse> for Response {
             },
             extensions: Extensions::new(),
         }
+    }
+}
+
+impl ResponseLike for Response {
+    fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    fn headers(&self) -> &HeaderMap {
+        &self.headers
     }
 }

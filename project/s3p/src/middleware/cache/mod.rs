@@ -1,7 +1,4 @@
-use std::{
-    ops::Deref,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant, SystemTime};
 
 use super::*;
 use crate::{
@@ -17,6 +14,7 @@ use crate::{
     },
 };
 
+use http_cache_semantics::{BeforeRequest, CacheOptions, CachePolicy};
 use miette::Report;
 
 use async_broadcast::RecvError;
@@ -36,7 +34,7 @@ use s3s::{
     ops::OperationType,
 };
 use tokio::task::AbortHandle;
-use tracing::{debug, warn};
+use tracing::{debug, error, warn};
 
 mod logic;
 pub use logic::*;
@@ -48,7 +46,7 @@ type Data = CachedResponse;
 struct CachedResponse {
     ttl: Option<Duration>,
     tti: Option<Duration>,
-    updated_at: Instant,
+    updated_at: SystemTime,
     data: CacheData,
 }
 
@@ -78,9 +76,6 @@ impl TryFrom<CachedResponse> for Response {
                     let mut output: GetObjectOutput = meta.into();
                     let body = s3s::http::Body::from(bytes);
                     output.set_data(Some(body.into()));
-
-                    // TODO: proper headers, http cache semantics
-                    output.cache_control.get_or_insert("no-cache".to_string());
 
                     let res: s3s::http::Response = output
                         .try_into()
@@ -163,8 +158,8 @@ impl<'a> AsyncFrom<&mut S3Response<'a, ops::GetObject>> for CachedResponse {
     async fn async_from(resp: &mut S3Response<'a, ops::GetObject>) -> Self {
         // TODO: limit cachable body size
         let bytes = {
-        let mut body = std::mem::take(&mut resp.body);
-        let bytes = body.store_all_unlimited().await.ok();
+            let mut body = std::mem::take(&mut resp.body);
+            let bytes = body.store_all_unlimited().await.ok();
             if let Some(ref b) = bytes {
                 resp.body = s3s::Body::from(b.clone());
             } else {
@@ -339,14 +334,48 @@ impl CacheLayer {
         Self::from(config)
     }
 
-    pub fn get_cached_response(&self, key: &Key) -> Result<Response> {
+    pub fn get_cached_response(&self, key: &Key) -> Result<Response, SendError> {
         let data = self
             .cache
             .get(key)
-            .ok_or_else(|| miette!("No cache entry found"))?;
+            .ok_or_else(|| SendError::Internal(miette!("No cache entry found")))?;
 
         debug!("found cache entry for {}", key);
-        data.try_into()
+        data.try_into().map_err(SendError::Internal)
+    }
+
+    pub async fn get_matching_response(&self, key: &Key, req: &mut Request) -> Option<Response> {
+        let data = self.cache.get(key)?;
+
+        debug!("found cache entry for {}", key);
+        let resp_time = data.updated_at;
+        let mut resp: Response = data.try_into().ok()?;
+
+        let options = CacheOptions {
+            shared: false,
+            ..Default::default()
+        };
+
+        let policy = CachePolicy::new_options(req, &resp, resp_time, options);
+        debug!("is cacheable: {}", policy.is_storable());
+
+        match policy.before_request(req, SystemTime::now()) {
+            BeforeRequest::Fresh(parts) => {
+                debug!("cache entry for {} was fresh", key);
+                resp.headers.extend(parts.headers);
+                Some(resp)
+            }
+            BeforeRequest::Stale { request, matches } => {
+                debug!("cache entry for {} was stale", key);
+
+                if !matches {
+                    self.cache.remove(key).await;
+                }
+
+                req.headers.extend(request.headers);
+                None
+            }
+        }
     }
 
     fn event_handler(&self, rx: BroadcastRecv) -> impl Future<Output = ()> {
@@ -541,7 +570,7 @@ impl Layer for CacheLayer {
 
         let key = intent.key;
 
-        if let Ok(resp) = self.get_cached_response(&key) {
+        if let Some(resp) = self.get_matching_response(&key, &mut req).await {
             return Ok(resp);
         }
 
@@ -583,7 +612,7 @@ impl Layer for CacheLayer {
                     let mut resp: S3Response<ops::HeadBucket> = S3Response::try_from(&mut resp)?;
                     let cr = CachedResponse::async_from(&mut resp).await;
                     cr
-                    }
+                }
                 OperationType::ListBuckets(_) => {
                     let mut resp: S3Response<ops::ListBuckets> = S3Response::try_from(&mut resp)?;
                     let cr = CachedResponse::async_from(&mut resp).await;

@@ -16,6 +16,7 @@ clap = { version = "4.2.4", features = ["derive"] }
 dotenvy = "0.15"
 futures = { version = "0.3.28" }
 http = "0.2.9"
+http-cache-semantics = "1.0.1"
 hyper = { version = "0.14", features = ["full"] }
 miette = { version = "5.7", features = ["fancy"] }
 moka = { version = "0.11", features = ["future"] }
