@@ -1,10 +1,15 @@
 use http::{Extensions, HeaderMap, HeaderValue, Method, Uri};
+use http_cache_semantics::RequestLike;
 use s3s::Body;
 
 use super::s3::S3Extension;
 
 #[derive(Default)]
 pub struct Request {
+    pub method: Method,
+    pub uri: Uri,
+    pub headers: HeaderMap<HeaderValue>,
+    pub body: Body,
     pub extensions: Extensions,
 }
 
@@ -13,22 +18,32 @@ impl std::fmt::Debug for Request {
         let mut fmt = f.debug_struct("Request");
 
         self.extensions
-            .get::<HttpExtension>()
-            .map(|ext| fmt.field("http", ext));
-        self.extensions
             .get::<S3Extension>()
             .map(|ext| fmt.field("s3", ext));
 
-        fmt.field("extensions", &self.extensions.len());
-
-        fmt.finish()
+        fmt.field("method", &self.method)
+            .field("uri", &self.uri)
+            .field("headers", &self.headers)
+            .field("body", &self.body)
+            .field("extensions", &self.extensions.len())
+            .finish()
     }
 }
 
-#[derive(Debug)]
-pub struct HttpExtension {
-    pub method: Method,
-    pub uri: Uri,
-    pub headers: HeaderMap<HeaderValue>,
-    pub body: Body, // FIXME: this could maybe be Option<Body> and more generic body type (eg. http::Body)
+impl RequestLike for Request {
+    fn uri(&self) -> Uri {
+        self.uri.clone()
+    }
+
+    fn is_same_uri(&self, other: &Uri) -> bool {
+        self.uri.eq(other)
+    }
+
+    fn method(&self) -> &Method {
+        &self.method
+    }
+
+    fn headers(&self) -> &HeaderMap {
+        &self.headers
+    }
 }

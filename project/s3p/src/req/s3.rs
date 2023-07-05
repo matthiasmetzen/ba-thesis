@@ -1,12 +1,7 @@
 use std::any::Any;
 
-
-
-
-
 use std::ops::Deref;
 use std::ops::DerefMut;
-
 
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -25,8 +20,10 @@ use s3s::stream::ByteStream;
 use s3s::stream::VecByteStream;
 use s3s::Body;
 
+use crate::client::s3::S3Error;
+
+use super::Request;
 use super::Response;
-use super::{HttpExtension, Request};
 
 #[derive(Default)]
 pub struct S3Extension {
@@ -110,17 +107,12 @@ impl TryFrom<Request> for s3s::http::Request {
             .remove::<S3Extension>()
             .ok_or_else(|| miette!("Could not get S3 Extension from Request"))?;
 
-        let http_ext = req
-            .extensions
-            .remove::<HttpExtension>()
-            .ok_or_else(|| miette!("Could not get S3 Extension from Request"))?;
-
         Ok(Self {
-            method: http_ext.method,
-            uri: http_ext.uri,
-            headers: http_ext.headers,
+            method: req.method,
+            uri: req.uri,
+            headers: req.headers,
             extensions: req.extensions,
-            body: http_ext.body,
+            body: req.body,
             s3ext: s3_ext.into(),
         })
     }
@@ -132,16 +124,13 @@ impl From<s3s::http::Request> for Request {
         let s3_ext = S3Extension::from(value.s3ext);
         exts.insert(s3_ext);
 
-        let http_ext = HttpExtension {
+        Request {
             method: value.method,
             uri: value.uri,
             headers: value.headers,
             body: value.body,
-        };
-
-        exts.insert(http_ext);
-
-        Request { extensions: exts }
+            extensions: exts,
+        }
     }
 }
 
@@ -158,11 +147,6 @@ pub(crate) trait S3RequestExt {
 
 impl S3RequestExt for Request {
     fn try_as_s3_request(&self) -> Result<s3s::http::Request> {
-        let http_ext = self
-            .extensions
-            .get::<HttpExtension>()
-            .ok_or_else(|| miette!("Missing S3 extension"))?;
-
         let s3_ext = self
             .extensions
             .get::<S3Extension>()
@@ -171,9 +155,9 @@ impl S3RequestExt for Request {
         Ok(s3s::http::Request {
             extensions: Extensions::new(),
             body: Body::empty(),
-            headers: http_ext.headers.clone(),
-            method: http_ext.method.clone(),
-            uri: http_ext.uri.clone(),
+            headers: self.headers.clone(),
+            method: self.method.clone(),
+            uri: self.uri.clone(),
             s3ext: s3s::http::S3Extensions {
                 s3_path: s3_ext.s3_path.clone(),
                 qs: None,
@@ -331,10 +315,6 @@ impl From<&s3s::S3Error> for Response {
 mod tests {
 
     use ctor::ctor;
-
-    
-
-    
 
     #[ctor]
     fn prepare() {
