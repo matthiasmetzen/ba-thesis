@@ -5,6 +5,7 @@ use std::{
 
 use super::*;
 use crate::{
+    client::s3::S3Error,
     config::CacheMiddlewareConfig,
     req::{s3::S3Response, *},
     webhook::{
@@ -15,6 +16,8 @@ use crate::{
         BroadcastRecv, ReceiverExt, WebhookEvent,
     },
 };
+
+use miette::Report;
 
 use async_broadcast::RecvError;
 use futures::{StreamExt, TryStreamExt};
@@ -28,7 +31,8 @@ use parking_lot::RwLock;
 use s3s::{
     dto::{
         GetObjectOutput, GetObjectOutputMeta, HeadBucketOutput, HeadObjectOutput,
-        ListBucketsOutput, ListObjectsOutput, ListObjectsV2Output, SplitMetadata,
+        ListBucketsOutput, ListObjectVersionsOutput, ListObjectsOutput, ListObjectsV2Output,
+        SplitMetadata,
     },
     ops,
     ops::OperationType,
@@ -62,6 +66,7 @@ enum CacheData {
     GetObject(GetObjectOutputMeta, Bytes),
     HeadObject(HeadObjectOutput),
     ListObjects(Either<ListObjectsOutput, ListObjectsV2Output>),
+    ListObjectVersions(ListObjectVersionsOutput),
     Bucket(HeadBucketOutput),
     ListBuckets(ListBucketsOutput),
 }
@@ -127,7 +132,6 @@ impl TryFrom<CachedResponse> for Response {
 
                 Ok(resp.into())
             }
-            _ => unimplemented!(),
         }
     }
 }
@@ -160,15 +164,90 @@ trait AsyncFrom<T>: Sized {
 
 impl<'a> AsyncFrom<&mut S3Response<'a, ops::GetObject>> for CachedResponse {
     async fn async_from(resp: &mut S3Response<'a, ops::GetObject>) -> Self {
-        let mut body = std::mem::take(&mut resp.body);
         // TODO: limit cachable body size
+        let bytes = {
+        let mut body = std::mem::take(&mut resp.body);
         let bytes = body.store_all_unlimited().await.ok();
+            if let Some(ref b) = bytes {
+                resp.body = s3s::Body::from(b.clone());
+            } else {
+                resp.body = body;
+            }
+
+            bytes
+        };
 
         Self {
             ttl: Default::default(),
             tti: Default::default(),
-            updated_at: Instant::now(),
+            updated_at: SystemTime::now(),
             data: CacheData::GetObject(resp.metadata.as_ref().clone(), bytes.unwrap()),
+        }
+    }
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::HeadObject>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::HeadObject>) -> Self {
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: SystemTime::now(),
+            data: CacheData::HeadObject(resp.metadata.as_ref().clone()),
+        }
+    }
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::ListObjects>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::ListObjects>) -> Self {
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: SystemTime::now(),
+            data: CacheData::ListObjects(Either::Left(resp.metadata.as_ref().clone())),
+        }
+    }
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::ListObjectsV2>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::ListObjectsV2>) -> Self {
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: SystemTime::now(),
+            data: CacheData::ListObjects(Either::Right(resp.metadata.as_ref().clone())),
+        }
+    }
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::ListObjectVersions>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::ListObjectVersions>) -> Self {
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: SystemTime::now(),
+            data: CacheData::ListObjectVersions(resp.metadata.as_ref().clone()),
+        }
+    }
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::HeadBucket>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::HeadBucket>) -> Self {
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: SystemTime::now(),
+            data: CacheData::Bucket(resp.metadata.as_ref().clone()),
+        }
+    }
+}
+
+impl<'a> AsyncFrom<&mut S3Response<'a, ops::ListBuckets>> for CachedResponse {
+    async fn async_from(resp: &mut S3Response<'a, ops::ListBuckets>) -> Self {
+        Self {
+            ttl: Default::default(),
+            tti: Default::default(),
+            updated_at: SystemTime::now(),
+            data: CacheData::ListBuckets(resp.metadata.as_ref().clone()),
         }
     }
 }
@@ -501,18 +580,37 @@ impl Layer for CacheLayer {
                 OperationType::GetObject(_) => {
                     let mut resp: S3Response<ops::GetObject> = S3Response::try_from(&mut resp)?;
                     let cr = CachedResponse::async_from(&mut resp).await;
-
-                    // TODO: Is this even needed anymore?
-                    if let Some(etag) = &resp.metadata.e_tag {
-                        let ee = ETagEntry {
-                            key: key.clone(),
-                            etag: etag.clone(),
-                        };
-                        let mut lut = self.lut.write();
-                        lut.remove_by_key(&ee.key);
-                        lut.insert(ee);
+                    cr
+                }
+                OperationType::HeadObject(_) => {
+                    let mut resp: S3Response<ops::HeadObject> = S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
+                    cr
+                }
+                OperationType::ListObjects(_) => {
+                    let mut resp: S3Response<ops::ListObjects> = S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
+                    cr
+                }
+                OperationType::ListObjectsV2(_) => {
+                    let mut resp: S3Response<ops::ListObjectsV2> = S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
+                    cr
+                }
+                OperationType::ListObjectVersions(_) => {
+                    let mut resp: S3Response<ops::ListObjectVersions> =
+                        S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
+                    cr
+                }
+                OperationType::HeadBucket(_) => {
+                    let mut resp: S3Response<ops::HeadBucket> = S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
+                    cr
                     }
-
+                OperationType::ListBuckets(_) => {
+                    let mut resp: S3Response<ops::ListBuckets> = S3Response::try_from(&mut resp)?;
+                    let cr = CachedResponse::async_from(&mut resp).await;
                     cr
                 }
                 _ => {
