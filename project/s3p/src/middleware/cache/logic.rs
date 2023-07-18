@@ -54,7 +54,7 @@ impl CacheLogic for ops::GetObject {
             return None;
         }
 
-        let key_data = KeyData::Object {
+        let key_data = KeyData::GetObject {
             bucket: des.bucket.as_str(),
             object: des.key.as_str(),
             version_id: des.version_id.as_deref().unwrap_or(""),
@@ -85,7 +85,7 @@ impl CacheLogic for ops::HeadObject {
             return None;
         }
 
-        let key_data = KeyData::Object {
+        let key_data = KeyData::HeadObject {
             bucket: des.bucket.as_str(),
             object: des.key.as_str(),
             version_id: des.version_id.as_deref().unwrap_or(""),

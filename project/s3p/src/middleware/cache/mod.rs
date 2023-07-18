@@ -66,6 +66,13 @@ enum CacheData {
     ListBuckets(ListBucketsOutput),
 }
 
+#[derive(Debug)]
+pub enum CacheState<T> {
+    Fresh(T),
+    Stale(T),
+    None,
+}
+
 impl TryFrom<CachedResponse> for Response {
     type Error = miette::Report;
 
@@ -114,8 +121,11 @@ impl TryFrom<CachedResponse> for Response {
 
                 Ok(resp.into())
             }
-            CacheData::Bucket(bckt) => {
-                let resp: s3s::http::Response = bckt.try_into().into_diagnostic()?;
+            CacheData::Bucket(meta) => {
+                let resp: s3s::http::Response = meta
+                    .try_into()
+                    .into_diagnostic()
+                    .wrap_err("Failed to cast to response")?;
 
                 Ok(resp.into())
             }
@@ -344,36 +354,56 @@ impl CacheLayer {
         data.try_into().map_err(SendError::Internal)
     }
 
-    pub async fn get_matching_response(&self, key: &Key, req: &mut Request) -> Option<Response> {
-        let data = self.cache.get(key)?;
+    pub async fn get_matching_response(
+        &self,
+        key: &Key,
+        req: &mut Request,
+    ) -> CacheState<Response> {
+        let Some(data) = self.cache.get(key) else {
+            return CacheState::None;
+        };
 
         debug!("found cache entry for {}", key);
         let resp_time = data.updated_at;
-        let mut resp: Response = data.try_into().ok()?;
+        let Ok(mut resp) = data.try_into() else {
+            return CacheState::None;
+        };
 
         let options = CacheOptions {
             shared: false,
             ..Default::default()
         };
 
+        let now = SystemTime::now();
+
         let policy = CachePolicy::new_options(req, &resp, resp_time, options);
         debug!("is cacheable: {}", policy.is_storable());
 
-        match policy.before_request(req, SystemTime::now()) {
+        {
+            // Fixes: TTL was set to 0 since no caching headers were found on the response
+            // this is an ugly escape hatch
+            if policy.time_to_live(resp_time) == Duration::from_secs(0) {
+                return CacheState::Fresh(resp);
+            }
+        }
+
+        // Check http cache policy
+        match policy.before_request(req, now) {
             BeforeRequest::Fresh(parts) => {
                 debug!("cache entry for {} was fresh", key);
                 resp.headers.extend(parts.headers);
-                Some(resp)
+                CacheState::Fresh(resp)
             }
             BeforeRequest::Stale { request, matches } => {
                 debug!("cache entry for {} was stale", key);
 
                 if !matches {
                     self.cache.remove(key).await;
+                    return CacheState::None;
                 }
 
                 req.headers.extend(request.headers);
-                None
+                CacheState::Stale(resp)
             }
         }
     }
@@ -416,7 +446,15 @@ impl CacheLayer {
                                 | ObjectCreatedEvent::CompleteMultipartUpload
                                 | ObjectCreatedEvent::Copy
                                 | ObjectCreatedEvent::Put => {
-                                    let key_data = KeyData::Object {
+                                    let key_data = KeyData::GetObject {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+
+                                    let key_data = KeyData::HeadObject {
                                         bucket: &record.s3.bucket.name,
                                         object: &record.s3.object.key,
                                         version_id: &record.s3.object.version_id,
@@ -426,7 +464,15 @@ impl CacheLayer {
                                 }
                                 ObjectCreatedEvent::Post => {
                                     //Existing object was updated. Refetch possible
-                                    let key_data = KeyData::Object {
+                                    let key_data = KeyData::GetObject {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+
+                                    let key_data = KeyData::HeadObject {
                                         bucket: &record.s3.bucket.name,
                                         object: &record.s3.object.key,
                                         version_id: &record.s3.object.version_id,
@@ -440,7 +486,15 @@ impl CacheLayer {
                             },
                             S3EventType::ObjectRemoved(ev) => match ev {
                                 ObjectRemovedEvent::Any | ObjectRemovedEvent::Delete => {
-                                    let key_data = KeyData::Object {
+                                    let key_data = KeyData::GetObject {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+
+                                    let key_data = KeyData::HeadObject {
                                         bucket: &record.s3.bucket.name,
                                         object: &record.s3.object.key,
                                         version_id: &record.s3.object.version_id,
@@ -452,7 +506,15 @@ impl CacheLayer {
                             },
                             S3EventType::LifecycleExpiration(ev) => match ev {
                                 LifecycleExpirationEvent::Delete => {
-                                    let key_data = KeyData::Object {
+                                    let key_data = KeyData::GetObject {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+
+                                    let key_data = KeyData::HeadObject {
                                         bucket: &record.s3.bucket.name,
                                         object: &record.s3.object.key,
                                         version_id: &record.s3.object.version_id,
@@ -467,7 +529,15 @@ impl CacheLayer {
                                 | ObjectRestoreEvent::Completed
                                 | ObjectRestoreEvent::Delete
                                 | ObjectRestoreEvent::Post => {
-                                    let key_data = KeyData::Object {
+                                    let key_data = KeyData::GetObject {
+                                        bucket: &record.s3.bucket.name,
+                                        object: &record.s3.object.key,
+                                        version_id: &record.s3.object.version_id,
+                                    };
+
+                                    cache.invalidate(&key_data.as_key()).await;
+
+                                    let key_data = KeyData::HeadObject {
                                         bucket: &record.s3.bucket.name,
                                         object: &record.s3.object.key,
                                         version_id: &record.s3.object.version_id,
@@ -485,7 +555,12 @@ impl CacheLayer {
 }
 
 enum KeyData<'a> {
-    Object {
+    GetObject {
+        bucket: &'a str,
+        object: &'a str,
+        version_id: &'a str,
+    },
+    HeadObject {
         bucket: &'a str,
         object: &'a str,
         version_id: &'a str,
@@ -509,11 +584,16 @@ enum KeyData<'a> {
 impl From<&KeyData<'_>> for Key {
     fn from(value: &KeyData<'_>) -> Self {
         match value {
-            KeyData::Object {
+            KeyData::GetObject {
                 bucket,
                 object,
                 version_id,
-            } => format!("Object {}, {}, {}", bucket, object, version_id),
+            } => format!("GetObject {}, {}, {}", bucket, object, version_id),
+            KeyData::HeadObject {
+                bucket,
+                object,
+                version_id,
+            } => format!("HeadObject {}, {}, {}", bucket, object, version_id),
             KeyData::ObjectList {
                 bucket,
                 prefix,
@@ -570,17 +650,41 @@ impl Layer for CacheLayer {
 
         let key = intent.key;
 
-        if let Some(resp) = self.get_matching_response(&key, &mut req).await {
+        let has_etag = req.headers.get(http::header::ETAG).is_some();
+
+        // get response and staleness from cache
+        let cached = self.get_matching_response(&key, &mut req).await;
+
+        if let CacheState::Fresh(resp) = cached {
+            // Fresh responses can be sent as-is
             return Ok(resp);
         }
 
-        let mut resp = next.call(req).await?;
+        // Response not stored or stale
+        let mut resp = match next.call(req).await {
+            Ok(r) => r,
+            Err(e) => match (e, cached) {
+                // Responses with 304 Not Modified will be passed as SendError::ResponseErr
+                (SendError::ResponseErr(err_resp, report), CacheState::Stale(c)) => {
+                    match (err_resp.status, has_etag) {
+                        // We added caching headers, must respond with cached data
+                        (http::StatusCode::NOT_MODIFIED, false) => c,
+                        // Client added caching headers, forward 304 response
+                        (http::StatusCode::NOT_MODIFIED, true) => return Ok(err_resp),
+                        _ => return Err(SendError::ResponseErr(err_resp, report)),
+                    }
+                }
+                (e, _) => return Err(e),
+            },
+        };
 
+        // Add or update cache entry
         if let Some(s3_ext) = resp.extensions.get::<S3Extension>() {
             let Some(op) = s3_ext.op.as_ref() else {
                 return Err(S3Error::MissingOp.into());
             };
 
+            // Create CachedResponse from response
             let cr = match op {
                 OperationType::GetObject(_) => {
                     let mut resp: S3Response<ops::GetObject> = S3Response::try_from(&mut resp)?;
@@ -624,9 +728,12 @@ impl Layer for CacheLayer {
                 }
             };
 
+            // set TTL & TTI
             let cr = cr
                 .time_to_live(intent.ttl.map(Duration::from_millis))
                 .time_to_idle(intent.tti.map(Duration::from_millis));
+
+            debug!("{:#?}", cr);
 
             self.cache.insert(key, cr).await;
         }
