@@ -70,7 +70,7 @@
 }
 
 @misc{HYPER_GITHUB,
-	author = {hyperium, Sean McArtur},
+	author = {Sean McArtur},
 	title = {hyper},
 	year = 2023,
 	publisher = {GitHub},
@@ -80,7 +80,7 @@
 }
 
 @misc{HYPER_CRATESIO,
-	author = {hyperium, Sean McArtur},
+	author = {Sean McArtur},
 	title = {hyper},
 	year = 2023,
 	publisher = {Crates.io},
@@ -96,7 +96,7 @@
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com/hyperium/hyper}},
+	howpublished = {\url{https://github.com//}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
@@ -106,7 +106,7 @@
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com/hyperium/hyper}},
+	howpublished = {\url{https://github.com//}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
@@ -116,7 +116,7 @@
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com/hyperium/hyper}},
+	howpublished = {\url{https://github.com//}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
@@ -126,6 +126,64 @@
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com/hyperium/hyper}},
+	howpublished = {\url{https://github.com//}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
+}
+
+@misc{AWS_SDK_GITHUB,
+	author = {AWS},
+	title = {The AWS SDK for Rust},
+	date = {},
+	url = {https://github.com/awslabs/aws-sdk-rust/blob/9c3168dafa4fd8885ce4e1fd41cec55ce982a33c/README.md},
+	urldate = {2023-07-07},
+}
+
+@misc{einziger2015tinylfu,
+	title={TinyLFU: A Highly Efficient Cache Admission Policy}, 
+	author={Gil Einziger and Roy Friedman and Ben Manes},
+	year={2015},
+	eprint={1512.00727},
+	archivePrefix={arXiv},
+	primaryClass={cs.OS}
+}
+
+@misc{osti_1895203,
+	title = {Viability of S3 Object Storage for the ASC Program at Sandia},
+	author = {Kordenbrock, Todd and Templet, Gary and Ulmer, Craig and Widener, Patrick},
+	abstractNote = {Recent efforts at Sandia such as DataSEA are creating search engines that enable analysts to query the institution’s massive archive of simulation and experiment data. The benefit of this work is that analysts will be able to retrieve all historical information about a system component that the institution has amassed over the years and make better-informed decisions in current work. As DataSEA gains momentum, it faces multiple technical challenges relating to capacity storage. From a raw capacity perspective, data producers will rapidly overwhelm the system with massive amounts of data. From an accessibility perspective, analysts will expect to be able to retrieve any portion of the bulk data, from any system on the enterprise network. Sandia’s Institutional Computing is mitigating storage problems at the enterprise level by procuring new capacity storage systems that can be accessed from anywhere on the enterprise network. These systems use the simple storage service, or S3, API for data transfers. While S3 uses objects instead of files, users can access it from their desktops or Sandia’s high-performance computing (HPC) platforms. S3 is particularly well suited for bulk storage in DataSEA, as datasets can be decomposed into object that can be referenced and retrieved individually, as needed by an analyst. In this report we describe our experiences working with S3 storage and provide information about how developers can leverage Sandia’s current systems. We present performance results from two sets of experiments. First, we measure S3 throughput when exchanging data between four different HPC platforms and two different enterprise S3 storage systems on the Sandia Restricted Network (SRN). Second, we measure the performance of S3 when communicating with a custom-built Ceph storage system that was constructed from HPC components. Overall, while S3 storage is significantly slower than traditional HPC storage, it provides significant accessibility benefits that will be valuable for archiving and exploiting historical data. There are multiple opportunities that arise from this work, including enhancing DataSEA to leverage S3 for bulk storage and adding native S3 support to Sandia’s IOSS library.},
+	doi = {10.2172/1895203},
+	url = {https://www.osti.gov/biblio/1895203},
+	place = {United States},
+	year = {2022},
+	month = {10}
+}
+
+@misc{rfc9111,
+	series =    {Request for Comments},
+	number =    9111,
+	howpublished =  {RFC 9111},
+	publisher = {RFC Editor},
+	doi =       {10.17487/RFC9111},
+	url =       {https://www.rfc-editor.org/info/rfc9111},
+	author =    {Roy T. Fielding and Mark Nottingham and Julian Reschke},
+	title =     {{HTTP Caching}},
+	pagetotal = 35,
+	year =      2022,
+	month =     jun,
+	abstract =  {The Hypertext Transfer Protocol (HTTP) is a stateless application-level protocol for distributed, collaborative, hypertext information systems. This document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages. This document obsoletes RFC 7234.},
+}
+
+@misc{rfc2616,
+	series =    {Request for Comments},
+	number =    2616,
+	howpublished =  {RFC 2616},
+	publisher = {RFC Editor},
+	doi =       {10.17487/RFC2616},
+	url =       {https://www.rfc-editor.org/info/rfc2616},
+	author =    {Henrik Nielsen and Jeffrey Mogul and Larry M Masinter and Roy T. Fielding and Jim Gettys and Paul J. Leach and Tim Berners-Lee},
+	title =     {{Hypertext Transfer Protocol -- HTTP/1.1}},
+	pagetotal = 176,
+	year =      1999,
+	month =     jun,
+	abstract =  {HTTP has been in use by the World-Wide Web global information initiative since 1990. This specification defines the protocol referred to as "HTTP/1.1", and is an update to RFC 2068. {[}STANDARDS-TRACK{]}},
 }

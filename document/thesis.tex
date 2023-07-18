@@ -3,6 +3,20 @@
 
 \documentclass{class/thesis}
 
+\usepackage{amssymb}
+\usepackage{pifont}
+\usepackage{makecell}
+\usepackage[strict=true,autostyle=true]{csquotes}
+\usepackage{multicol}
+\usepackage{longtable}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, shapes.arrows, matrix, fit}
+
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+\renewcommand\theadfont{\bfseries\sffamily}
+
 \include{properties}
 \bibliography{references.bib}
 
@@ -12,13 +26,12 @@
     %\include{chap/structure}
     \include{chap/basics}
     \include{chap/architecture}
+    \include{chap/s3_lib}
     \include{chap/implementation}
     \include{chap/evaluation}
     \include{chap/summary}
     \include{chap/future_work}
     \include{chap/appendix}
-    \include{chap/code}
-
-  \end{thesis}
+    \end{thesis}
 
 \end{document}
