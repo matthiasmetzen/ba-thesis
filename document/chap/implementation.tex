@@ -1,8 +1,17 @@
 \chapter{Implementation}
 
+This chapter provides an in-depth exploration of the implementation of the S3 proxy, which incorporates caching functionality. This chapter aims to present a comprehensive overview of the design decisions, technologies employed, and the actual development process. This chapter will further explain the key features and limitations of the implementation.
+\\\\
+To ensure a robust and efficient implementation, the implementation was done in the Rust programming language. Rust's focus on memory safety, performance, and concurrency aligns well with our project requirements. Leveraging Rust's powerful abstractions, expressive syntax, and rich ecosystem was an important factor in building a reliable and high-performance S3 proxy that integrates advanced caching functionality.
+
 \section{Decisions}
 
+This section deals with the decisions made as part of the design and implementation of the software. For that purpose, it explains the necessity and reasoning behind these decisions, as well as the benefits and limitations they cause.
+
 \subsection{Modularity}
+
+As part of the \textit{internal composition}\ref{composition} goal, much effort was put into designing components in a way that allows them to be decoupled from each other by abstracting their functionality through simple \code{traits}. As such, the specific implementations of components explained in this chapter should be viewed as building blocks that can be combined in the shape described by the architecture\ref{architecture}.
+This allows the code to be easily expanded to provide support for systems other than S3 in the future, simply by providing additional implementations to the individual components.
 
 \subsection{Configurability}
 
@@ -13,45 +22,175 @@ Since requests to S3 are usually authenticated through a signature unique to eac
 
 There were plans to implement bucket policy validations inside the proxy. This would enable failing early in the case that a request was sent with insufficient permission, reducing bandwidth and server load. However, there are some major issues with this idea.
 Most significantly, a full permissions check would require access to the credentials of all users. Exposing all credentials to the proxy would pose a significant risk and increase the attack surface. As there is no API access to the credentials defined in the S3 specification, the implementation would also not be universally applicable to all S3-compatible services.
-A solution would be to only make the proxy accessible through a set of known credentials against which it could validate the bucket policies. After careful evaluation, this solutions was ultimately judged to be out of scope for this work, as in this case requesters can be assumed to have knowledge of the proxy and therefore can be expected to have the correct credentials, in which case there would be limited room for acceleration.
+A solution would be to only make the proxy accessible through a set of known credentials against which it could validate the bucket policies. After careful evaluation, this solution was ultimately judged to be out of scope for this work, as in this case requesters can be assumed to have knowledge of the proxy and therefore can be expected to have the correct credentials, in which case there would be limited room for acceleration.
 
 The solution that was eventually adopted is that the proxy can optionally be configured to validate incoming requests against a provided set of credentials (A), but will replace the signature with one calculated from its own credentials (B) before forwarding the request.
 Although acceptable within the scope of this work, this approach does come with some issues and poses some limitations that should be considered. 
 \begin{enumerate}
 	\item If A is configured and B has permissions that A does not have, A can bypass this lack of permissions. Conversely, if A has permissions that B does not have, downstream requests may fail unexpectedly. This can be mitigated by using the same set of credentials for A and B.
-	\item If A is configured, a requests signature must match A even if the bucket policy would allow for public access.
-	\item If no credentials are configured for A, all requests to the proxy will be executed with B without any validation of signatures on the incoming request. Exposing the proxy in this state poses significant risk of unintended unauthorized access.
+	\item If A is configured, a request's signature must match A even if the bucket policy would allow for public access.
+	\item If no credentials are configured for A, all requests to the proxy will be executed with B without any validation of signatures on the incoming request. Exposing the proxy in this state poses a significant risk of unintended unauthorized access.
 \end{enumerate}
 
-\section{Components}
 
-This section focuses on the specific implementations for the components described in \ref{architecture} that were created for the stated goal of creating a proxy for the S3 protocol with additional cache functionality.
+\section{Configuration}
+\label{configuration}
 
-\subsection{S3 Server}
 
-The Server is the component responsible for accepting requests made to the proxy. It is initialized by providing a ServerBuilder with a Handler to which it will forward all accepted requests.
+\section{Design process}
 
-The S3Server is built upon a traditional HTTP server provided by hyper
-
-\subsection{Middleware}
-
-\subsubsection{Caching}
+After designing the architecture (\ref{architecture}), the first step to implementation was to outline the traits necessary to represent the \code{Server}, \code{Middleware} and \code{Client} components as well as design a crude API for each component. Then, the flow of a request through the system was implemented as part of the \code{Pipeline}. Initially, the plan was to pass an MPSC queue to the server that received each request from the server component and was then forwarded to the middleware stack and finally the client by the \code{Pipeline}. This design proved to be impractical due to multiple reasons:
 \begin{enumerate}
-	\item Cache policy: TinyLFU
-	\item Size aware eviction
-	\item Headers not counted towards size
-	\item global Time-To-Live and Time-To-Idle + configurable per operation
+	\item Multiple requests can be accepted by the server in parallel and should be processed as such. Therefore responses to the request may be generated out of order. By releasing the requests on a message queue, the association between the task accepting the request and its completion was lost. To resolve this, additional fields had to be added to the \code{Request} type, inhibiting its use as an abstraction.
+	\item Rust's concurrency model is largely built around futures. The handling of requests released on the queue could only be associated with a future by adding a completion handler to the Request type analogous to 1.
+	\item Messaging queues performed significantly worse than passing callables to the server.
+	\item Conflicts wit Rust's ownership system
 \end{enumerate}
 
-\subsection{S3 Client}
+\section{S3 Server}
 
-\subsection{Pipeline}
+The server is the component responsible for accepting requests made to the proxy. It is represented by the \code{Server} trait. 
+It is initialized by calling the \code{serve} method of a \code{ServerBuilder} with a \code{Handler} to which it will forward all accepted requests. The \code{Handler} trait is implemented for any callable that receives a \code{Request} and returns a future that will resolve to a \code{Response} or an error type.
+
+\begin{multicols}{2}
+	\begin{codeblock}{ServerBuilder}{Rust}
+		\begin{rustcode}
+			pub trait ServerBuilder {
+				fn broadcast(&mut self, tx: &BroadcastSend) -> &mut Self;
+				fn serve(&self, handler: impl Handler) -> Result<impl Server, Report>;
+			}
+		\end{rustcode}
+	\end{codeblock}
+
+	\begin{codeblock}{Server}{Rust}
+		\begin{rustcode}
+			pub trait Server: Send {
+				async fn stop(self) -> Result<(), Report>;
+			}
+		\end{rustcode}
+	\end{codeblock}
+\end{multicols}
+
+The \code{S3Server} is the S3-specific implementation of the \code{Server} trait. It is built upon a traditional HTTP server provided by \code{hyper} and supports requests over HTTP/1.1 and HTTP/2.0. Upon receiving a request, it first validates the request's signature against a set of credentials that can be set inside the configuration file. If the validation was successful, it then determines the S3 operation associated with the request. This functionality required the modifications of the \code{s3s} library described in \ref{s3s_mod_pub}.
+
+\section{Caching}
+
+The caching logic was designed to improve the overall performance and efficiency of S3 operations. For this purpose, the caching logic was highly customized and strongly differs from traditional HTTP cache implementations. By leveraging knowledge of S3 operations it offers features that exceed the capabilities provided by HTTP caching headers (\ref{http_cache_policy}), but also attempts to be compliant to caching defined HTTP standard where possible. This section explains the design of the caching functionality and explores the advantages and limitations compared to traditional caching systems.
+
+\subsection{Implementation overview}
+
+Caching is implemented by the \code{CacheLayer} middleware and is designed to allow for different cache logic depending on the S3 operation performed by a request. The results of operations were determined to be cacheable if they do not mutate the data or metadata of objects or buckets. Priority for implementation was then given to the ones deemed most commonly used and most relevant to most applications, however, this selection was entirely subjective. The table below shows all operations that were determined to be cacheable and whether caching for them was implemented as part of \code{CacheLayer}.
+\begin{table}[H]
+	\begin{center}
+		\begin{longtable}{| l | l |}
+			\hline
+			\thead{Operation} & \thead{Implemented} \\ \hline
+			GetBucketAccelerateConfiguration & \xmark \\ \hline
+			GetBucketAcl & \xmark \\ \hline
+			GetBucketAnalyticsConfiguration & \xmark \\ \hline
+			GetBucketCors & \xmark \\ \hline
+			GetBucketEncryption & \xmark \\ \hline
+			GetBucketIntelligentTieringConfiguration & \xmark \\ \hline
+			GetBucketInventoryConfiguration & \xmark \\ \hline
+			GetBucketLifecycle & \xmark \\ \hline
+			GetBucketLifecycleConfiguration & \xmark \\ \hline
+			GetBucketLocation & \xmark \\ \hline
+			GetBucketLogging & \xmark \\ \hline
+			GetBucketMetricsConfiguration & \xmark \\ \hline
+			GetBucketNotification & \xmark \\ \hline
+			GetBucketNotificationConfiguration & \xmark \\ \hline
+			GetBucketOwnershipControls & \xmark \\ \hline
+			GetBucketPolicy & \xmark \\ \hline
+			GetBucketPolicyStatus & \xmark \\ \hline
+			GetBucketReplication & \xmark \\ \hline
+			GetBucketRequestPayment & \xmark \\ \hline
+			GetBucketTagging & \xmark \\ \hline
+			GetBucketVersioning & \xmark \\ \hline
+			GetBucketWebsite & \xmark \\ \hline
+			GetObject & \cmark \\ \hline
+			GetObjectAcl & \xmark \\ \hline
+			GetObjectAttributes & \xmark \\ \hline
+			GetObjectLegalHold & \xmark \\ \hline
+			GetObjectLockConfiguration & \xmark \\ \hline
+			GetObjectRetention & \xmark \\ \hline
+			GetObjectTagging & \xmark \\ \hline
+			GetObjectTorrent & \xmark \\ \hline
+			GetPublicAccessBlock & \xmark \\ \hline
+			HeadBucket & \cmark \\ \hline
+			HeadObject & \cmark \\ \hline
+			ListBucketAnalyticsConfigurations & \xmark \\ \hline
+			ListBucketIntelligentTieringConfigurations & \xmark \\ \hline
+			ListBucketInventoryConfigurations & \xmark \\ \hline
+			ListBucketMetricsConfigurations & \xmark \\ \hline
+			ListBuckets & \cmark \\ \hline
+			ListMultipartUploads & \xmark \\ \hline
+			ListObjects & \cmark \\ \hline
+			ListObjectsV2 & \cmark \\ \hline
+			ListObjectVersions & \cmark \\ \hline
+			ListParts & \xmark \\ \hline
+			SelectObjectContent & \xmark \\ \hline
+			
+			\caption{List of cacheable and implemented operations}
+		\end{longtable}
+	\end{center}
+	\label{table_cached_operations}
+\end{table}
+
+\subsection{Cache policy and configuration}
+
+The cache uses a hashmap as its underlying data structure and employs a TinyLFU (\ref{tiny_lfu}) admission policy together with an LRU eviction policy provided by the \code{moka}\cite{MOKA_GITHUB} library as cache policy. Entries in the cache are weighted by the size of the response body in bytes. For the cache, a global time-to-live (TTL), as well as a time-to-idle (TTI), can be configured. Additionally, caching for each supported S3 operation can be configured separately with its own TTL and TTI or can be disabled individually.
+
+\begin{codeblock}{Example cache configuration}{TOML}
+	\begin{javacode}
+		cacheSize = 50000000
+		ttl = 1000000
+		tti = 1000000
+		
+		[middlewares.ops.GetObject]
+		enabled = true
+		
+		[middlewares.ops.HeadObject]
+		enabled = true
+		
+		[middlewares.ops.ListObjects]
+		enabled = true
+		
+		[middlewares.ops.ListObjectVersions]
+		enabled = true
+		
+		[middlewares.ops.HeadBucket]
+		enabled = true
+		
+		[middlewares.ops.ListBuckets]
+		enabled = true
+	\end{javacode}
+\end{codeblock}
+
+\subsection{Cache headers and key generation}
+
+In a traditional HTTP cache, cache keys are commonly provided by the upstream server via the ETag response header. As described in (\ref{http_cache_policy}), the ETag header value uniquely identifies an underlying resource, and can be used together with the "If-None-Match" header to enable simple and reliable caching. Although widely used S3 systems like AWS S3 and MinIO support these headers, their effectiveness is often limited by the way S3 systems are accessed and interacted with.
+In particular, software accessing S3 systems is often not designed to handle recurring requests intelligently. As such, they often do not make use of caching and HTTP caching mechanics and do not supply caches or servers with the required information like the "If-None-Match" headers. Another issue with caching S3 operations arises from the fact that many operations are not directly intended to be cached, although doing so is theoretically possible. In those cases, the S3 system will return responses without any caching-related headers.
+
+To enable the caching logic to efficiently retrieve cached responses without this information, a new method to derive keys directly from requests instead of the response was required. Since the fields sent to the S3 API vary between different operations and not every field affects the cachability of a request, the key generation had to be implemented for each supported operation individually following these steps:
+\begin{enumerate}
+	\item The configuration (\ref{configuration}) is checked to determine if the operation is enabled.
+	\item The request is parsed and deserialized into the metadata type (\ref{s3s_mod_meta}) associated with the operation.
+	\item The resulting type is checked for the existence of any fields causing the response to change unexpectedly, as well as some rarely used fields which were excluded to simplify the logic. If any such a field is detected, the key generation fails.
+	\item The key is generated from a combination of the operation's name and the fields that affect the response.
+\end{enumerate}
+
+\subsection{Update events}
+
+As part of the \textit{external composition} goal of this work, this cache also is capable of receiving update notifications for cached items from other upstream caches or upstream servers by listening to broadcast events provided by the webhook component. By configuring the upstream S3 server to send update events via the webhook, cache items can be efficiently evicted upon notice. This allows chaining multiple instances of this proxy without significantly increasing the risk of serving stale data due to additive TTL.
+This feature could be further enhanced by directly refreshing entries instead of evicting them upon notice.
+
+\section{S3 Client}
+
+\section{Pipeline}
 
 The Pipeline is a management structure composed of a ServerBuilder, any number of Middlewares and a Client. It is responsible for assembling the different components passed to it into a cohesive unit. When initialized with all required components it first constructs the RequestProcessor from the client and middlewares together with a broadcast channel that is registered with all components. The broadcast channel is used to pass events other than requests, like the ones produced by the Webhook component. It then converts the RequestProcessor into a Handler, which is then used to finalize the ServerBuilder to start the Server.
 
-\subsection{Webhook}
+\section{Webhook}
 
 \section{Challenges}
-
-\subsection{smithy}
 \subsection{s3s}
