@@ -1,5 +1,56 @@
 \chapter{Evaluation}
 
-\section{Benchmarks}
+In this chapter, the evaluation of the proposed caching proxy implementation for S3 storage systems is presented. The main objective of this evaluation is to assess the performance and effectiveness of the caching proxy in terms of throughput, latency, and savings in network bandwidth compared to the unproxied access to the underlying S3 instance.
 
-\section{Bandwidth}
+\section{Benchmark Tools}
+
+The purpose of this section is to introduce the benchmark tools, warp and oha, which will be utilized to evaluate the caching proxy. These tools are chosen for their capabilities in accurately measuring and analyzing the performance of S3 storage systems and HTTP servers, respectively.
+
+\subsection{S3 Benchmark Tool - Warp}
+
+Warp is a benchmark tool developed by the creators of MinIO and is specifically designed to evaluate the performance of S3 storage systems. The performance metrics of S3 operations, such as object retrieval and storage, are measured using a comprehensive selection of configurable tests. It provides detailed information on the throughput and latency of operations on large sets of existing data, or artificial data that it generates.
+
+\subsection{Load Generation Tool: Oha}
+
+oha is a powerful HTTP load generation tool that allows the simulation of a high volume of requests to the caching proxy. By simulating multiple concurrent clients, oha generates HTTP traffic and provides precise data on the scalability and response time of the caching proxy. In order evaluate the performance of the proxy under ideal conditions, oha can be used to stress test the performance of repeatedly retrieving only a single object, ensuring that the object will always remains in the cache.
+
+\section{Evaluation Metrics}
+
+The evaluation of the caching proxy implementation will be conducted based on three primary metrics: throughput, latency, and bandwidth.
+
+\subsection{Throughput}
+
+Throughput refers to both the number of requests processed by the caching proxy as well as the data transfer rate between the server and client per unit of time. The efficiency of the caching proxy in handling multiple requests simultaneously is assessed through measuring the throughput under different workloads. This evaluation provides insights into the caching proxy's ability to handle varying levels of request concurrency.
+
+\subsection{Latency}
+
+Latency measures the time taken by the caching proxy to respond to a request. It reflects the responsiveness of the system and is a crucial metric in evaluating the user experience. The analysis of latency for different types of S3 operations, such as object retrieval and storage, allows for an understanding of how the caching mechanism affects the overall response time.
+
+\subsection{Bandwidth}
+
+Bandwidth refers to the rate at which data is transferred between the caching proxy and the S3 storage system. It is an essential metric for evaluating the efficiency of the caching mechanism. Reducing the amount of network traffic between the proxy and S3 server compared to the client and proxy indicates less load on the server and can enable significant cost savings for many applications.
+
+\section{Configuration}
+
+All tests are run on Hetzner CPX21 with 3 vCPU and 4GB of RAM.
+Cache size is set to 500MB with 1000s of TTL and TTI.
+
+Evaluation is performed for the following configurations:
+\begin{enumerate}
+	\item Local: MinIO and s3p running on the same instance
+	\item Remote: MinIO running on a remote instance, s3p running on local instance
+	\item Combined: MinIO+s3p on remote instance, s3p running on local instance 
+\end{enumerate}
+
+
+\section{Results}
+\subsection{Throughput}
+
+Measured with warp. 1 warm-up run. Results of the second run.
+\subsection{Latency}
+
+Measured with warp. 1 warm-up run. Results of the second run.
+
+Measured with oha for a single object. Size 10KiB and 100KiB.
+
+\subsection{Bandwidth}
