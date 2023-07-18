@@ -4,11 +4,13 @@ logLevel = "critical"
 type = "s3"
 host = "127.0.0.1"
 port = 4356
-validateCredentials = true
+validateCredentials = false
 
 [[middlewares]]
 type = "cache"
-cacheSize = 500000
+cacheSize = 50_000_000
+ttl = 1000_000
+tti = 1000_000
 
 [middlewares.ops.GetObject]
 enabled = true
@@ -34,8 +36,8 @@ type = "identity"
 [client]
 type = "s3"
 endpointUrl = "http://localhost:9000"
-forcePathStyle = false
+forcePathStyle = true
 
 [client.credentials]
-accessKeyId = ""
-secretKey = ""
+accessKeyId = "user"
+secretKey = "password"

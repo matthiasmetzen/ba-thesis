@@ -34,9 +34,7 @@ use tracing_subscriber::{filter::LevelFilter, fmt, prelude::*, util::TryInitErro
 async fn main() -> Result<()> {
     let _ = try_init_tracing();
 
-    dotenvy::dotenv()
-        .into_diagnostic()
-        .wrap_err("Loading environment failed")?;
+    let _ = dotenvy::dotenv();
 
     let args = cli::CliArgs::parse();
 

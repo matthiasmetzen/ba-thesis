@@ -1,4 +1,4 @@
-use http::{Extensions, HeaderMap, HeaderValue, Method, Uri};
+use http::{uri::PathAndQuery, Extensions, HeaderMap, HeaderValue, Method, Uri};
 use http_cache_semantics::RequestLike;
 use s3s::Body;
 
@@ -36,7 +36,25 @@ impl RequestLike for Request {
     }
 
     fn is_same_uri(&self, other: &Uri) -> bool {
-        self.uri.eq(other)
+        //self.uri.eq(other)
+
+        if self.uri.scheme() != other.scheme() {
+            return false;
+        }
+
+        if self.uri.authority() != other.authority() {
+            return false;
+        }
+
+        if self.uri.path().trim_end_matches('/') != other.path().trim_end_matches('/') {
+            return false;
+        }
+
+        if self.uri.query() != other.query() {
+            return false;
+        }
+
+        true
     }
 
     fn method(&self) -> &Method {

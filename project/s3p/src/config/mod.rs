@@ -175,7 +175,7 @@ pub enum MiddlewareType {
 #[serde(rename_all = "camelCase")]
 #[allow(unused)]
 pub struct CacheMiddlewareConfig {
-    #[setting(default = 500_000)]
+    #[setting(default = 50_000_000)]
     pub cache_size: u64,
     pub max_entry_size: Option<usize>,
     pub ttl: Option<u64>,
