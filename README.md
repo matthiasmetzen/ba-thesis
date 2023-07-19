@@ -116,18 +116,21 @@ podman-compose up -d
 
 # Benchmarks
 
+### Requirements
+
+Install instructions are provided for Rocky Linux 9
+
+xpath: `dnf -y install perl-XML-XPath`
+iftop: `dnf -y install epel-release iftop`
+warp: https://github.com/minio/warp
+oha: https://github.com/hatoo/oha 
+
 ## Prepare
 
 Create a bucket called `bench` on the S3 server and set access to public
 
 `./prepare.sh <server>`
 
-## Warp
+## Run
 
 `./run.sh <server>`
-
-## oha
-
-Single object, 10KiB, 200KiB
-
-`./oha "http://<host>:<port>/<bucket>/<key>" -z 10sec`
