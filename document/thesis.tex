@@ -13,8 +13,46 @@
 \usepackage{tikz}
 \usetikzlibrary{shapes.geometric, shapes.arrows, matrix, fit}
 
-\newcommand{\cmark}{\ding{51}}%
-\newcommand{\xmark}{\ding{55}}%
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepgfplotslibrary{statistics, groupplots}
+\pgfplotsset{compat=1.10}
+
+% from: https://tex.stackexchange.com/questions/117435/read-boxplot-prepared-values-from-a-table
+\makeatletter
+\pgfplotsset{
+	boxplot prepared from table/.code={
+		\def\tikz@plot@handler{\pgfplotsplothandlerboxplotprepared}%
+		\pgfplotsset{
+			/pgfplots/boxplot prepared from table/.cd,
+			#1,
+		}
+	},
+	/pgfplots/boxplot prepared from table/.cd,
+	table/.code={\pgfplotstablecopy{#1}\to\boxplot@datatable},
+	row/.initial=0,
+	make style readable from table/.style={
+		#1/.code={
+			\pgfplotstablegetelem{\pgfkeysvalueof{/pgfplots/boxplot prepared from table/row}}{##1}\of\boxplot@datatable
+			\pgfplotsset{boxplot/#1/.expand once={\pgfplotsretval}}
+		}
+	},
+	make style readable from table=lower whisker,
+	make style readable from table=upper whisker,
+	make style readable from table=lower quartile,
+	make style readable from table=upper quartile,
+	make style readable from table=median,
+	make style readable from table=lower notch,
+	make style readable from table=upper notch
+}
+\makeatother
+
+% We will externalize the figures
+%\usepgfplotslibrary{external}
+%\tikzexternalize
+
+\newcommand{\cmark}{\ding{51}} %checkmark
+\newcommand{\xmark}{\ding{55}} %x-cross
 \renewcommand\theadfont{\bfseries\sffamily}
 
 \include{properties}
