@@ -10,7 +10,8 @@ Access to the REST API is configured through policies that can be defined for ea
 With the ever-increasing amount of data that companies manage and the inherent need for storage capacity, S3 offers an easily manageable abstraction where developers do not have to think about the underlying filesystems and storage mediums. The decoupling of storage and access also makes it possible to expand storage capacity by spreading objects over multiple devices and even adding more capacity when necessary, allowing for near-infinite scalability. With managed solutions like the one provided by AWS, pricing is commonly calculated only by the amount of storage in use, which allows users to build solutions that can effortlessly scale to large amounts of data without wasting money on unused capacity caused by overprovisioning.
 
 \section{MinIO}
-MinIO is an implementation of a S3-compatible object store. It supports most of the S3 core features. Its greatest advantage is that it offers various means to create self-hosted instances, making it not only versatile but also favored by companies in regard to data protection.
+MinIO is an implementation of a S3-compatible object store. It supports most of the S3 core features. It puts great emphasis on its performance \cite{MINIO_GITHUB}, but its greatest advantage is that it offers various means to create self-hosted instances, making it not only versatile but also liked by companies in regard to data protection.
+According to one of its maintainers, MinIO does not implement any caching strategies \cite{MINIO_NO_CACHE}, which makes it a good target to evaluate the benefits of this work.
 
 \section{Caching}
 

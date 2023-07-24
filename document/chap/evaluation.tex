@@ -660,7 +660,7 @@ From this result, it can be implied that, unlike in the 500KiB case, s3p did add
 
 In this section, a look is taken at the effects on network usage that the configurations of s3p brough. For this purpose, Figure \ref{fig:bandwidth} provides the relative amount of data transfered per request on average. This data was calculated using the total number of requests performed by each tool and the total amount of data tansmitted (send+receive) as was reported by iftop and comparing the result to that of the size of a single direct access to the appropriate MinIO instance.
 Results from oha are omitted, since they only transmitted a single object at the start of the test.
-
+\pagebreak
 %local-s3p
 \pgfplotstableread{%
 	colnames		0		1		2		3		4
@@ -686,7 +686,7 @@ Results from oha are omitted, since they only transmitted a single object at the
 \pgfplotstabletranspose[colnames from=colnames]\Tbandwidthduo{\bandwidthduo}
 
 
-\begin{figure}[h!]
+\begin{figure}
 	\centering
 	\begin{tikzpicture}
 		\begin{axis}[
@@ -737,8 +737,6 @@ Results from oha are omitted, since they only transmitted a single object at the
 
 Most noticably, within all 3 measurements, a near 100\% reduction in total network usage can be observed for all configurations for objects in the 1KiB to 100KiB range. This result was expected due to the cache size being able to encompass all objects of those size ranges.
 For tests conducted with warp, the results slightly diverge here, with ${s3p}_{local}$ performing slightly worse than ${s3p}_{remote}$ in the 500KiB range and slightly better in the 1MiB range, with both reaching close to 36\% and 14\% of transferred data reduction for those two sizes respectively. Meanwhile, ${s3p}_{dual}$  was once again able to gain an advantage through its double layer caching, showing up to 44\% reduction in  the 500KiB range and a 21\% reduction in the two ranges, which in both cases is higher than the ratio of the dataset size to cache size.
-
-\pagebreak
 
 \chapter{Discussion}
 
