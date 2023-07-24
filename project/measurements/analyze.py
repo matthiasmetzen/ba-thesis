@@ -37,15 +37,17 @@ def process_oha(file_path):
     response_time_25_pattern = r'25%\sin\s(\d+\.\d+)\ssecs'
     response_time_50_pattern = r'50%\sin\s(\d+\.\d+)\ssecs'
     response_time_75_pattern = r'75%\sin\s(\d+\.\d+)\ssecs'
+    response_time_90_pattern = r'90%\sin\s(\d+\.\d+)\ssecs'
     response_time_99_pattern = r'99%\sin\s(\d+\.\d+)\ssecs'
 
     slowest = float(re.search(slowest_pattern, content).group(1))
     fastest = float(re.search(fastest_pattern, content).group(1))
-    requests_per_sec = re.search(requests_per_sec_pattern, content).group(1)
+    requests_per_sec = float(re.search(requests_per_sec_pattern, content).group(1))
     total_data, data_unit = re.search(total_data_pattern, content).groups()
     response_time_25 = float(re.search(response_time_25_pattern, content).group(1))
     response_time_50 = float(re.search(response_time_50_pattern, content).group(1))
     response_time_75 = float(re.search(response_time_75_pattern, content).group(1))
+    response_time_90 = float(re.search(response_time_90_pattern, content).group(1))
     response_time_99 = float(re.search(response_time_99_pattern, content).group(1))
 
     total_data = float(total_data)
@@ -73,12 +75,14 @@ def process_oha(file_path):
     print()
 
     return {
-        "Response time 99%": float(response_time_99 * 1000),
-        "Response time 75%": float(response_time_75 * 1000),
-        "Response time 50%": float(response_time_50 * 1000),
-        "Response time 25%": float(response_time_25 * 1000),
-        "Fastest": float(fastest * 1000),
-        "Requests/sec": float(requests_per_sec),
+        "Slowest": int(slowest * 1000),
+        "99th": int(response_time_99 * 1000),
+        "90th": int(response_time_90 * 1000),
+        "75th": int(response_time_75 * 1000),
+        "50th": int(response_time_50 * 1000),
+        "25th": int(response_time_25 * 1000),
+        "Fastest": int(fastest * 1000),
+        "Requests/sec": int(requests_per_sec),
         "Total data": int(total_data),
         "Total requests": int(total_counts),
     }
@@ -91,11 +95,12 @@ def process_warp(file_path):
     requests_considered_pattern = r'Requests considered:\s+(\d+)'
     ttfb_line_pattern = r'TTFB:.+'
     ttfb_median_pattern = r'Median: (\d+\.?\d*)\s*(s|ms)'
-    best_pattern = r'Best: (\d+\.?\d*)\s*(s|ms)'
-    #worst_pattern = r'Worst: (\d+\.?\d*)\s*(s|ms)'
-    worst_pattern = r'99th: (\d+\.?\d*)\s*(s|ms)'
-    ttfb_25th_pattern = r'25th: (\d+\.?\d*)\s*(s|ms)'
+    worst_pattern = r'Worst: (\d+\.?\d*)\s*(s|ms)'
+    ttfb_99th_pattern = r'99th: (\d+\.?\d*)\s*(s|ms)'
+    ttfb_90th_pattern = r'90th: (\d+\.?\d*)\s*(s|ms)'
     ttfb_75th_pattern = r'75th: (\d+\.?\d*)\s*(s|ms)'
+    ttfb_25th_pattern = r'25th: (\d+\.?\d*)\s*(s|ms)'
+    best_pattern = r'Best: (\d+\.?\d*)\s*(s|ms)'
     throughput_pattern = r'Average:\s+(\d+\.\d+)\sMiB/s,\s+(\d+\.\d+)\sobj/s'
 
     requests_considered = int(re.search(requests_considered_pattern, content).group(1))
@@ -114,6 +119,8 @@ def process_warp(file_path):
     worst = convert_to_ms(re.search(worst_pattern, ttfb_lines[0]))
     ttfb_25th = convert_to_ms(re.search(ttfb_25th_pattern, ttfb_lines[0]))
     ttfb_75th = convert_to_ms(re.search(ttfb_75th_pattern, ttfb_lines[0]))
+    ttfb_90th = convert_to_ms(re.search(ttfb_90th_pattern, ttfb_lines[0]))
+    ttfb_99th = convert_to_ms(re.search(ttfb_99th_pattern, ttfb_lines[0]))
 
     throughput_mib_s, throughput_obj_s = re.search(throughput_pattern, content).groups()
     throughput_mib_s = float(throughput_mib_s)
@@ -121,22 +128,25 @@ def process_warp(file_path):
 
     print(f"File: {file_path}")
     print(f"Requests considered: {requests_considered}")
-    print(f"TTFB Median: {ttfb_median:.2f} ms")
+    print(f"Median: {ttfb_median:.2f} ms")
     print(f"Best: {best:.2f} ms")
+    print(f"Worst: {worst:.2f} ms")
     print(f"99th: {worst:.2f} ms")
-    print(f"25th TTFB: {ttfb_25th:.2f} ms")
-    print(f"75th TTFB: {ttfb_75th:.2f} ms")
+    print(f"25th: {ttfb_25th:.2f} ms")
+    print(f"75th: {ttfb_75th:.2f} ms")
     print(f"Throughput: {throughput_mib_s:.2f} MiB/s, {throughput_obj_s:.2f} obj/s")
     print()
 
     return {
-        "Requests considered": requests_considered,
-        "99th": worst,
+        "Total requests": requests_considered,
+        "Slowest": worst,
+        "99th": ttfb_99th,
+        "90th": ttfb_90th,
         "75th": ttfb_75th,
         "Median": ttfb_median,
         "25th": ttfb_25th,
-        "Best": best,
-        "Throughput": throughput_obj_s,
+        "Fastest": best,
+        "Throughput": int(throughput_obj_s),
     }
 
 def process_iftop(file_path):
@@ -260,10 +270,14 @@ def write_to_spreadsheet(data_dict, output_file):
         "ms",
         "ms",
         "ms",
+        "ms",
+        "ms",
+        "ms",
         "obj/s",
         "B",
         "B",
         "B",
+        "ms",
         "ms",
         "ms",
         "ms",
@@ -299,7 +313,7 @@ def parse_files_in_directory(directory_path):
             continue
 
         size, unit = parse_test_size_suffix(file)
-        test_size = f"{size}{unit}"
+        test_size = f"{int(size)}{unit}"
         test_type = get_file_type(file)[1]
 
         if file.startswith("warp"):
@@ -317,7 +331,7 @@ def parse_files_in_directory(directory_path):
     sizes = next(iter(results.values())).keys()
 
     for size in sizes:
-        warp_req = results["warp"][size]["Requests considered"]
+        warp_req = results["warp"][size]["Total requests"]
         oha_req = results["oha"][size]["Total requests"]
 
         warp_data = results["iftop-warp"][size]["Cumulative Total"]

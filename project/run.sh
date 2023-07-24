@@ -92,6 +92,7 @@ run_warp() {
         sleep 30
         # stop iftop
         kill -9 % && wait % 2> /dev/null
+	sleep 120
     done
 }
 
@@ -113,6 +114,7 @@ run_oha() {
         sleep 30
         # stop iftop
         kill -9 % && wait % 2> /dev/null
+	sleep 120
     done
 }
 
