@@ -346,7 +346,7 @@ In this test the double caching strategy of ${s3p}_{dual}$ displays its' ability
 \subsection{Latency}
 
 
-During the latency benchmark analysis, a few instances occurred where data points exhibited unusually high values in the 99 percentile range, which could be attributed to various factors such as network congestion, system instability, or other unpredictable circumstances. This inconsistency was observed for instances of MinIO and s3p, but MinIO instances were impacted more severely. By manually conducting multiple smaller runs of oha and warp on multiple systems, these outliers were validated to be sporadic and inconsistent and did not represent the performance of either MinIO or s3p. In order to maintain a viable comparision, only data from the 90th percentile is presented in this section.
+During the latency benchmark analysis, a few instances occurred where data points exhibited unusually high values in the 99 percentile range, which could be attributed to various factors such as network congestion, system instability, or other unpredictable circumstances. This inconsistency was observed for instances of MinIO and s3p, but MinIO instances were impacted more severely. By manually conducting multiple smaller runs of oha and warp on multiple systems, these outliers were validated to be sporadic and inconsistent and did not represent the performance of either MinIO or s3p. In order to maintain a viable comparision, only data up to the 90th percentile is presented in this section.
 
 % local-minio
 \pgfplotstableread{

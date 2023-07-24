@@ -91,7 +91,7 @@ The caching logic was designed to improve the overall performance and efficiency
 \subsection{Implementation overview}
 
 Caching is implemented by the \code{CacheLayer} middleware and is designed to allow for different cache logic depending on the S3 operation performed by a request. The results of operations were determined to be cacheable if they do not mutate the data or metadata of objects or buckets. Priority for implementation was then given to the ones deemed most commonly used and most relevant to most applications, however, this selection was entirely subjective. Table \ref{tab:cachedops} below shows all operations for which caching was implemented as part of \code{CacheLayer}. A full list of operations determined to be cachable can be found in (\ref{appendix:tab:cachedops}).
-\begin{figure}[h]
+\begin{table}[h]
 	\begin{center}
 		\begin{tabular}{| l |}
 			\hline
@@ -106,7 +106,7 @@ Caching is implemented by the \code{CacheLayer} middleware and is designed to al
 	\end{center}
 	\caption{List of operations with caching implementation}
 	\label{tab:cachedops}
-\end{figure}
+\end{table}
 
 \subsection{Cache policy and configuration}
 
