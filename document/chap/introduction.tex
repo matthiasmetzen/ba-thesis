@@ -1,10 +1,54 @@
 \chapter{Introduction}
 
-\section{Motivating Scenario}
+In a world driven by information, the demand for reliable storage and fast access times is growing at an ever-increasing pace. Whether it is analytical data to make business decisions, conducting research or entertainment, the ability to retrieve data quickly has become a necessity. Recent research \cite{locattimes_ecom} shows that in e-commerce even a few moments of load times can be enough to lose potential customers.
+One popular system that aims to combine reliable storage and easy access is the S3 cloud storage system \cite{AWS_S3_Release}, which can store and retrieve large amounts of data and provides extensive scalability. But in certain situations, where fast and repeated access is required, S3 has its' shortcomings.
+
+The following bachelor thesis explores the concept of enhancing the performance of S3 servers by implementing caching through composable proxies. This study aims to develop a proxy for S3 servers that offers easy configuration and extensibility and enables the chaining of multiple proxies to incorporate additional features. Furthermore, this proxy solution includes a cache implementation specifically designed to utilize knowledge about S3 APIs to optimize the caching process for S3 servers. By investigating the potential of this caching proxy, the thesis aims to provide valuable insights into improving the efficiency and scalability of S3 server infrastructures.
+
+\section{Motivation}
+
+The idea to create a proxy with caching functionality was inspired by a real-world scenario observed at a start-up. The start-up aimed to provide its customers with dynamic websites that are generated through easily customizable text-based templates hosted by said start-up. Initially, all template files were simply saved to the direct-attached storage of the main server, but as the company grew this solution was no longer acceptable. In search of a better solution with concerns to data safety, ease of backups and scalability, S3 was selected as the new storage of choice. However, due to concerns about data protection, a self-hosted solution using MinIO \cite{MINIO_GITHUB} over the network was implemented.
+This caused the load times for the dynamically generated websites to grow significantly in certain scenarios due to the overhead of additional network requests.
+A few solutions were evaluated, but they all had one or more of the following issues:
+\begin{enumerate}
+	\item Complicated to set up
+	\item Designed and optimized for large amounts of data, which led to high resource requirements
+	\item Too little configurability
+\end{enumerate}
+
+This work aims to fill this space by implementing a caching proxy that is easy to use, extend and deploy, with the ability to uplift the performance of small but commonly used files.
 
 \section{Problem Description and Scope}
-\begin{enumerate}
-\item Support all S3 requests
-\item Focus on MinIO
-\item Easy configurability
-\end{enumerate}
+\label{goals}
+
+This thesis focuses on the development and implementation of a lightweight and extensible proxy with caching functionality for S3 systems. The primary objective is to enhance access times for personal or company internal use, where it can run alongside a service requiring rapid and recurrent access that will profit from even small decreases in access times.
+
+The implementation will primarily focus on the caching functionality of the proxy and its compatibility with the S3 API.
+Furthermore, the implementation will emphasize the proxy's extensibility and configurability. The terms \textit{internal composability} and \textit{external composability} will be defined and used to describe the design approach:
+
+\begin{description}
+	\label{def:composition}
+	\item[Internal composability] The implementation aims for a modular design in which parts of the software can easily be swapped, reconfigured or extended. The reconfiguration of modules will be done through simple configuration files.
+	\item[External composability] To further reduce access times, the software will be enabled to be chained with other instances of itself, to allow for multiple levels of caching and to further extend the software's capabilities eg. by sharing data or by providing more efficient communication.
+\end{description}
+
+To evaluate the effectiveness of the implementation, it will be tested against MinIO, a self-hostable S3 implementation. This testing will validate the proxy's caching functionality and its compatibility with the S3 API.
+
+The expected outcomes of this thesis include:
+
+\begin{description}
+	\item[Improved access times] The implemented proxy with caching functionality will demonstrate reduced access times for services utilizing S3 systems. Even small decreases in access times can have a significant impact on the overall performance of dependent systems.
+	\item[Reduced network usage] By preventing unnecessary data transfer between the S3 server and service through caching, large capacities in bandwidth can be saved. This can reduce network congestion and, in cases of a paid data transfer, also bring cost-saving benefits.
+	\item[Enhanced configurability] The proxy's modular design and simple configuration files will allow for easy deployment, reconfiguration and extension of software modules. This will enable users to adapt the proxy to their specific requirements and enhance its functionality.
+	\item[Increased composability] The ability to chain multiple instances of the proxy will enable multiple levels of caching and facilitate data sharing and more efficient communication. This will further optimize access times and enhance the overall performance of the system.
+\end{description}
+
+By addressing these objectives, this thesis aims to provide a lightweight and extensible proxy solution that significantly improves access times for S3 systems. The focus on internal and external composability ensures flexibility and adaptability to meet the specific needs of its users.
+
+\section{Structure of this work}
+
+This work will first explain some fundamental concepts necessary for understanding the steps taken in this work. 
+It will then give a brief overview of the architectural design of the implementations' internal components with a large focus on modularity as described in the internal composition goal (\ref{def:composition}).
+Next, a detailed description of the implementation itself, as well as the challenges encountered and decisions made during implementation, will be given, in which the focus will be on the parts necessary to satisfy the goals defined in (\ref{goals}).
+Eventually, the performance of the proxy in regard to access times and reduction in network usage will be evaluated based on a selection of empirically collected data.
+Finally, a summary of the implementations' abilities, strengths and shortcomings will be given, which will then be used to give a conclusive statement on which stated goals have been completed, which areas could be improved and what could be expanded on in the future.

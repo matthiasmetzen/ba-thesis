@@ -1,7 +1,14 @@
 \chapter{Evaluation}
 
-In this chapter, the evaluation of the proposed caching proxy implementation for S3 storage systems is presented. The main objective of this evaluation is to assess the performance and effectiveness of the caching proxy in terms of throughput, latency, and savings in network bandwidth compared to the unproxied access to the underlying S3 instance.
-This is done by evaluating and comparing multiple performance metrics measured in a variety of situations for both the imlpementation presented by this work to its' connected storage server. For the latter self-hosted instances of MinIO are used to provide a reproducable baseline.
+In this chapter, the evaluation of the proposed caching proxy implementation for S3 storage systems is presented. The main objective of this evaluation is to assess the performance and effectiveness of the caching proxy in terms of throughput, latency, and savings in network usage compared to the unproxied access to the underlying S3 instance.
+This is done by evaluating and comparing multiple performance metrics measured in a variety of situations for both the implementation presented by this work to its' connected storage server. For the latter self-hosted instances of MinIO are used to provide a reproducible baseline.
+
+Although caching was implemented for multiple S3 operations, this evaluation will only focus on object retrieval, due to three reasons:
+\begin{enumerate}
+	\item The GetObject operation is the most basic and most performance-critical operation for dependent software and services. Accelerating this operationality was also the main motivation for this work.
+	\item Most S3 operations are not implemented as part of existing benchmarks. Makes it hard to properly observe the effects of caching for them.
+	\item By controlling the object size we can precisely control the amount of cached items and observe the effects of cache misses when the cache is at full capacity.
+\end{enumerate}
 
 \section{Benchmark Tools and Data Collection}
 
@@ -10,11 +17,13 @@ The purpose of this section is to introduce the benchmark tools which are utiliz
 \subsection{S3 Benchmark Tool - Warp}
 \label{warp}
 Warp is a benchmark tool developed by the creators of MinIO and is specifically designed to evaluate the performance of S3 storage systems. The performance metrics of S3 operations, such as object retrieval and storage, are measured using a comprehensive selection of configurable tests. It provides detailed information on the throughput and latency of operations on large sets of existing data, or artificial data that it generates.
-In this evaluation it was configured to query the list of existing objects from S3 which it then uses to create random access patterns by querying these objects. This tool was chosen over other S3 benchmarks specifically for its' functionality to randomly request objects multiple times so that the caching efficiency can be  observed. Many other S3 benchmarks were observed to only request objects once or in a fixed order which does not benefit from caching and does not reflect the reality of most applications for S3 data storage.
+In this evaluation, it was configured to query the list of existing objects from S3 which it then uses to create randomly query these objects. This tool was chosen over other S3 benchmarks specifically for its' functionality to access objects multiple times and non-sequentially so that the caching efficiency can be  observed. Many other S3 benchmarks were observed to only request objects once or in a fixed order which does not benefit from caching and does not reflect the reality of most applications for S3 data storage.
+\\
+As shown by previous research however, uniform random access is still a problematic pattern for cache performance \cite{ladner1999cache}. Idealy, a benchmark with real-world access patterns or less uniform access patterns eg. normal distribution would be used, however no such benchmarks were found to be readily available.
 
 \subsection{Load Generation Tool: Oha}
 \label{oha}
-oha is a powerful HTTP load generation tool that allows the simulation of a high volume of requests to the caching proxy. By simulating multiple concurrent clients, oha generates high load on the server and provides precise data on the scalability and response time of the caching proxy. In order evaluate the performance of the cache under near ideal conditions, oha is used to test the performance of repeatedly retrieving only a single object, ensuring that the object should always remain in the cache.
+oha\cite{OHA_GITHUB} is a powerful HTTP load generation tool that allows the simulation of a high volume of requests to the caching proxy. By simulating multiple concurrent clients, oha generates a high load on the server and provides precise data on the scalability and response time of the caching proxy. In order to evaluate the performance of the cache under-near ideal conditions, oha is used to test the performance of repeatedly retrieving only a single object, ensuring that the object should always remain in the cache.
 
 \subsection{Bandwidth Monitoring Tool: iftop}
 
@@ -26,21 +35,21 @@ iftop\cite{iftop} is a command-line network monitoring software. It provides a r
 The evaluation of the caching proxy implementation will be conducted based on three primary metrics:
 
 \begin{description}[style=nextline]
-\item[Throughput] Throughput refers to the number of requests processed by the server in a given amount of time. The efficiency of the caching proxy in handling multiple requests simultaneously is assessed through measuring the throughput under different workloads. This evaluation provides insights into the caching proxy's ability to handle varying levels of request concurrency. The amount of concurrent requests is calculated by multiplying the throughput with the latency.
+\item[Throughput] Throughput refers to the number of requests processed by the server in a given amount of time. The efficiency of the caching proxy in handling multiple requests simultaneously is assessed by measuring the throughput under different workloads. This evaluation provides insights into the caching proxy's ability to handle varying levels of request concurrency. The amount of concurrent requests is calculated by multiplying the throughput by the latency.
 
-\item[Latency] Latency measures the time taken by the server to respond to a request. It reflects the responsiveness of the system and is a crucial metric in evaluating the user experience. The analysis of latency for different object sizes allows for an understanding of how the caching mechanism affects the overall response time.
+\item[Latency] Latency measures the time taken by the server to respond to a request. It reflects the responsiveness of the system and is a crucial metric in evaluating the user experience. This is especially important for websites and other web-hosted through S3. The analysis of latency for different object sizes allows for an understanding of how the caching mechanism affects the overall response time.
 
-\item[Data transfer] Data transfter refers to the total amount of data transmitted between the caching proxy and its' upstream server. It is an essential metric for evaluating the efficiency of the caching mechanism. A reduction in the amount of network traffic between the proxy and the upstream server compared to unproxied access to the upstream server indicates a higher rate of cache hits, which results in fewer refetches, leading to lower latency and less load on the server. In configurations where network usage is billed this can also result in significant cost savings for many applications.
+\item[Data transfer] Data transfer refers to the total amount of data transmitted between the caching proxy and its' upstream server. It is an essential metric for evaluating the efficiency of the caching mechanism. A reduction in the amount of network traffic between the proxy and the upstream server compared to unproxied access to the upstream server indicates a higher rate of cache hits, which results in fewer refetches, leading to lower latency and less load on the server. In configurations where network usage is billed, this can also result in significant cost savings for many applications.
 
 \end{description}
 
 \section{Configurations evaluated}
+\label{configurations}
+All benchmarks used in this chapter were conducted on Hetzner CPX21 instances running Rocky Linux 9. The Hetzner CPX21 is equipped with 3 virtual CPUs and 4GB of RAM, providing a suitable environment for testing the capabilities of a lightweight S3 proxy\cite{HETZNER}.
 
-All benchmarks used in this chapter were conducted on Hetzner CPX21 instances running Rocky Linux 9. The Hetzner CPX21 is equipped with 3 virtual CPUs and 4GB of RAM, providing a suitable environment for testing the capabilities of a lightweight S3 proxy.
+For tests that involved interactions with \textit{remote} machines, another instance within the same data center was utilized. These instances were connected through a private network, ensuring a high-speed and low-latency connection for reliable and accurate performance measurements.
 
-For tests that involved interactions with \textit{remote} machines, another instance within the same datacenter was utilized. These instances were connected through a private network, ensuring a high-speed and low-latency connection for reliable and accurate performance measurements.
-
-All instances of the proxy were configured to use a cache size of 500MB with a 300s expiration timer for both TTL and TTI. Additionaly, credential validation for the \code{S3Server} was disabled. This was necessary to enable evaluation using oha, which does not implement S3 signature creation.
+All instances of the proxy were configured to use a cache size of 500MB with a 300s expiration timer for both TTL and TTI. Additionally, credential validation for the \code{S3Server} was disabled. This was necessary to enable evaluation using oha, which does not implement S3 signature creation. Between each run, enough time was awaited to ensure all prevoius cache entries had timed out.
 \\\\
 To evaluate the performance of s3p, the following configurations of proxies and S3 servers were tested:
 \begin{description}[style=nextline] %[align=right,labelwidth=6em,leftmargin=6.5em]
@@ -48,18 +57,22 @@ To evaluate the performance of s3p, the following configurations of proxies and 
 	\item[${s3p}_{local}$] The evaluation is performed on an s3p instance running on the same machine as its' upstream MinIO instance. Comparing the results with ${MinIO}_{local}$ provides insight into the efficiency of the overall implementation and the additional latency added by the indirection.
 	\item[${MinIO}_{remote}$] The benchmark is performed on a remote MinIO instance over the network. This serves as a baseline for requests sent over the network.
 	\item[${s3p}_{remote}$] The evaluation is performed on a local s3p instance that is connected to a remote MinIO instance over the network. This is the most interesting configuration as it most accurately reflects the most common use-case for s3p.
-	\item[${s3p}_{dual}$] The benchmark is performed on a local s3p instance that connects to a remote instance of s3p which then connects to a MinIO instance running on the same remote machine. For this configuration the two s3p instances were additionaly configured to communicate through HTTP/2, which was not possible for the previous configurations. This may bring additional performance and displays the \textit{external composition} capabilities of s3p.
+	\item[${s3p}_{dual}$] The benchmark is performed on a local s3p instance that connects to a remote instance of s3p which then connects to a MinIO instance running on the same remote machine. For this configuration, the two s3p instances were additionally configured to communicate through HTTP/2, which was not possible for the previous configurations. This may bring additional performance and displays the \textit{external composition} capabilities of s3p.
 \end{description}
 
 The MinIO instances were preloaded with 2500 objects each for the sizes 1KiB, 10KiB, 100KiB, 500KiB, 1MiB that were randomly generated using warp.
 
+These sizes were chosen to mimic files that may commonly be found on the web. The combination of object sizes of 500KiB and 1MiB together with a cache size of 500MB were further chosen to exceed the maximum cache size so that cache efficiency under unfavorable conditions can be observed.
+
 \section{Results}
 
-In this section, the benchmark results obtained from the evaluation of s3s are presented. The primary objective of the evaluation was to assess the cache efficiency under different workloads and the implementations' capabilities of accelerating S3 systems, using quantitative data to draw conclusions. For each metric this is done in two steps by first looking at the cases were s3p and MinIO were both running on the local machine, and then looking at the cases where communication happend over the network. The results provide insights into the system's strengths, weaknesses, and potential areas for improvement.
+In this section, the benchmark results obtained from the evaluation of s3s are presented. The primary objective of the evaluation was to assess the cache efficiency under different workloads and the implementations' capabilities of accelerating S3 systems, using quantitative data to draw conclusions. For each metric this is done in two steps by first looking at the cases were s3p and MinIO where both running on the local machine, and then looking at the cases where communication happend over the network. The results provide insights into the system's strengths, weaknesses, and potential areas for improvement.
 
-The results were obtained by conducting a separate run of warp and oha for every combination of the afore mentioned object sizes and configurations. To accurately measure the data transfer, separate recordings using the iftop tool were made for every individual run of warp and oha.
+The results were obtained by conducting a separate run of warp and oha for every combination of the aforementioned object sizes and configurations. To accurately measure the data transfer, separate recordings using the iftop tool were made for every individual run of warp and oha.
 
-Results obtained through runs of warp are displayed with the plain name of the configuration as they are defined in the previous section, while results obtained through runs of oha are marked with a asterisk (eg. ${s3p}^{*}_{remote}$) to indicate that the result was obtained under near ideal conditions for caching by repeatedly querying only a single object.
+Results obtained through runs of warp are displayed with the plain name of the configuration as they are defined in the previous section, while results obtained through runs of oha are marked with an asterisk (eg. ${s3p}^{*}_{remote}$) to indicate that the result was obtained under near-ideal conditions for caching by repeatedly querying only a single object.
+
+Measurements performed with oha for MinIO (${MinIO}^{*}$) are omitted within this section, as this measurement did not provide any useful insights. This measurement was intended to provide a baseline for ideal caching conditions, but since MinIO did not utilize any form of caching, these measurements held no significance over the data provided by the warp benchmark. This data is instead included in (\ref{rawresults}).
 
 \pgfplotscreateplotcyclelist{duo}{
 	{blue,fill=blue!30!white,mark=none},%
@@ -72,10 +85,25 @@ Results obtained through runs of warp are displayed with the plain name of the c
 	{red,fill=red!30!white,mark=none}
 }
 
+\pgfplotscreateplotcyclelist{trio2}{
+	{blue,fill=blue!80!black,pattern=north east lines,mark=none},%
+	{blue,fill=blue!30!white,mark=none},%
+	%{red,fill=red!80!black,pattern=north east lines,mark=none},
+	{red,fill=red!30!white,mark=none}
+}
+
+\pgfplotscreateplotcyclelist{penta}{
+	{green,fill=green!80!black,pattern=north east lines,mark=none},%
+	{green,fill=green!30!white,mark=none},%
+	{blue,fill=blue!80!black,pattern=north east lines,mark=none},%
+	{blue,fill=blue!30!white,mark=none},%
+	%{red,fill=red!80!black,pattern=north east lines,mark=none},
+	{red,fill=red!30!white,mark=none}
+}
 \subsection{Throughput}
-
+\label{result:throughput}
 The goal of measuring throughput was to determine how much load s3p can take off of its' upstream server and to verify its capability of accelerating its' upstream server by providing additional concurrency and faster responses by storing them in fast, accessible memory through its' caching mechanism.
-
+\\\\
 %local-minio
 \pgfplotstableread{%
 	colnames		0		1		2		3		4
@@ -98,15 +126,29 @@ The goal of measuring throughput was to determine how much load s3p can take off
 \begin{figure}[h!]
 	\centering
 	\begin{tikzpicture}
+		\pgfplotsset{
+			log y ticks with fixed point/.style={
+				yticklabel={
+					\pgfkeys{/pgf/fpu=true}
+					\pgfmathparse{exp(\tick)}%
+					\pgfmathprintnumber[fixed relative, precision=3]{\pgfmathresult}
+					\pgfkeys{/pgf/fpu=false}
+				}
+			}
+		}
+			
 		\begin{axis}[
 			xlabel={Object size},
 			ylabel={Objects/s},
-			enlarge y limits={{0.1,upper}},
+			enlarge y limits=true,%{{0.1,upper}},
 			xmin=0,
 			ymin=0,
 			xtick={1,10,100,500,1000},
 			xmode = log,
 			log basis x=10,
+			ymode=log,
+			log y ticks with fixed point,
+			ytick={1000,2500,5000,10000,20000,25000},
 			scaled ticks=false,
 			legend style={
 				legend pos=outer north east,
@@ -142,22 +184,27 @@ The goal of measuring throughput was to determine how much load s3p can take off
 			]
 			table [x=size,y=oha] {\Tthroughputlocs};
 			
+			\iffalse %ommited
 			\addplot+[
 			cycle  list name=duo,
 			mark=square,
 			]
 			table [x=size,y=oha] {\Tthroughputlocmin};
+			\fi
 			
 			
-			\legend{${s3p}_{local}$, ${MinIO}_{local}$, ${s3p}^{*}_{local}$, ${MinIO}^{*}_{local}$}
+			\legend{${s3p}_{local}$, ${MinIO}_{local}$, ${s3p}^{*}_{local}$}
 			
 		\end{axis}
 	\end{tikzpicture}
-	\caption{Throughput of local s3p and MinIO instance}
+	\caption{Throughput of ${s3p}_{local}$, ${MinIO}_{local}$}
 	\label{fig:throughputlocal}
 \end{figure}
 
-The results for the \textit{local} scenario are provided in Figure \ref{fig:throughputlocal}. It shows that for small object sizes of 1-100KiB, s3p was able to provide a significant increase in throughput over MinIO, uplifting the number of objects served in that range by 4-5 times in the warp benchmark and by 6-9 times in the oha test. This indicates a very efficient cache usage with high hit rates in that range. The high hit rate within this range can primarily be explained by the fact that all 2500 objects contained in the dataset for the respective sizes can be held within the 500MB of allotted cache size simultaneously.
+The results for the \textit{local} scenario are provided in Figure \ref{fig:throughputlocal}.  It shows that for small object sizes of 1-100KiB, s3p was able to provide a significant increase in throughput over MinIO, uplifting the number of objects served in that range by 4 to 5 times in the warp benchmark and by 6 to 9 times in the oha test. This indicates a very efficient cache usage with high hit rates in that range. The high hit rate within this range can primarily be explained by the fact that all 2500 objects contained in the dataset for the respective sizes can be held within the 500MB of allotted cache size simultaneously. This hypothesis is further validated by the steep decline observed in the 500KiB to 1MiB range in which not all objects were able to fit inside the cache, where s3p only reached a 30\% and 10\% performance advantage respectively, whereas the ideal baseline provided by ${s3p}^{*}_{local}$ shows a much more gradual decline in this region.
+
+This indicates that the cache was struggling to maintain a good hit rate under the random access pattern used by warp. This effect will be further observed in the following sections.
+Another thing to be observed is the discrepancy between the results of the warp benchmark and oha. A small difference may be explained by the different implementations, but an increase of over 2.5 times exceeds expectations for that case. This phenomenon will be further analyzed in the discussion section.
 
 %remote-minio
 \pgfplotstableread{%
@@ -181,8 +228,8 @@ The results for the \textit{local} scenario are provided in Figure \ref{fig:thro
 \pgfplotstableread{%
 	colnames		0		1		2		3		4
 	size			1 	   10 	  100	  500	 1000
-	warp		 9975	 9523	 7242	 1690	  638
-	oha 		23701	22482	16924	 6240	 3101
+	warp		 9924	 9766	 7713	 1812	  676
+	oha 		22643	22252	16504	 8790	 5536
 }\throughputduos
 \pgfplotstabletranspose[colnames from=colnames]\Tthroughputduos{\throughputduos}
 
@@ -190,6 +237,17 @@ The results for the \textit{local} scenario are provided in Figure \ref{fig:thro
 \begin{figure}[h!]
 	\centering
 	\begin{tikzpicture}
+		\pgfplotsset{
+			log y ticks with fixed point/.style={
+				yticklabel={
+					\pgfkeys{/pgf/fpu=true}
+					\pgfmathparse{exp(\tick)}%
+					\pgfmathprintnumber[fixed relative, precision=3]{\pgfmathresult}
+					\pgfkeys{/pgf/fpu=false}
+				}
+			}
+		}
+		
 		\begin{groupplot}[
 			group style={
 				group size= 2 by 1,
@@ -203,7 +261,10 @@ The results for the \textit{local} scenario are provided in Figure \ref{fig:thro
 			ymin=0,
 			xtick={1,10,100,500,1000},
 			xmode = log,
+			ymode=log,
+			log y ticks with fixed point,
 			log basis x=10,
+			ytick={1000,2500,5000,10000,20000,25000},
 			ymajorgrids=true,
 			grid style=dashed,
 			scaled ticks=false,
@@ -217,7 +278,7 @@ The results for the \textit{local} scenario are provided in Figure \ref{fig:thro
 			},
 			]
 			
-			\nextgroupplot[legend style={at={(1.05,1.05)}, font=\small}]
+			\nextgroupplot[legend style={legend pos=south west, font=\small}]
 			%warp			
 			\addplot+[
 			cycle  list name=trio,
@@ -238,15 +299,17 @@ The results for the \textit{local} scenario are provided in Figure \ref{fig:thro
 			]
 			table [x=size,y=oha] {\Tthroughputrems};
 			
+			\iffalse %ommited
 			\addplot+[
 			cycle  list name=trio,
 			mark=square,
 			]
 			table [x=size,y=oha] {\Tthroughputremmin};
+			\fi
 			
-			\legend{${s3p}_{remote}$, ${MinIO}_{remote}$, ${s3p}^{*}_{remote}$, ${MinIO}^{*}_{remote}$}
+			\legend{${s3p}_{remote}$, ${MinIO}_{remote}$, ${s3p}^{*}_{remote}$}
 			
-			\nextgroupplot[ylabel=, legend style={at={(1.05,1.05)}, font=\small}]
+			\nextgroupplot[ylabel=, legend style={legend pos=south west, font=\small}]
 			\addplot+[
 			cycle  list name=trio,
 			mark=square,
@@ -257,72 +320,123 @@ The results for the \textit{local} scenario are provided in Figure \ref{fig:thro
 			cycle  list name=trio,
 			mark=square,
 			]
+			table [x=size,y=warp] {\Tthroughputremmin};
+			
+			\addplot+[
+			cycle  list name=trio,
+			mark=square,
+			]
 			table [x=size,y=oha] {\Tthroughputduos};
 			
-			\legend{${s3p}_{dual}$, ${s3p}^ {*}$}
+			\legend{${s3p}_{dual}$, ${MinIO}_{remote}$, ${s3p}^{*}$}
 			
 		\end{groupplot}
 	\end{tikzpicture}
-	\caption{Throughput of local s3p and remote s3p/MinIO instance}
+	\caption{Throughput of ${MinIO}_{remote}$, ${s3p}_{remote}$, ${s3p}_{dual}$}
+	\label{throughputremote}
 \end{figure}
+
+The findings for the \textit{remote} and \textit{dual} cases (see Figure \ref{throughputremote}) largely matched the results observed for the \textit{local} case, but a few differences were observed. 
+Most significantly, during the warp benchmark the performance of the remote MinIO instance was able to maintain a significantly higher (130\% to 160\%) throughput compared to the local instance for objects sized 1-500KiB, but for objects of size 1MiB its' performance dropped to only 67\% of the local instances' throughput.
+\\\\
+This effect did however only translate to ${s3p}_{remote}$ and ${s3p}_{dual}$ for 500KiB and 1MiB objects. For object sizes 1-100KiB both configurations performed slightly (4\%-8\%) worse than ${s3p}_{local}$ regardless, whereas objects of size 500KiB received an uplift of up to 130\% and 195\% over ${MinIO}_{remote}$ for ${s3p}_{remote}$ and ${s3p}_{dual}$ respectively, while they only reached a 16\% and 37\% advantage for 1MiB objects respectively
+
+In this test the double caching strategy of ${s3p}_{dual}$ displays its' ability to provide performance benefits by increasing the total size of the cache by spreading it amongst multiple instances. This makes it much less suseptible to warps' random access pattern and lets it stay closer to the target baseline.
 
 \subsection{Latency}
 
-Measured with warp. 1 warm-up run. Results of the second run.
 
-Measured with oha for a single object. Size 10KiB and 100KiB.
-
+During the latency benchmark analysis, a few instances occurred where data points exhibited unusually high values in the 99 percentile range, which could be attributed to various factors such as network congestion, system instability, or other unpredictable circumstances. This inconsistency was observed for instances of MinIO and s3p, but MinIO instances were impacted more severely. By manually conducting multiple smaller runs of oha and warp on multiple systems, these outliers were validated to be sporadic and inconsistent and did not represent the performance of either MinIO or s3p. In order to maintain a viable comparision, only data from the 90th percentile is presented in this section. The excluded data points can be found in (\ref{rawresults}).
 
 % local-minio
 \pgfplotstableread{
 	lw  lq  med  uq uw
-	54	9	6	4	1
-	44	10	7	4	1
-	65	15	9	6	1
-	60	31	25	20	4
-	241	26	17	11	2
-	
+	14	9	6	4	1
+	14	10	7	4	1
+	22	15	9	6	1
+	38	31	25	20	4
+	39	26	17	11	2
 }\latlocalminio
+\pgfplotstableread{
+	lw  lq  med  uq uw
+	21	15	9	5	0
+	25	16	10	6	0
+	46	31	19	10	0
+	87	71	55	42	4
+	97	59	34	16	1
+}\latlocalminiooha
 
 % local-s3p
 \pgfplotstableread{
 	lw  lq  med  uq  uw
-	10	 2	  1	  1	  0
-	10	 2	  1	  1	  0
-	11	 3	  2	  1	  0
-	73	31	 22	  2	  0
-	80	31	 22	 13	  0
+	4	2	1	1	0
+	4	2	1	1	0
+	5	3	2	1	0
+	40	31	22	2	0
+	43	31	22	13	0
 }\latlocalsssp
+\pgfplotstableread{
+	lw  lq  med  uq  uw
+	3	2	1	1	0
+	3	2	2	1	0
+	4	3	2	1	0
+	8	6	5	4	0
+	19	12	9	6	0
+}\latlocalssspoha
 
 % remote-minio
 \pgfplotstableread{
 	lw  lq  med  uq  uw
-	25	5	4	2	1
-	29	6	4	3	1
-	42	8	6	4	1
-	78	19	17	16	4
-	37	16	15	14	7
+	7	5	4	2	1
+	8	6	4	3	1
+	12	8	6	4	1
+	23	19	17	16	4
+	19	16	15	14	7
 }\latremoteminio
+\pgfplotstableread{
+	lw  lq  med  uq uw
+	10	6	4	2	0
+	13	8	5	3	0
+	25	15	9	6	1
+	83	54	29	17	4
+	134	125	120	117	20
+}\latremoteminiooha
 
 % remote-s3p
 \pgfplotstableread{
 	lw  lq  med  uq  uw
-	9	2	1	1	0
-	10	2	1	1	0
-	11	3	2	1	0
-	157	19	14	0	0
-	62	46	39	25	0
+	4	2	1	1	0
+	4	2	1	1	0
+	5	3	2	1	0
+	29	19	14	0	0
+	50	46	39	25	0
 }\latremotesssp
+\pgfplotstableread{
+	lw  lq  med  uq uw
+	3	2	2	1	0
+	3	2	2	1	0
+	4	3	2	2	0
+	10	6	4	1	0
+	20	10	5	2	0
+}\latremotessspoha
 
 % remote-s3p-dual
 \pgfplotstableread{
 	lw  lq  med  uq  uw
-	9	2	1	1	0
-	10	2	1	1	0
-	12	3	2	1	0
-	66	18	7	1	0
-	54	39	34	29	0
+	4	2	1	1	0
+	4	2	1	1	0
+	5	3	2	1	0
+	24	17	8	1	0
+	44	39	33	26	0
 }\latremotedual
+\pgfplotstableread{
+	lw  lq  med  uq uw
+	1	0	0	0	0
+	1	0	0	0	0
+	1	0	0	0	0
+	3	1	1	0	0
+	4	2	1	1	0
+}\latremotedualoha
 
 \begin{figure}[h!]
 	\centering
@@ -331,7 +445,7 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 				xlabel=Time in ms,
 				ylabel=Object size,
 				enlarge x limits=0.05,
-				minor x tick num=5,
+				minor x tick num=4,
 				xminorticks=true,
 				xmajorgrids=true,
 				xbar interval=1,
@@ -340,16 +454,17 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 					font=\small,
 					align=center,
 				},
+				use fpu=false,
 				boxplot={
-					draw position={1/3 + floor(\plotnumofactualtype/2) + 1/3*mod(\plotnumofactualtype,2)},
-					box extend=0.3,
-					cycle list name=duo,
+					draw position={1/4 + floor(\plotnumofactualtype/3) + 1/4*mod(\plotnumofactualtype,3)},
+					box extend=1/5,
+					cycle list name=trio2,
 				},
 				ymin=0,
 				ymax=5,
 				xmin=0,
 				%xmax=50,
-				ytick={0,...,10},
+				ytick={0,...,24},
 				yticklabels={
 					1KiB,
 					10KiB,
@@ -365,8 +480,22 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 				width=\textwidth,
 				y=1cm,
 			]
-			\pgfplotstablegetcolsof{\latlocalminio}
-			\pgfplotsinvokeforeach{0,...,\pgfplotsretval-1}{
+			
+			\pgfplotsinvokeforeach{0,...,4}{
+				
+				\addplot+[
+				boxplot prepared from table={
+					table=\latlocalssspoha,
+					row=#1,
+					lower whisker=lw,
+					upper whisker=uw,
+					lower quartile=lq,
+					upper quartile=uq,
+					median=med
+				}, boxplot prepared
+				]
+				coordinates {};
+				
 				\addplot+[
 					boxplot prepared from table={
 						table=\latlocalsssp,
@@ -394,12 +523,18 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 				coordinates {};
 			}
 			
-			\legend{${s3p}_{local}$, ${MinIO}_{local}$}
+			\legend{${s3p}^{*}_{local}$, ${s3p}_{local}$, ${MinIO}_{local}$}
 	\end{axis}
 	\end{tikzpicture}
-	\caption{Latency of local s3p and local MinIO instance}
+	\caption{Latency of ${MinIO}_{local}$, ${s3p}_{local}$}
+	\label{fig:latencylocal}
 \end{figure}
 
+The results for the \textit{local} configuration (see Figure \ref{fig:latencylocal}) show a similar pattern to what was previously observed in (\ref{result:throughput}).
+Within the range of 1-100KiB, s3p was able consistenly outperformed MinIO in terms of latency by responding to requests within 4ms or less within the 90th percentile and a median value of 2ms or less, whereas MinIO required 14ms or more within the 90th percentile with a median value of 6ms or more. In doing so, s3p remained within 1ms of its target baseline.
+Just as in the previous section, in the ranges of 500KiB and 1Mib this pattern could not be maintained. For objects of size 500KiB, s3p was still able to outperform even MinIO's best case of 4ms in 25\% of all cases, but for over 50\% of all cases its' observed latency was within margin of error of MinIO's 50th percentile and its' median of 22ms was well above the target baseline of 5ms.
+Moving on to the 1MiB range, the latency measured for MinIO fell by 5ms compared to the 500KiB measurement while the latency measured for s3p increased for the 25th percentile, which caused MinIO to outperform s3p in almost all cases.
+\\\\
 \begin{figure}[h!]
 	\centering
 	\begin{tikzpicture}
@@ -407,7 +542,7 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 			xlabel=Time in ms,
 			ylabel=Object size,
 			enlarge x limits=0.05,
-			minor x tick num=5,
+			minor x tick num=4,
 			xminorticks=true,
 			xmajorgrids=true,
 			xbar interval=1,
@@ -416,10 +551,11 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 				font=\small,
 				align=center,
 			},
+			use fpu=false,
 			boxplot={
-				draw position={1/4 + floor(\plotnumofactualtype/3) + 1/4*mod(\plotnumofactualtype,3)},
-				box extend=0.225,
-				cycle list name=trio,
+				draw position={1/6 + floor(\plotnumofactualtype/5) + 1/6*mod(\plotnumofactualtype,5)},
+				box extend=1/7,
+				cycle list name=penta,
 			},
 			ymin=0,
 			ymax=5,
@@ -438,11 +574,38 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 			width=\textwidth,
 			y=1.5cm,
 			]
-			\pgfplotstablegetcolsof{\latremoteminio}
-			\pgfplotsinvokeforeach{0,...,\pgfplotsretval-1}{
+			
+			\pgfplotsinvokeforeach{0,...,4}{
+				
+				\addplot+[
+				boxplot prepared from table={
+					table=\latremotedualoha,
+					row=#1,
+					lower whisker=lw,
+					upper whisker=uw,
+					lower quartile=lq,
+					upper quartile=uq,
+					median=med
+				}, boxplot prepared
+				]
+				coordinates {};
+				
 				\addplot+[
 				boxplot prepared from table={
 					table=\latremotedual,
+					row=#1,
+					lower whisker=lw,
+					upper whisker=uw,
+					lower quartile=lq,
+					upper quartile=uq,
+					median=med
+				}, boxplot prepared
+				]
+				coordinates {};
+				
+				\addplot+[
+				boxplot prepared from table={
+					table=\latremotessspoha,
 					row=#1,
 					lower whisker=lw,
 					upper whisker=uw,
@@ -480,120 +643,66 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 				coordinates {};
 			}
 			
-			\legend{${s3p}_{dual}$,${s3p}_{remote}$,${MinIO}_{remote}$}
+			\legend{${s3p}^{*}_{dual}$, ${s3p}_{dual}$, ${s3p}^{*}_{remote}$, ${s3p}_{remote}$, ${MinIO}_{remote}$}
 		\end{axis}
 	\end{tikzpicture}
-	\caption{Latency of local s3p and remote s3p/MinIO instance}
+	\caption{Latency of ${MinIO}_{remote}$, ${s3p}_{remote}$, ${s3p}_{dual}$ }
+	\label{fig:latencyremote}
 \end{figure}
 
-\subsection{Bandwidth}
+For the \textit{remote} configurations, the measured latency stayed within margin of error of the data of ${s3p}_{local}$ in the range of 1KiB to 100KiB. The only noticeable difference in this range was a reduction in the request times for ${MinIO}_{remote}$ compared to ${MinIO}_{local}$ by 50\%, but it was still outperformed by both configurations of s3p in almost all cases., where all requests finished in 5ms or less (see Figure \ref{fig:latencyremote}). The reduction in latency for MinIO correlates with the observed increase in throughput on a remote machine. Just like in the previous case, within the 500KiB and 1MiB range ${MinIO}_{remote}$ followed the same pattern of an increase in latency for 500KiB with a subsequent reduction in latency for 1MiB.
+Similarly to ${s3p}_{local}$, ${s3p}_{remote}$ also raised its' latency in the 75th percentile to the same amount as ${MinIO}_{remote}$'s for 500KiB-sized objects, and it also maintained a much lower 25th percentile and a 3ms lower median and therefore outperformed MinIO in most cases. This same effect was even more pronounced with ${s3p}_{dual}$, which was able to maintain a 2ms lower latency over ${s3p}_{remote}$ in all upper percentiles and a median of only 8ms compared to ${s3p}_{remote}$'s 14ms.
+This once again shows an increased benefit gained from chaining the proxies and indicates that the overhead introduced by the additional indirection is not a bottleneck to the configuration.
+For objects of size 1MiB however, both configurations of s3p performed significantly worse than ${MinIO}_{remote}$ where MinIO was able to respond to 90\% of all requests within 19ms, whilst ${s3p}_{dual}$ and ${s3p}_{remote}$ could not respond to more than half of the requests in under 33ms and 39ms respectively, which was more than 25ms above their target baselines.
+From this result, it can be implied that, unlike in the 500KiB case, s3p did add a significant overhead over MinIO in this scenario. This was most likely caused by the fact that in its current cache implementation s3p always reads a full response into a buffer before forwarding it to a downstream client. This can be further investigated for future improvements.
 
-%local-minio
-\pgfplotstableread{%
-	colnames		0		1		2		3		4
-	size			1 	   10 	  100	  500	 1000
-	warp 		 2188	11485  103696  507011 1031319
-	oha			 1794	10686	99165  488861 1005892
-}\bandwidthlocmin
-\pgfplotstabletranspose[colnames from=colnames]\Tbandwidthlocmin{\bandwidthlocmin}
+\subsection{Network usage}
+
+In this section, a look is taken at the effects on network usage that the configurations of s3p brough. For this purpose, Figure \ref{fig:bandwidth} provides the relative amount of data transfered per request on average. This data was calculated using the total number of requests performed by each tool and the total amount of data tansmitted (send+receive) as was reported by iftop and comparing the result to that of the size of a single direct access to the appropriate MinIO instance.
+Results from oha are omitted, since they only transmitted a single object at the start of the test.
 
 %local-s3p
 \pgfplotstableread{%
 	colnames		0		1		2		3		4
 	size			1 	   10 	  100	  500	 1000
-	warp		   15	   26	  282  346968  875516
-	oha 			0		0		4	   47	87775
+	warp 		 1.00	 1.00	 1.00	 0.32	 0.15
 }\bandwidthlocs
 \pgfplotstabletranspose[colnames from=colnames]\Tbandwidthlocs{\bandwidthlocs}
 
-\begin{figure}[h!]
-	\centering
-	\begin{tikzpicture}
-		\begin{axis}[
-			xlabel={Object size},
-			ylabel={Avg. bytes transferred},
-			enlarge y limits={{0.1,upper}},
-			xmin=0,
-			ymin=0,
-			xtick={1,10,100,500,1000},
-			ymode = log,
-			log basis y=2,
-			xmode = log,
-			log basis x=10,
-			legend style = {legend pos=outer north east, font=\small},
-			ymajorgrids=true,
-			grid style=dashed,
-			scaled ticks=false,
-			x tick label style = {font = \small, text width = 1.7cm, align = center, rotate = 70, anchor = north east},
-			xticklabels={
-				1KiB,
-				10KiB,
-				100KiB,
-				500KiB,
-				1MiB,
-			},
-			]
-			
-			\addplot+[
-			cycle  list name=duo,
-			mark=square,
-			]
-			table [x=size,y=warp] {\Tbandwidthlocs};
-			
-			\addplot+[
-			cycle  list name=duo,
-			mark=square,
-			]
-			table [x=size,y=warp] {\Tbandwidthlocmin};
-			
-			\addplot+[
-			cycle  list name=duo,
-			mark=square,
-			]
-			table [x=size,y=oha] {\Tbandwidthlocs};
-			
-			\begin{comment}
-			\addplot+[
-			cycle  list name=duo,
-			mark=square,
-			]
-			table [x=size,y=oha] {\Tbandwidthlocmin};
-			\end{comment}
-			
-			
-			\legend{${s3p}_{local}$, 
-				${MinIO}_{local}$, 
-				${s3p}^{*}_{local}$, 
-				%${MinIO}^{*}_{local}$
-			}
-			
-		\end{axis}
-	\end{tikzpicture}
-	\caption{Bandwidth usage of local s3p and MinIO instance}
-\end{figure}
+%remote-s3p
+\pgfplotstableread{%
+	colnames		0		1		2		3		4
+	size			1 	   10 	  100	  500	 1000
+	warp		 1.00	 1.00	 1.00	 0.37	 0.12
+}\bandwidthrems
+\pgfplotstabletranspose[colnames from=colnames]\Tbandwidthrems{\bandwidthrems}
+
+%dual-s3p
+\pgfplotstableread{%
+	colnames		0		1		2		3		4
+	size			1 	   10 	  100	  500	 1000
+	warp		 1.00	 1.00	 1.00	 0.44	 0.21
+}\bandwidthduo
+\pgfplotstabletranspose[colnames from=colnames]\Tbandwidthduo{\bandwidthduo}
+
 
 \begin{figure}[h!]
 	\centering
 	\begin{tikzpicture}
 		\begin{axis}[
 			xlabel={Object size},
-			ylabel={Avg. bytes transferred},
+			ylabel={Savings in \%},
 			enlarge y limits={{0.1,upper}},
 			xmin=0,
 			ymin=0,
 			xtick={1,10,100,500,1000},
-			ymode = log,
-			log basis y=2,
 			xmode = log,
 			log basis x=10,
-			legend style={
-				legend pos = outer north east, 
-				cells={align=left}
-			},
 			ymajorgrids=true,
 			grid style=dashed,
 			scaled ticks=false,
 			x tick label style = {font = \small, text width = 1.7cm, align = center, rotate = 70, anchor = north east},
+			legend style={legend pos=south west, font=\small},
 			xticklabels={
 				1KiB,
 				10KiB,
@@ -602,42 +711,50 @@ Measured with oha for a single object. Size 10KiB and 100KiB.
 				1MiB,
 			},
 			]
-			
-			\addplot+[
-			cycle list name=trio,
-			mark=square,
-			]
-			coordinates {
-				(1, 5) (10, 26) (100, 304) (500, 230152) (1000, 820637)
-			};
-			
-			\addplot+[
-			cycle list name=trio,
-			mark=square,
-			]
-			coordinates {				
-				(1, 5) (10, 26) (100, 284) (500, 324472) (1000, 911047)
-			};
-			
-			\addplot+[
-			cycle list name=trio,
-			mark=square,
-			]
-			coordinates {
-				(1, 2174) (10, 11514) (100, 104151) (500, 515719) (1000, 1036184)
-			};
-			
-			\addplot+[
-			cycle list name=trio,
-			mark=square,
-			]
-			coordinates {
-				(1, 0) (10, 0) (100, 5) (500, 40764) (1000, 96090)
-			};
-			
-			\legend{${s3p}_{dual}$, ${s3p}_{remote}$, ${MinIO}_{remote}$, ${s3p}^{*}_{remote}$}
-			
+			%\nextgroupplot[legend style = {legend pos=south west, font=\small}]
+				\addplot+[
+				cycle  list name=trio,
+				mark=square,
+				]
+				table [x=size,y=warp] {\Tbandwidthlocs};
+				
+			%\nextgroupplot[ylabel=,legend style = {legend pos=south west, font=\small}]
+				
+				\addplot+[
+				cycle  list name=trio,
+				mark=square,
+				]
+				table [x=size,y=warp] {\Tbandwidthrems};
+
+			%\nextgroupplot[legend style = {legend pos=south west, font=\small}]
+
+				\legend{${s3p}_{local}$, ${s3p}_{remote}$, ${s3p}_{dual}$}
 		\end{axis}
 	\end{tikzpicture}
-	\caption{Bandwidth usage of local s3p and remote s3p/MinIO instance}
+	\caption{Reduction in transmitted data compared to MinIO}
+	\label{fig:bandwidth}
 \end{figure}
+
+Most noticably, within all 3 measurements, a near 100\% reduction in total network usage can be observed for all configurations for objects in the 1KiB to 100KiB range. This result was expected due to the cache size being able to encompass all objects of those size ranges.
+For tests conducted with warp, the results slightly diverge here, with ${s3p}_{local}$ performing slightly worse than ${s3p}_{remote}$ in the 500KiB range and slightly better in the 1MiB range, with both reaching close to 36\% and 14\% of transferred data reduction for those two sizes respectively. Meanwhile, ${s3p}_{dual}$  was once again able to gain an advantage through its double layer caching, showing up to 44\% reduction in  the 500KiB range and a 21\% reduction in the two ranges, which in both cases is higher than the ratio of the dataset size to cache size.
+
+\pagebreak
+
+\chapter{Discussion}
+
+In this chapter, the data gathered from the previous evaluation is analyzed and used to evaluate the effect that s3p has on the performance of S3 systems, and the benefits it provides due to its approach on \textit{external composition}.
+
+Evaluation was done on three different arrangements of S3 servers and proxies (\ref{configurations}) by measuring the throughput, latency and network usage when accessing different object sizes using readily available, popular benchmarks and monitoring tools.
+Those measurements were then compared to the measurements taken on the underlying S3 system, for which self-hosted instances of MinIO were used.
+\\
+The data showed a clear benefit of the cache's capabilities to accelerate S3 servers in all 3 metrics in situations where a high cache hit rate could be achieved, but in situations with low cache hit rates, it was shown to introduce additional latency, although it was still able to contribute to the throughput and reduce the network usage in those cases.
+\\
+One curiosity that this evaluation revealed, was that MinIO performed noticeably worse in both the throughput and latency measurements when the benchmarks and MinIO instance were running on the same system. This indicates a throttling issue and needs to be accounted for in this analysis. The same throttling issues could however not be observed directly for s3p, but it was affected indirectly when making requests to MinIO.
+\\
+In all cases, s3p showed its capabilities to reach a significantly higher throughput than MinIO, reaching close to 200\% of its throughput (with throttling accounted for) under good conditions, but slowed drastically on lower hit rates and bigger object sizes. In those cases however, s3p profited from its ability to efficiently chain multiple instances of itself to increase its combined cache size and by using the more efficient HTTP/2 protocol also reduced its latency and network usage over a single s3p instance.
+
+Comparing the results for s3p in cases where a 100\% hit rate was achieved on 2500 objects compared to only a single object, the data reveals that s3p stays well behind its theoretical performance limit with 2500 objects. This may in part be caused by the more predictable memory access, which is greatly beneficial on modern computers, but it may also show inefficiencies with the hashmap used by s3p for its cache implementation that can be further investigated for future improvements.
+\\
+For latency, s3p showed a great improvement over MinIO in file sizes under 500KiB and on cache hits, where it was able to respond to requests in 0-4ms, but for uncached larger objects of size 500KiB to 1MiB it showed some overhead in latency. In its current form s3p reads a response from its upstream S3 server to completion before responding, which is a likely cause for this behavior. This may also be improved in the future.
+\\
+In terms of savings in network transmission savings, clear conclusions are difficult to make. The main challenge here is, as mentioned in (\ref{warp}), that the random selection of objects by warp is generally disadvantageous to caches. For that, it is a relatively good result that all configurations got close to the ratio of dataset size to cache size, with ${s3p}_{dual}$ even beating it by a slight margin, which may in most part be attributed to its use of the more efficient HTTP/2 protocol.

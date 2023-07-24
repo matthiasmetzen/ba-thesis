@@ -1,1 +1,15 @@
-\chapter{Summary}
+\chapter{Conclusion}
+
+\section{Summary}
+In this work, s3p, a caching proxy for S3 systems with compositional properties was introduced. 
+
+The thesis has discussed the design and architecture of the proxy server, outlining the different components and their functionalities. It has also presented the implementation details, incorporating improved caching techniques for S3 over the usual restrictions of cache headers as defined by the HTTP standard. It further highlighted the configurability and modularity of the design and implementation that was declared as part of this works \textit{internal composability} goals (\ref{goals}).
+\\\\
+To evaluate the effectiveness of the proposed solution, experiments using popular benchmark tools have been conducted, and performance metrics for throughput, latency and data usage savings have been measured and analyzed. 
+The results demonstrated the overall positive impact of this cache implementation on the responsiveness of S3 systems under most observed conditions, especially highlighting its ability to accelerate access to small files. It also showed the benefits brought by its \textit{external composition} approach, which allowed it to enhance its performance by chaining multiple instances, without any significant compromises.
+
+
+\section{Future Work}
+s3p provides an extensible foundation for proxy servers. Although it has been built to provide caching to S3 servers, part of its design goal was to make it easily adaptable to new ideas.
+As such, further research can be done on the benefits brought by the \textit{external composability} by exploring transmissions through protocols other than HTTP and further expanding on the idea of smart communications between two proxies.
+This also adds the possibility of extending its capabilities enable it to interface with other storage systems than just S3, which could be further explored.

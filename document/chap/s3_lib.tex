@@ -1,8 +1,8 @@
-\chapter{Selecting a S3 library}
+\chapter{Selecting an S3 library}
 
-This chapter focuses on the necessity of utilizing a library for the implementation of the S3-specific components of the software described and presents thought and evaluations for a selection of libraries available. It then briefly describes the library chosen and outlines some challenges posed by the library as well as some modifications that were applied to it as part of this work. The main criteria of the evaluation were the ease of integration, the flexibility and, if necessary, the maintainability of modifications.
+This chapter focuses on the necessity of utilizing a library for the implementation of the S3-specific components of the software described and presents thoughts and evaluations for a selection of libraries available. It then briefly describes the library chosen and outlines some challenges posed by the library as well as some modifications that were applied to it as part of this work. The main criteria of the evaluation were the ease of integration, the flexibility and, if necessary, the maintainability of modifications.
 
-The use of a library significantly reduces the maintenance and increases the compatibility with different implementations of the S3 specification. The usage of a library should provide or significantly simplify the implementation of the following features:
+The use of a library significantly reduces maintenance and increases the compatibility with different implementations of the S3 specification. The usage of a library should provide or significantly simplify the implementation of the following features:
 \begin{enumerate}
 	\item Parsing, validation and generation of request signatures (\ref{S3_desc})
 	\item Assigning requests to the corresponding API operations
@@ -14,9 +14,9 @@ Although 1. and 2. could have been manually implemented as part of this work, fo
 
 \section{aws-sdk-s3}
 
-aws-sdk-s3 is part of the AWS SDK for Rust, a comprehensive set of libraries provided by AWS that provide integrations for many AWS services and is code generated using a code generator that consumes JSON files which describe the AWS services according to the Smithy Model specification\cite{AWS_SDK_GITHUB}. It is widely used and commonly accepted as the default library to interact with S3 services\cite{} and actively developed and maintained by AWS, making it a good choice for maintainability. For each API operation it defines a typed representation for both the request and response associated with that operation. Additionally, it provides a complete client implementation for S3 APIs that implements request signatures as well as serialization and deserialization of the provided data types through its integration with other parts of the AWS SDK. 
+aws-sdk-s3 is part of the AWS SDK for Rust, a comprehensive set of libraries provided by AWS that provide integrations for many AWS services and is code generated using a code generator that consumes JSON files that describe the AWS services according to the Smithy Model specification\cite{AWS_SDK_GITHUB}. It is widely used and commonly accepted as the default library to interact with S3 services\cite{} and actively developed and maintained by AWS, making it a good choice for maintainability. For each API operation it defines a typed representation for both the request and response associated with that operation. Additionally, it provides a complete client implementation for S3 APIs that implements request signatures as well as serialization and deserialization of the provided data types through its integration with other parts of the AWS SDK. 
 
-Although containing all of the features outlined at the beginning of this chapter, further evaluation showed that the design of aws-sdk-s3 posed significant challenges to its integration for this work. Most significantly, the implementation for the serialization and deserialization of its data types is encapsulated inside the client implementation and not exposed to users of the library.
+Although containing all of the features outlined at the beginning of this chapter, further evaluation showed that the design of aws-sdk-s3 posed significant challenges to its integration for this work. Most significantly, the implementation of the serialization and deserialization of its data types is encapsulated inside the client implementation and not exposed to users of the library.
 
 
 TODO: 

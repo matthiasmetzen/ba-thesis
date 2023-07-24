@@ -1,6 +1,6 @@
 \chapter{Implementation}
 
-This chapter provides an in-depth exploration of the implementation of the S3 proxy, which incorporates caching functionality. This chapter aims to present a comprehensive overview of the design decisions, technologies employed, and the actual development process. This chapter will further explain the key features and limitations of the implementation.
+This chapter provides an in-depth exploration of the implementation of the S3 proxy, which incorporates caching functionality. The resulting software was given the simple name \textit{s3p} (s3 proxy) and will from here on out be referred to as such. This chapter aims to present a comprehensive overview of the design decisions, technologies employed, and the actual development process. This chapter will further explain the key features and limitations of the implementation.
 \\\\
 To ensure a robust and efficient implementation, the implementation was done in the Rust programming language. Rust's focus on memory safety, performance, and concurrency aligns well with our project requirements. Leveraging Rust's powerful abstractions, expressive syntax, and rich ecosystem was an important factor in building a reliable and high-performance S3 proxy that integrates advanced caching functionality.
 
@@ -10,7 +10,7 @@ This section deals with the decisions made as part of the design and implementat
 
 \subsection{Modularity}
 
-As part of the \textit{internal composition}\ref{composition} goal, much effort was put into designing components in a way that allows them to be decoupled from each other by abstracting their functionality through simple \code{traits}. As such, the specific implementations of components explained in this chapter should be viewed as building blocks that can be combined in the shape described by the architecture\ref{architecture}.
+As part of the \textit{internal composition}(\ref{def:composition}) goal, much effort was put into designing components in a way that allows them to be decoupled from each other by abstracting their functionality through simple \code{traits}. As such, the specific implementations of components explained in this chapter should be viewed as building blocks that can be combined in the shape described by the architecture(\ref{architecture}).
 This allows the code to be easily expanded to provide support for systems other than S3 in the future, simply by providing additional implementations to the individual components.
 
 \subsection{Configurability}
@@ -32,22 +32,23 @@ Although acceptable within the scope of this work, this approach does come with 
 	\item If no credentials are configured for A, all requests to the proxy will be executed with B without any validation of signatures on the incoming request. Exposing the proxy in this state poses a significant risk of unintended unauthorized access.
 \end{enumerate}
 
+\section{Design Process}
+
+After designing the architecture (\ref{architecture}), the first step to implementation was to outline the traits necessary to represent the \code{Server}, \code{Middleware} and \code{Client} components as well as design a crude API for each component. Then, the flow of a request through the system was implemented as part of the \code{Pipeline}. Initially, the plan was to pass an MPSC queue to the server that received each request from the server component and was then forwarded to the middleware stack and finally the client by the \code{Pipeline}. This design proved to be impractical due to multiple reasons:
+\begin{enumerate}
+	\item Multiple requests can be accepted by the server concurrently. Therefore responses to the request may be generated out of order. By releasing the requests on a message queue, the association between the task accepting the request and its completion was lost. To resolve this, additional fields had to be added to the \code{Request} type, inhibiting its use as an abstraction.
+	\item Rust's concurrency model is largely built around futures. The handling of requests released on the queue could only be associated with a future by adding a completion handler to the Request type analogous to 1.
+	\item Messaging queues performed significantly worse than passing callables to the server.
+	\item Conflicts with Rust's ownership system
+\end{enumerate}
+
 
 \section{Configuration}
 \label{configuration}
 
+Since configurability was part of the stated goals (\ref{goals}), the intended configuration schema was loosely defined very early on in the implementation. It uses a single TOML file, through which all configurations can be accessed. The configuration file is passed to the program on startup via CLI arguments and through it the internal composition is defined. During startup, the file is parsed and the individual components are dynamically configured at runtime. Within this chapter, each component will introduce its own specific configuration.
 
-\section{Design process}
-
-After designing the architecture (\ref{architecture}), the first step to implementation was to outline the traits necessary to represent the \code{Server}, \code{Middleware} and \code{Client} components as well as design a crude API for each component. Then, the flow of a request through the system was implemented as part of the \code{Pipeline}. Initially, the plan was to pass an MPSC queue to the server that received each request from the server component and was then forwarded to the middleware stack and finally the client by the \code{Pipeline}. This design proved to be impractical due to multiple reasons:
-\begin{enumerate}
-	\item Multiple requests can be accepted by the server in parallel and should be processed as such. Therefore responses to the request may be generated out of order. By releasing the requests on a message queue, the association between the task accepting the request and its completion was lost. To resolve this, additional fields had to be added to the \code{Request} type, inhibiting its use as an abstraction.
-	\item Rust's concurrency model is largely built around futures. The handling of requests released on the queue could only be associated with a future by adding a completion handler to the Request type analogous to 1.
-	\item Messaging queues performed significantly worse than passing callables to the server.
-	\item Conflicts wit Rust's ownership system
-\end{enumerate}
-
-\section{S3 Server}
+\section{The Server component}
 
 The server is the component responsible for accepting requests made to the proxy. It is represented by the \code{Server} trait. 
 It is initialized by calling the \code{serve} method of a \code{ServerBuilder} with a \code{Handler} to which it will forward all accepted requests. The \code{Handler} trait is implemented for any callable that receives a \code{Request} and returns a future that will resolve to a \code{Response} or an error type.
@@ -71,70 +72,41 @@ It is initialized by calling the \code{serve} method of a \code{ServerBuilder} w
 	\end{codeblock}
 \end{multicols}
 
-The \code{S3Server} is the S3-specific implementation of the \code{Server} trait. It is built upon a traditional HTTP server provided by \code{hyper} and supports requests over HTTP/1.1 and HTTP/2.0. Upon receiving a request, it first validates the request's signature against a set of credentials that can be set inside the configuration file. If the validation was successful, it then determines the S3 operation associated with the request. This functionality required the modifications of the \code{s3s} library described in \ref{s3s_mod_pub}.
+The \code{S3Server} is the S3-specific implementation of the \code{Server} trait. It is built upon a traditional HTTP server provided by \code{hyper} and supports requests over HTTP/1.1 and HTTP/2.0. Upon receiving a request, it first validates the request's signature against a set of credentials that can be set inside the configuration file. If the validation was successful, it then determines the S3 operation associated with the request. This functionality required the modifications of the \code{s3s} library described towards the end of this chapter.
+
+\begin{codeblock}{Example server configuration}{TOML}
+	\begin{javacode}
+		[server]
+		type = "s3"
+		host = "127.0.0.1"
+		port = 4356
+		validateCredentials = false
+	\end{javacode}
+\end{codeblock}
 
 \section{Caching}
 
-The caching logic was designed to improve the overall performance and efficiency of S3 operations. For this purpose, the caching logic was highly customized and strongly differs from traditional HTTP cache implementations. By leveraging knowledge of S3 operations it offers features that exceed the capabilities provided by HTTP caching headers (\ref{http_cache_policy}), but also attempts to be compliant to caching defined HTTP standard where possible. This section explains the design of the caching functionality and explores the advantages and limitations compared to traditional caching systems.
+The caching logic was designed to improve the overall performance and efficiency of S3 operations. For this purpose, the caching logic was highly customized and strongly differs from traditional HTTP cache implementations. By leveraging knowledge of S3 operations it offers features that exceed the capabilities provided by HTTP caching headers (\ref{http_cache_policy}), but also attempts to be compliant to caching as defined by the HTTP standards where possible. This section explains the design of the caching functionality and explores the advantages and limitations compared to traditional caching systems.
 
 \subsection{Implementation overview}
 
-Caching is implemented by the \code{CacheLayer} middleware and is designed to allow for different cache logic depending on the S3 operation performed by a request. The results of operations were determined to be cacheable if they do not mutate the data or metadata of objects or buckets. Priority for implementation was then given to the ones deemed most commonly used and most relevant to most applications, however, this selection was entirely subjective. The table below shows all operations that were determined to be cacheable and whether caching for them was implemented as part of \code{CacheLayer}.
-\begin{table}[H]
+Caching is implemented by the \code{CacheLayer} middleware and is designed to allow for different cache logic depending on the S3 operation performed by a request. The results of operations were determined to be cacheable if they do not mutate the data or metadata of objects or buckets. Priority for implementation was then given to the ones deemed most commonly used and most relevant to most applications, however, this selection was entirely subjective. Table \ref{tab:cachedops} below shows all operations for which caching was implemented as part of \code{CacheLayer}. A full list of operations determined to be cachable can be found in (\ref{appendix:tab:cachedops}).
+\begin{figure}[h]
 	\begin{center}
-		\begin{longtable}{| l | l |}
+		\begin{tabular}{| l |}
 			\hline
-			\thead{Operation} & \thead{Implemented} \\ \hline
-			GetBucketAccelerateConfiguration & \xmark \\ \hline
-			GetBucketAcl & \xmark \\ \hline
-			GetBucketAnalyticsConfiguration & \xmark \\ \hline
-			GetBucketCors & \xmark \\ \hline
-			GetBucketEncryption & \xmark \\ \hline
-			GetBucketIntelligentTieringConfiguration & \xmark \\ \hline
-			GetBucketInventoryConfiguration & \xmark \\ \hline
-			GetBucketLifecycle & \xmark \\ \hline
-			GetBucketLifecycleConfiguration & \xmark \\ \hline
-			GetBucketLocation & \xmark \\ \hline
-			GetBucketLogging & \xmark \\ \hline
-			GetBucketMetricsConfiguration & \xmark \\ \hline
-			GetBucketNotification & \xmark \\ \hline
-			GetBucketNotificationConfiguration & \xmark \\ \hline
-			GetBucketOwnershipControls & \xmark \\ \hline
-			GetBucketPolicy & \xmark \\ \hline
-			GetBucketPolicyStatus & \xmark \\ \hline
-			GetBucketReplication & \xmark \\ \hline
-			GetBucketRequestPayment & \xmark \\ \hline
-			GetBucketTagging & \xmark \\ \hline
-			GetBucketVersioning & \xmark \\ \hline
-			GetBucketWebsite & \xmark \\ \hline
-			GetObject & \cmark \\ \hline
-			GetObjectAcl & \xmark \\ \hline
-			GetObjectAttributes & \xmark \\ \hline
-			GetObjectLegalHold & \xmark \\ \hline
-			GetObjectLockConfiguration & \xmark \\ \hline
-			GetObjectRetention & \xmark \\ \hline
-			GetObjectTagging & \xmark \\ \hline
-			GetObjectTorrent & \xmark \\ \hline
-			GetPublicAccessBlock & \xmark \\ \hline
-			HeadBucket & \cmark \\ \hline
-			HeadObject & \cmark \\ \hline
-			ListBucketAnalyticsConfigurations & \xmark \\ \hline
-			ListBucketIntelligentTieringConfigurations & \xmark \\ \hline
-			ListBucketInventoryConfigurations & \xmark \\ \hline
-			ListBucketMetricsConfigurations & \xmark \\ \hline
-			ListBuckets & \cmark \\ \hline
-			ListMultipartUploads & \xmark \\ \hline
-			ListObjects & \cmark \\ \hline
-			ListObjectsV2 & \cmark \\ \hline
-			ListObjectVersions & \cmark \\ \hline
-			ListParts & \xmark \\ \hline
-			SelectObjectContent & \xmark \\ \hline
-			
-			\caption{List of cacheable and implemented operations}
-		\end{longtable}
+			GetObject \\ \hline
+			HeadBucket \\ \hline
+			HeadObject \\ \hline
+			ListBuckets \\ \hline
+			ListObjects \\ \hline
+			ListObjectsV2 \\ \hline
+			ListObjectVersions \\ \hline
+		\end{tabular}
 	\end{center}
-	\label{table_cached_operations}
-\end{table}
+	\caption{List of cacheable and implemented operations}
+	\label{tab:cachedops}
+\end{figure}
 
 \subsection{Cache policy and configuration}
 
@@ -142,6 +114,7 @@ The cache uses a hashmap as its underlying data structure and employs a TinyLFU 
 
 \begin{codeblock}{Example cache configuration}{TOML}
 	\begin{javacode}
+		[[middlewares]]
 		cacheSize = 50000000
 		ttl = 1000000
 		tti = 1000000
@@ -167,24 +140,54 @@ The cache uses a hashmap as its underlying data structure and employs a TinyLFU 
 \end{codeblock}
 
 \subsection{Cache headers and key generation}
-
+\label{impl:httpheaders}
 In a traditional HTTP cache, cache keys are commonly provided by the upstream server via the ETag response header. As described in (\ref{http_cache_policy}), the ETag header value uniquely identifies an underlying resource, and can be used together with the "If-None-Match" header to enable simple and reliable caching. Although widely used S3 systems like AWS S3 and MinIO support these headers, their effectiveness is often limited by the way S3 systems are accessed and interacted with.
 In particular, software accessing S3 systems is often not designed to handle recurring requests intelligently. As such, they often do not make use of caching and HTTP caching mechanics and do not supply caches or servers with the required information like the "If-None-Match" headers. Another issue with caching S3 operations arises from the fact that many operations are not directly intended to be cached, although doing so is theoretically possible. In those cases, the S3 system will return responses without any caching-related headers.
 
 To enable the caching logic to efficiently retrieve cached responses without this information, a new method to derive keys directly from requests instead of the response was required. Since the fields sent to the S3 API vary between different operations and not every field affects the cachability of a request, the key generation had to be implemented for each supported operation individually following these steps:
 \begin{enumerate}
 	\item The configuration (\ref{configuration}) is checked to determine if the operation is enabled.
-	\item The request is parsed and deserialized into the metadata type (\ref{s3s_mod_meta}) associated with the operation.
-	\item The resulting type is checked for the existence of any fields causing the response to change unexpectedly, as well as some rarely used fields which were excluded to simplify the logic. If any such a field is detected, the key generation fails.
+	\item The request is parsed and deserialized and associated with the operation.
+	\item The resulting type is checked for the existence of any fields causing the response to change unexpectedly, as well as some rarely used fields that excluded to simplify the logic. If any such a field is detected, the key generation fails.
 	\item The key is generated from a combination of the operation's name and the fields that affect the response.
 \end{enumerate}
 
 \subsection{Update events}
-
+\label{cache:event}
 As part of the \textit{external composition} goal of this work, this cache also is capable of receiving update notifications for cached items from other upstream caches or upstream servers by listening to broadcast events provided by the webhook component. By configuring the upstream S3 server to send update events via the webhook, cache items can be efficiently evicted upon notice. This allows chaining multiple instances of this proxy without significantly increasing the risk of serving stale data due to additive TTL.
 This feature could be further enhanced by directly refreshing entries instead of evicting them upon notice.
 
 \section{S3 Client}
+
+The client is the component responsible for resolving requests into responses, commonly by forwarding the request to an upstream server, although this is not strictly necessary. For example, a client could also be implemented to resolve requests by retrieving files directly from storage.
+
+\begin{codeblock}{Client}{Rust}
+	\begin{rustcode}
+		pub trait Client: Send + Sync {
+			/// Asynchrounously resolves a [Request] into a [Response]
+			fn send(&self, request: Request) -> impl Future<Output = Result<Response, SendError>> + Send;
+		}
+	\end{rustcode}
+\end{codeblock}
+
+The \code{S3Client} is the S3-specific implementation of the \code{Client} trait, and its implementation is relatively simple. Its most striking feature is its relatively wide range of configuration options, including its ability to be configured to use HTTP/2 to send requests, which is usually not supported by S3 servers.
+This can be used to provide more efficient communications between two instances of s3p.
+
+\begin{codeblock}{Example client configuration}{TOML}
+	\begin{javacode}
+		[client]
+		type = "s3"
+		endpointUrl = "http://localhost:9000"
+		forcePathStyle = true
+		enableHttp2 = true
+		insecure = true
+		connectTimeout = 10_000
+		readTimeout = 10_000
+		operationTimeout = 10_000
+		operationAttemptTimeout = 10_000
+		maxRetryAttempts = 3
+	\end{javacode}
+\end{codeblock}
 
 \section{Pipeline}
 
@@ -192,5 +195,35 @@ The Pipeline is a management structure composed of a ServerBuilder, any number o
 
 \section{Webhook}
 
+The webhook is the component that enables receiving messages from an upstream server. Opon receiving an event message it parses and releases the message onto an event bus that all other components can connect to to implement additional behavior as was done in (\ref{cache:event}).
+
+It is implemented by the \code{S3WebhookServer} to provide handling of event notifications as defined by AWS \cite{AWS_S3_USER_GUIDE}. This was done in regard to the \textit{external composition} goal of this work. Since event notifications are a non-standard feature for S3 servers, the handling of events required manual implementation for the parsing of event messages. An example of a message is included in (\ref{appendix:webhook}).
+
 \section{Challenges}
+
+During the implementation, some challenges were encountered with some of the libraries used by this implementation. These challenges are documented in this section.
+
+\subsection{aws-sdk-s3}
+The initial plan for implementation was to use the library aws-sdk-s3 which is part of the AWS SDK for Rust, a comprehensive set of libraries provided by AWS that provide integrations for many AWS services\cite{AWS_SDK_GITHUB}. It is widely used and commonly accepted as the default library to interact with S3 services and actively developed and maintained by AWS, making it a good choice for maintainability. For every operation it provides an individual request and response type to enable type-safe usage and predictable behavior.
+
+This however proved challenging, as the features exposed by the library were found to be severely limited and even if the necessary features existed in theory, they were often not exposed to its users.
+Most significantly, the implementation of the serialization and deserialization of its data types was encapsulated inside the client implementation and therefore not callable by users of the library.
+Other issues were that there was no trait to implement unified handling for all operations. Instead, for each operation a separate implementation of every feature would have been necessary and that most fields on both the request and response types were private hidden with no setter methods provided. Request objects could also not be directly created by the user, but alwas needed to hold a reference to a client provided by the SDK, making its application callenging for this implementation.
+
+An attempt to modifying the source code of aws-sdk-s3 was made, but that too proved challenging due to the entire SDK being generated through a code generator\cite{AWS_SDK_GITHUB} and its deep integration with other parts of the SDK.
+
 \subsection{s3s}
+s3s\cite{S3S_GITHUB} is an alternative implementation to the aws-sdk-s3 library and was used as a replacement to aws-sdk-s3. Similar to the AWS SDK, it is created from a combination of handwritten code and a code generator. This library proved less challenging than the implementation with aws-sdk-s3, but still some problems were encountered, and its code had to be modified to enable this implementation. This section documents the changes made to this library as part of this work.
+
+\subsubsection{Unclonable types}
+\label{s3s:meta}
+Like aws-sdk-s3, s3s also provides individual request and response types for each operation, however most of these types did not implement Rust's \code{Clone} trait, so no copies could be made for instances of these types, but it was a necessity for the cache implementation to be able to store responses.
+As part of this implementation, its code generator was modified to implement the missing trait where possible. For types containing fields that were not clonable by design (eg. byte streams), an additional clonable "Meta" type was generated without the field and the ability to convert split the initial type into its "Meta" type and the unclonable field.
+
+\subsubsection{Selecting Operations}
+Unlike aws-sdk-s3, s3s provided a trait to enable implementation of shared behaviors for all operations. However, the user only had access to a type-erased variant, which did not allow for determining the current operation performed by a request at runtime.
+
+This was modified to provide a typed variant instead so that the user could implement different behaviors for individual operations where necessary. This was also required by the cache to implement custom handling based on the operation performed.
+
+\subsubsection{Error handling}
+Errors received from the upstream S3 server were hidden from the user, making it challenging to debug issues. This also showed to be an issue for responses with the return code "304 Not Modified" (see \ref{http_cache_policy}), as the library did not expect this code and returned an generalized error. For the implementation of \ref{http_cache_policy} this behavior was modified to enable further inspection of the response by the user.

@@ -1,4 +1,5 @@
 \chapter{Appendix}
+
 \begin{figure}
 \begin{codeblock}{Event.json}{JSON}
 \begin{javacode}
@@ -44,4 +45,383 @@
 	\end{javacode}
 \end{codeblock}
 \caption{Example Webhook event, Source: https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html}
+\label{appendix:webhook}
 \end{figure}
+
+\pagebreak
+
+\begin{figure}[h!]
+	\begin{center}
+		\begin{tabular}{| l | l |}
+			\hline
+			\thead{Operation} & \thead{Implemented} \\ \hline
+			GetBucketAccelerateConfiguration & \xmark \\ \hline
+			GetBucketAcl & \xmark \\ \hline
+			GetBucketAnalyticsConfiguration & \xmark \\ \hline
+			GetBucketCors & \xmark \\ \hline
+			GetBucketEncryption & \xmark \\ \hline
+			GetBucketIntelligentTieringConfiguration & \xmark \\ \hline
+			GetBucketInventoryConfiguration & \xmark \\ \hline
+			GetBucketLifecycle & \xmark \\ \hline
+			GetBucketLifecycleConfiguration & \xmark \\ \hline
+			GetBucketLocation & \xmark \\ \hline
+			GetBucketLogging & \xmark \\ \hline
+			GetBucketMetricsConfiguration & \xmark \\ \hline
+			GetBucketNotification & \xmark \\ \hline
+			GetBucketNotificationConfiguration & \xmark \\ \hline
+			GetBucketOwnershipControls & \xmark \\ \hline
+			GetBucketPolicy & \xmark \\ \hline
+			GetBucketPolicyStatus & \xmark \\ \hline
+			GetBucketReplication & \xmark \\ \hline
+			GetBucketRequestPayment & \xmark \\ \hline
+			GetBucketTagging & \xmark \\ \hline
+			GetBucketVersioning & \xmark \\ \hline
+			GetBucketWebsite & \xmark \\ \hline
+			GetObject & \cmark \\ \hline
+			GetObjectAcl & \xmark \\ \hline
+			GetObjectAttributes & \xmark \\ \hline
+			GetObjectLegalHold & \xmark \\ \hline
+			GetObjectLockConfiguration & \xmark \\ \hline
+			GetObjectRetention & \xmark \\ \hline
+			GetObjectTagging & \xmark \\ \hline
+			GetObjectTorrent & \xmark \\ \hline
+			GetPublicAccessBlock & \xmark \\ \hline
+			HeadBucket & \cmark \\ \hline
+			HeadObject & \cmark \\ \hline
+			ListBucketAnalyticsConfigurations & \xmark \\ \hline
+			ListBucketIntelligentTieringConfigurations & \xmark \\ \hline
+			ListBucketInventoryConfigurations & \xmark \\ \hline
+			ListBucketMetricsConfigurations & \xmark \\ \hline
+			ListBuckets & \cmark \\ \hline
+			ListMultipartUploads & \xmark \\ \hline
+			ListObjects & \cmark \\ \hline
+			ListObjectsV2 & \cmark \\ \hline
+			ListObjectVersions & \cmark \\ \hline
+			ListParts & \xmark \\ \hline
+			SelectObjectContent & \xmark \\ \hline
+		\end{tabular}
+	\end{center}
+	\caption{List of cacheable and implemented operations}
+	\label{appendix:tab:cachedops}
+\end{figure}
+
+\pagebreak
+
+\section{Raw test results}
+\label{rawresults}
+
+\begin{sidewaystable}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|}
+		\hline
+		& 1.0kib & 10.0kib & 100.0kib & 500.0kib & 1.0mib &  & Units \\
+		\hline
+		warp Total requests & 286526 & 268317 & 181206 & 81323 & 87247 &  & \# \\
+		\hline
+		warp Slowest & 331 & 387 & 524 & 725 & 572 &  & ms \\
+		\hline
+		warp 99th & 54 & 44 & 65 & 60 & 241 &  & ms \\
+		\hline
+		warp 90th & 14 & 14 & 22 & 38 & 39 &  & ms \\
+		\hline
+		warp 75th & 9 & 10 & 15 & 31 & 26 &  & ms \\
+		\hline
+		warp Median & 6 & 7 & 9 & 25 & 17 &  & ms \\
+		\hline
+		warp 25th & 4 & 4 & 6 & 20 & 11 &  & ms \\
+		\hline
+		warp Fastest & 1 & 1 & 1 & 4 & 2 &  & ms \\
+		\hline
+		warp Throughput & 2388 & 2236 & 1511 & 678 & 728 &  & ms \\
+		\hline
+		iftop-warp Cumulative Sent & 166723584 & 162529280 & 132120576 & 95420416 & 118489088 &  & obj/s \\
+		\hline
+		iftop-warp Cumulative Received & 460324864 & 2920577761 & 18683107737 & 41124311859 & 89872190668 &  & B \\
+		\hline
+		iftop-warp Cumulative Total & 627048448 & 3081639034 & 18790481920 & 41231686041 & 89979564851 &  & B \\
+		\hline
+		oha Slowest & 633 & 953 & 906 & 1689 & 1596 &  & B \\
+		\hline
+		oha 99th & 111 & 109 & 173 & 126 & 582 &  & ms \\
+		\hline
+		oha 90th & 21 & 25 & 46 & 87 & 97 &  & ms \\
+		\hline
+		oha 75th & 15 & 16 & 31 & 71 & 59 &  & ms \\
+		\hline
+		oha 50th & 9 & 10 & 19 & 55 & 34 &  & ms \\
+		\hline
+		oha 25th & 5 & 6 & 10 & 42 & 16 &  & ms \\
+		\hline
+		oha Fastest & 0 & 0 & 0 & 4 & 1 &  & ms \\
+		\hline
+		oha Requests/sec & 3681 & 3299 & 1912 & 816 & 830 &  & req/s \\
+		\hline
+		oha Total data & 226209300 & 2029372047 & 11757472972 & 25082609008 & 52269751992 &  & B \\
+		\hline
+		oha Total requests & 220905 & 197944 & 114775 & 48980 & 49850 &  & B \\
+		\hline
+		iftop-oha Cumulative Sent & 56832819 & 56518246 & 48339353 & 43620761 & 68052582 &  & B \\
+		\hline
+		iftop-oha Cumulative Received & 339738624 & 2061584302 & 11274289152 & 23944442675 & 50036368998 &  & B \\
+		\hline
+		iftop-oha Cumulative Total & 396361728 & 2115271393 & 11381663334 & 23944442675 & 50143743180 &  & \# \\
+		\hline
+		calc warp Avg B/Req & 2188 & 11485 & 103696 & 507011 & 1031319 &  & B \\
+		\hline
+		calc oha Avg B/Req & 1794 & 10686 & 99165 & 488861 & 1005892 &  & B \\
+		\hline
+	\end{tabular}
+	\caption{Raw test results for ${MinIO}_{local}$}
+\end{sidewaystable}
+
+\begin{sidewaystable}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|}
+		\hline
+		& 1.0kib & 10.0kib & 100.0kib & 500.0kib & 1.0mib &  & Units \\
+		\hline
+		warp Total requests & 1206917 & 1163499 & 938649 & 106765 & 95292 &  & \# \\
+		\hline
+		warp Slowest & 328 & 114 & 196 & 758 & 224 &  & ms \\
+		\hline
+		warp 99th & 10 & 10 & 11 & 73 & 80 &  & ms \\
+		\hline
+		warp 90th & 4 & 4 & 5 & 40 & 43 &  & ms \\
+		\hline
+		warp 75th & 2 & 2 & 3 & 31 & 31 &  & ms \\
+		\hline
+		warp Median & 1 & 1 & 2 & 22 & 22 &  & ms \\
+		\hline
+		warp 25th & 1 & 1 & 1 & 2 & 13 &  & ms \\
+		\hline
+		warp Fastest & 0 & 0 & 0 & 0 & 0 &  & ms \\
+		\hline
+		warp Throughput & 10060 & 9699 & 7825 & 891 & 794 &  & ms \\
+		\hline
+		iftop-warp Cumulative Sent & 5798625 & 2202009 & 2296381 & 59349401 & 64067993 &  & obj/s \\
+		\hline
+		iftop-warp Cumulative Received & 13421772 & 28626124 & 262144000 & 36936718745 & 83429739724 &  & B \\
+		\hline
+		iftop-warp Cumulative Total & 19188940 & 30828134 & 265289728 & 37044092928 & 83429739724 &  & B \\
+		\hline
+		oha Slowest & 27 & 35 & 46 & 128 & 171 &  & B \\
+		\hline
+		oha 99th & 4 & 4 & 6 & 12 & 89 &  & ms \\
+		\hline
+		oha 90th & 3 & 3 & 4 & 8 & 19 &  & ms \\
+		\hline
+		oha 75th & 2 & 2 & 3 & 6 & 12 &  & ms \\
+		\hline
+		oha 50th & 1 & 2 & 2 & 5 & 9 &  & ms \\
+		\hline
+		oha 25th & 1 & 1 & 1 & 4 & 6 &  & ms \\
+		\hline
+		oha Fastest & 0 & 0 & 0 & 0 & 0 &  & ms \\
+		\hline
+		oha Requests/sec & 24589 & 24052 & 18518 & 8945 & 3771 &  & req/s \\
+		\hline
+		oha Total data & 1513975971 & 14774687498 & 113784421089 & 274824219852 & 237296943104 &  & B \\
+		\hline
+		oha Total requests & 1475405 & 1443131 & 1111127 & 536758 & 226308 &  & B \\
+		\hline
+		iftop-oha Cumulative Sent & 13721 & 43929 & 92262 & 105472 & 19503513 &  & B \\
+		\hline
+		iftop-oha Cumulative Received & 28364 & 550912 & 5211422 & 25165824 & 19864223744 &  & B \\
+		\hline
+		iftop-oha Cumulative Total & 42086 & 594944 & 5295308 & 25270681 & 19864223744 &  & \# \\
+		\hline
+		calc warp Avg B/Req & 15 & 26 & 282 & 346968 & 875516 &  & B \\
+		\hline
+		calc oha Avg B/Req & 0 & 0 & 4 & 47 & 87775 &  & B \\
+		\hline
+	\end{tabular}
+	\caption{Raw test results for ${s3p}_{local}$}
+\end{sidewaystable}
+
+\begin{sidewaystable}
+		\begin{tabular}{|c|c|c|c|c|c|c|c|}
+			\hline
+			& 1.0kib & 10.0kib & 100.0kib & 500.0kib & 1.0mib &  & Units \\
+			\hline
+			warp Total requests & 508517 & 459742 & 296911 & 110972 & 59066 &  & \# \\
+			\hline
+			warp Slowest & 170 & 200 & 269 & 835 & 234 &  & ms \\
+			\hline
+			warp 99th & 25 & 29 & 42 & 78 & 37 &  & ms \\
+			\hline
+			warp 90th & 7 & 8 & 12 & 23 & 19 &  & ms \\
+			\hline
+			warp 75th & 5 & 6 & 8 & 19 & 16 &  & ms \\
+			\hline
+			warp Median & 4 & 4 & 6 & 17 & 15 &  & ms \\
+			\hline
+			warp 25th & 2 & 3 & 4 & 16 & 14 &  & ms \\
+			\hline
+			warp Fastest & 1 & 1 & 1 & 4 & 7 &  & ms \\
+			\hline
+			warp Throughput & 4238 & 3832 & 2476 & 925 & 493 &  & ms \\
+			\hline
+			iftop-warp Cumulative Sent & 295698432 & 279969792 & 213909504 & 154140672 & 232783872 &  & obj/s \\
+			\hline
+			iftop-warp Cumulative Received & 815792128 & 5014374318 & 30709016166 & 57123065036 & 60988535603 &  & B \\
+			\hline
+			iftop-warp Cumulative Total & 1105954078 & 5293547192 & 30923764531 & 57230439219 & 61203283968 &  & B \\
+			\hline
+			oha Slowest & 455 & 541 & 675 & 1273 & 660 &  & B \\
+			\hline
+			oha 99th & 150 & 137 & 198 & 531 & 227 &  & ms \\
+			\hline
+			oha 90th & 10 & 13 & 25 & 83 & 134 &  & ms \\
+			\hline
+			oha 75th & 6 & 8 & 15 & 54 & 125 &  & ms \\
+			\hline
+			oha 50th & 4 & 5 & 9 & 29 & 120 &  & ms \\
+			\hline
+			oha 25th & 2 & 3 & 6 & 17 & 117 &  & ms \\
+			\hline
+			oha Fastest & 0 & 0 & 1 & 4 & 20 &  & ms \\
+			\hline
+			oha Requests/sec & 5906 & 5351 & 3123 & 937 & 400 &  & req/s \\
+			\hline
+			oha Total data & 362901667 & 3285649981 & 19187766394 & 28808493137 & 25200720609 &  & B \\
+			\hline
+			oha Total requests & 354400 & 321111 & 187400 & 56272 & 24029 &  & B \\
+			\hline
+			iftop-oha Cumulative Sent & 89758105 & 92903833 & 75707187 & 80635494 & 186646528 &  & B \\
+			\hline
+			iftop-oha Cumulative Received & 538968064 & 3360811909 & 18575733555 & 27702539059 & 24266565222 &  & B \\
+			\hline
+			iftop-oha Cumulative Total & 628097024 & 3457448673 & 18575733555 & 27702539059 & 24481313587 &  & \# \\
+			\hline
+			calc warp Avg B/Req & 2174 & 11514 & 104151 & 515719 & 1036184 &  & B \\
+			\hline
+			calc oha Avg B/Req & 1772 & 10767 & 99123 & 492297 & 1018823 &  & B \\
+			\hline
+		\end{tabular}
+	\caption{Raw test results for ${MinIO}_{remote}$}
+\end{sidewaystable}
+
+\begin{sidewaystable}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|}
+		\hline
+		& 1.0kib & 10.0kib & 100.0kib & 500.0kib & 1.0mib &  & Units \\
+		\hline
+		warp Total requests & 1201473 & 1140234 & 927419 & 143619 & 68829 &  & \# \\
+		\hline
+		warp Slowest & 252 & 233 & 173 & 610 & 154 &  & ms \\
+		\hline
+		warp 99th & 9 & 10 & 11 & 157 & 62 &  & ms \\
+		\hline
+		warp 90th & 4 & 4 & 5 & 29 & 50 &  & ms \\
+		\hline
+		warp 75th & 2 & 2 & 3 & 19 & 46 &  & ms \\
+		\hline
+		warp Median & 1 & 1 & 2 & 14 & 39 &  & ms \\
+		\hline
+		warp 25th & 1 & 1 & 1 & 0 & 25 &  & ms \\
+		\hline
+		warp Fastest & 0 & 0 & 0 & 0 & 0 &  & ms \\
+		\hline
+		warp Throughput & 10014 & 9504 & 7730 & 1199 & 574 &  & ms \\
+		\hline
+		iftop-warp Cumulative Sent & 1782579 & 1814036 & 1939865 & 101607014 & 179306496 &  & obj/s \\
+		\hline
+		iftop-warp Cumulative Received & 5096079 & 28521267 & 262144000 & 46493020979 & 62599148339 &  & B \\
+		\hline
+		iftop-warp Cumulative Total & 6878658 & 30408704 & 264241152 & 46600395161 & 62706522521 &  & B \\
+		\hline
+		oha Slowest & 32 & 31 & 43 & 159 & 196 &  & B \\
+		\hline
+		oha 99th & 5 & 5 & 6 & 73 & 129 &  & ms \\
+		\hline
+		oha 90th & 3 & 3 & 4 & 10 & 20 &  & ms \\
+		\hline
+		oha 75th & 2 & 2 & 3 & 6 & 10 &  & ms \\
+		\hline
+		oha 50th & 2 & 2 & 2 & 4 & 5 &  & ms \\
+		\hline
+		oha 25th & 1 & 1 & 2 & 1 & 2 &  & ms \\
+		\hline
+		oha Fastest & 0 & 0 & 0 & 0 & 0 &  & ms \\
+		\hline
+		oha Requests/sec & 23807 & 23678 & 17037 & 6628 & 3445 &  & req/s \\
+		\hline
+		oha Total data & 1460288880 & 14549201715 & 104679090421 & 203645874339 & 216766999429 &  & B \\
+		\hline
+		oha Total requests & 1428469 & 1420710 & 1022291 & 397739 & 206725 &  & B \\
+		\hline
+		iftop-oha Cumulative Sent & 39936 & 47616 & 92262 & 27682406 & 39321600 &  & B \\
+		\hline
+		iftop-oha Cumulative Received & 84787 & 553984 & 5211422 & 16213501542 & 19756849561 &  & B \\
+		\hline
+		iftop-oha Cumulative Total & 124928 & 601088 & 5295308 & 16213501542 & 19864223744 &  & \# \\
+		\hline
+		calc warp Avg B/Req & 5 & 26 & 284 & 324472 & 911047 &  & B \\
+		\hline
+		calc oha Avg B/Req & 0 & 0 & 5 & 40764 & 96090 &  & B \\
+		\hline
+	\end{tabular}
+	\caption{Raw test results for ${s3p}_{remote}$}
+\end{sidewaystable}
+
+\begin{sidewaystable}
+	\begin{tabular}{|c|c|c|c|c|c|c|c|}
+		\hline
+		& 1.0kib & 10.0kib & 100.0kib & 500.0kib & 1.0mib &  & Units \\
+		\hline
+		warp Total requests & 1196609 & 1142394 & 868753 & 202476 & 76412 &  & \# \\
+		\hline
+		warp Slowest & 296 & 217 & 244 & 259 & 265 &  & ms \\
+		\hline
+		warp 99th & 9 & 10 & 12 & 66 & 54 &  & ms \\
+		\hline
+		warp 90th & 4 & 4 & 5 & 26 & 43 &  & ms \\
+		\hline
+		warp 75th & 2 & 2 & 3 & 18 & 39 &  & ms \\
+		\hline
+		warp Median & 1 & 1 & 2 & 7 & 34 &  & ms \\
+		\hline
+		warp 25th & 1 & 1 & 1 & 1 & 29 &  & ms \\
+		\hline
+		warp Fastest & 0 & 0 & 0 & 0 & 0 &  & ms \\
+		\hline
+		warp Throughput & 9975 & 9522 & 7241 & 1689 & 637 &  & ms \\
+		\hline
+		iftop-warp Cumulative Sent & 1782579 & 1814036 & 1939865 & 101607014 & 179306496 &  & obj/s \\
+		\hline
+		iftop-warp Cumulative Received & 5096079 & 28521267 & 262144000 & 46493020979 & 62599148339 &  & B \\
+		\hline
+		iftop-warp Cumulative Total & 6878658 & 30408704 & 264241152 & 46600395161 & 62706522521 &  & B \\
+		\hline
+		oha Slowest & 23 & 22 & 45 & 153 & 196 &  & B \\
+		\hline
+		oha 99th & 5 & 5 & 6 & 74 & 127 &  & ms \\
+		\hline
+		oha 90th & 3 & 3 & 4 & 10 & 29 &  & ms \\
+		\hline
+		oha 75th & 2 & 2 & 3 & 6 & 12 &  & ms \\
+		\hline
+		oha 50th & 2 & 2 & 2 & 4 & 7 &  & ms \\
+		\hline
+		oha 25th & 1 & 1 & 2 & 1 & 2 &  & ms \\
+		\hline
+		oha Fastest & 0 & 0 & 0 & 0 & 0 &  & ms \\
+		\hline
+		oha Requests/sec & 23700 & 22481 & 16924 & 6239 & 3101 &  & req/s \\
+		\hline
+		oha Total data & 1460288880 & 13808319856 & 103981158236 & 191695127838 & 195120364257 &  & B \\
+		\hline
+		oha Total requests & 1422084 & 1348953 & 1015476 & 374399 & 186079 &  & B \\
+		\hline
+		iftop-oha Cumulative Sent & 39936 & 47616 & 92262 & 27682406 & 39321600 &  & B \\
+		\hline
+		iftop-oha Cumulative Received & 84787 & 553984 & 5211422 & 16213501542 & 19756849561 &  & B \\
+		\hline
+		iftop-oha Cumulative Total & 124928 & 601088 & 5295308 & 16213501542 & 19864223744 &  & \# \\
+		\hline
+		calc warp Avg B/Req & 5 & 26 & 304 & 230152 & 820637 &  & B \\
+		\hline
+		calc oha Avg B/Req & 0 & 0 & 5 & 43305 & 106751 &  & B \\
+		\hline
+	\end{tabular}
+	\caption{Raw test results for ${s3p}_{dual}$}
+\end{sidewaystable}
+

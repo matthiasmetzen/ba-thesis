@@ -21,52 +21,24 @@
 	url = {https://aws.amazon.com/what-is/object-storage/},
 }
 
-@manual{AWS_S3_IAM,
+@manual{AWS_S3_USER_GUIDE,
 	author = {Amazon Web Services, Inc.},
 	title = {Amazon Simple Storage Service: User Guide},
 	url = {https://docs.aws.amazon.com/pdfs/AmazonS3/latest/userguide/s3-userguide.pdf},
-	urldate = {2023-06-30},
-	pages = {454}
 }
 
-@manual{AWS_S3_ACL,
+@online{AWS_S3_FAQ,
 	author = {Amazon Web Services, Inc.},
-	title = {Amazon Simple Storage Service: User Guide},
-	url = {https://docs.aws.amazon.com/pdfs/AmazonS3/latest/userguide/s3-userguide.pdf},
-	urldate = {2023-06-30},
-	pages = {622}
+	title = {General S3 FAQs},
+	url = {https://aws.amazon.com/s3/faqs/?nc1=h_ls},
+	urldate = {2023-06-27},
 }
 
-@manual{AWS_S3_feat_hosting,
-	author = {Amazon Web Services, Inc.},
-	title = {Amazon Simple Storage Service: User Guide},
-	url = {https://docs.aws.amazon.com/pdfs/AmazonS3/latest/userguide/s3-userguide.pdf},
-	urldate = {2023-06-30},
-	pages = {1242}
-}
-
-@manual{AWS_S3_feat_versioning,
-	author = {Amazon Web Services, Inc.},
-	title = {Amazon Simple Storage Service: User Guide},
-	url = {https://docs.aws.amazon.com/pdfs/AmazonS3/latest/userguide/s3-userguide.pdf},
-	urldate = {2023-06-30},
-	pages = {717}
-}
-
-@manual{AWS_S3_feat_replication,
-	author = {Amazon Web Services, Inc.},
-	title = {Amazon Simple Storage Service: User Guide},
-	url = {https://docs.aws.amazon.com/pdfs/AmazonS3/latest/userguide/s3-userguide.pdf},
-	urldate = {2023-06-30},
-	pages = {835}
-}
-
-@manual{AWS_S3_feat_monitoring,
-	author = {Amazon Web Services, Inc.},
-	title = {Amazon Simple Storage Service: User Guide},
-	url = {https://docs.aws.amazon.com/pdfs/AmazonS3/latest/userguide/s3-userguide.pdf},
-	urldate = {2023-06-30},
-	pages = {1051}
+@online{HETZNER,
+	author = { Hetzner Online GmbH},
+	title = {Hetzner Cloud},
+	url = {https://www.hetzner.com/cloud},
+	urldate = {2023-06-27},
 }
 
 @misc{HYPER_GITHUB,
@@ -91,42 +63,42 @@
 
 
 @misc{TOKIO_GITHUB,
-	author = {},
+	author = {tokio-rs},
 	title = {tokio},
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com//}},
+	howpublished = {\url{https://github.com/tokio-rs/tokio}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
 @misc{TOWER_GITHUB,
-	author = {},
+	author = {tower-rs},
 	title = {tower},
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com//}},
+	howpublished = {\url{https://github.com/tower-rs/tower}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
 @misc{MOKA_GITHUB,
-	author = {},
+	author = {moka-rs},
 	title = {moka},
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com//}},
+	howpublished = {\url{https://github.com/moka-rs/moka}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
 @misc{S3S_GITHUB,
-	author = {},
+	author = {Xuyang Wang},
 	title = {s3s},
 	year = 2023,
 	publisher = {GitHub},
 	journal = {GitHub repository},
-	howpublished = {\url{https://github.com//}},
+	howpublished = {\url{https://github.com/Nugine/s3s}},
 	commit = {d977f209bc6068d8f878b22803fc42d90c887fcc}
 }
 
@@ -134,8 +106,40 @@
 	author = {AWS},
 	title = {The AWS SDK for Rust},
 	date = {},
-	url = {https://github.com/awslabs/aws-sdk-rust/blob/9c3168dafa4fd8885ce4e1fd41cec55ce982a33c/README.md},
+	url = {https://github.com/awslabs/aws-sdk-rust/},
 	urldate = {2023-07-07},
+}
+
+@misc{OHA_GITHUB,
+	author = {hatto},
+	title = {oha},
+	date = {},
+	url = {https://github.com/hatoo/oha},
+	urldate = {2023-07-07},
+}
+
+@misc{WARP_GITHUB,
+	author = {MinIO},
+	title = {warp},
+	date = {},
+	url = {https://github.com/minio/warp},
+	urldate = {2023-07-07},
+}
+
+@misc{MINIO_GITHUB,
+	author = {MinIO},
+	title = {MinIO},
+	date = {},
+	url = {https://github.com/minio/minio},
+	urldate = {2023-07-07},
+}
+
+@misc{MINIO_NO_CACHE,
+	author = {Klaus Post},
+	title = {Minio Cache Feature},
+	date = {2022-09-09},
+	url = {https://github.com/minio/minio/discussions/15669#discussioncomment-3606119},
+	urldate = {2023-07-07}
 }
 
 @misc{einziger2015tinylfu,
@@ -194,4 +198,41 @@
 	date = {2017-01-03},
 	url = {https://www.ex-parrot.com/pdw/iftop/},
 	urldate = {2023-07-21},
+}
+
+@InProceedings{locattimes_ecom,
+	author="Stadnik, Wiktor
+	and Nowak, Ziemowit",
+	editor="Borzemski, Leszek
+	and {\'{S}}wi{\k{a}}tek, Jerzy
+	and Wilimowska, Zofia",
+	title="The Impact of Web Pages' Load Time on the Conversion Rate of an E-Commerce Platform",
+	booktitle="Information Systems Architecture and Technology: Proceedings of 38th International Conference on Information Systems Architecture and Technology -- ISAT 2017",
+	year="2018",
+	publisher="Springer International Publishing",
+	address="Cham",
+	pages="336--345",
+	abstract="The conversion rate is a key determinant of effectiveness of an e-commerce platform. The impact of web pages' load time on conversion rate of an e-commerce platform was studied. During the experiment, the behavior of real store's users on the Magento platform was monitored. The popular Google Analytics reporting tool was used to collect data. The level of acceptance of page load times has been determined by the Apdex index. The results of the research showed that average page loading times have a direct impact on the e-commerce conversion rate and customer satisfaction. It was found that the use of Apdex index in different countries requires a recalculation of limits of tolerance and satisfaction.",
+	isbn="978-3-319-67220-5"
+}
+
+@inproceedings{ladner1999cache,
+	title={Cache Performance Analysis of Traversals and Random Accesses.},
+	author={Ladner, Richard E and Fix, James D and LaMarca, Anthony},
+	booktitle={SODA},
+	volume={99},
+	pages={613--622},
+	year={1999},
+	organization={Citeseer}
+}
+
+@INPROCEEDINGS{6848145,
+	author={Martina, Valentina and Garetto, Michele and Leonardi, Emilio},
+	booktitle={IEEE INFOCOM 2014 - IEEE Conference on Computer Communications}, 
+	title={A unified approach to the performance analysis of caching systems}, 
+	year={2014},
+	volume={},
+	number={},
+	pages={2040-2048},
+	doi={10.1109/INFOCOM.2014.6848145}
 }
