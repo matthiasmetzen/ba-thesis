@@ -3,7 +3,10 @@ use crate::req::s3::S3RequestExt;
 
 use s3s::ops::{self, Operation, OperationType};
 
+/// Provides the logic to determine if and how a request should be cached.
 pub trait CacheLogic {
+    /// Create a new [CacheIntent] for the [Request].
+    /// Returns `None` if the request is not cachable.
     fn make_cache_intent(
         &self,
         request: &Request,
@@ -11,6 +14,7 @@ pub trait CacheLogic {
     ) -> Option<CacheIntent>;
 }
 
+/// Forwards the logic to the correct implementation based on the requests operation
 impl CacheLogic for S3Extension {
     fn make_cache_intent(
         &self,
@@ -34,6 +38,7 @@ impl CacheLogic for S3Extension {
     }
 }
 
+/// Cache logic for the [ops::GetObject] operation
 impl CacheLogic for ops::GetObject {
     fn make_cache_intent(
         &self,
@@ -68,6 +73,7 @@ impl CacheLogic for ops::GetObject {
     }
 }
 
+/// Cache logic for the [ops::HeadObject] operation
 impl CacheLogic for ops::HeadObject {
     fn make_cache_intent(
         &self,
@@ -99,6 +105,7 @@ impl CacheLogic for ops::HeadObject {
     }
 }
 
+/// Cache logic for the [ops::ListObjects] operation
 impl CacheLogic for ops::ListObjects {
     fn make_cache_intent(
         &self,
@@ -110,9 +117,9 @@ impl CacheLogic for ops::ListObjects {
             return None;
         }
 
-        let des = request.try_get_input::<Self>()?;
+        let des: Arc<s3s::dto::ListObjectsInput> = request.try_get_input::<Self>()?;
 
-        if des.expected_bucket_owner.is_some() {
+        if des.expected_bucket_owner.is_some() || des.marker.is_some() {
             return None;
         }
 
@@ -130,6 +137,7 @@ impl CacheLogic for ops::ListObjects {
     }
 }
 
+/// Cache logic for the [ops::ListObjectsV2] operation
 impl CacheLogic for ops::ListObjectsV2 {
     fn make_cache_intent(
         &self,
@@ -141,11 +149,12 @@ impl CacheLogic for ops::ListObjectsV2 {
             return None;
         }
 
-        let des = request.try_get_input::<Self>()?;
+        let des: Arc<s3s::dto::ListObjectsV2Input> = request.try_get_input::<Self>()?;
 
         if des.expected_bucket_owner.is_some()
             || des.max_keys.is_some()
             || des.start_after.is_some()
+            || des.continuation_token.is_some()
         {
             return None;
         }
@@ -164,6 +173,7 @@ impl CacheLogic for ops::ListObjectsV2 {
     }
 }
 
+/// Cache logic for the [ops::ListObjectVersions] operation
 impl CacheLogic for ops::ListObjectVersions {
     fn make_cache_intent(
         &self,
@@ -196,6 +206,7 @@ impl CacheLogic for ops::ListObjectVersions {
     }
 }
 
+/// Cache logic for the [ops::HeadBucket] operation
 impl CacheLogic for ops::HeadBucket {
     fn make_cache_intent(
         &self,
@@ -225,6 +236,7 @@ impl CacheLogic for ops::HeadBucket {
     }
 }
 
+/// Cache logic for the [ops::ListBuckets] operation
 impl CacheLogic for ops::ListBuckets {
     fn make_cache_intent(
         &self,

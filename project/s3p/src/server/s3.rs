@@ -15,7 +15,8 @@ use std::sync::Arc;
 
 use tracing::{debug, error, info};
 
-struct S3Server<'a> {
+/// Implementation of a [Server] that works as a S3 service
+pub struct S3Server<'a> {
     fut: BoxFuture<'a, Result<(), Report>>,
     term_sig: tokio::sync::oneshot::Sender<()>,
 }
@@ -30,6 +31,7 @@ impl<'a> Server for S3Server<'a> {
     }
 }
 
+/// The [ServerBuilder] for [S3Server]
 #[derive(Default)]
 pub struct S3ServerBuilder {
     pub host: String,
@@ -67,12 +69,14 @@ impl ServerBuilder for S3ServerBuilder {
     }
 
     fn serve(&self, handler: impl Handler + 'static) -> Result<impl Server, Report> {
+        // TODO: Find a better way than cloning all these Arcs
         let h = Arc::new(handler);
         let auth = self.auth.clone();
         let base_domain = Arc::new(self.base_domain.clone());
 
         let mut broadcast = self.broadcast_tx.clone();
 
+        // Construct a hyper service from the handler
         let svc_fn = move |req: hyper::Request<hyper::Body>| {
             let h = h.clone();
             let auth = auth.clone();
@@ -86,6 +90,7 @@ impl ServerBuilder for S3ServerBuilder {
                 let auth = auth.as_deref().map(|a| a.as_ref());
                 let base_domain = base_domain.as_deref();
 
+                // Get the S3 operation associated with the request
                 let op = s3s::ops::prepare(&mut req, auth, base_domain)
                     .await
                     .map_err(|e| S3Error::MissingOp)?;
@@ -110,10 +115,11 @@ impl ServerBuilder for S3ServerBuilder {
             std::future::ready(Ok::<_, std::convert::Infallible>(service_fn(move |req| {
                 svc_fn.call((req,)).map(
                     |res: Result<Response, SendError>| -> Result<hyper::Response<hyper::Body>, Report> {
+                        // TODO: Better error handling. This is too deeply nested
                         match res {
                             Ok(resp) => Ok(resp.into()),
                             Err(err) => {
-
+                                // Turn a SendError into a proper error response
                                 match err {
                                     SendError::RequestErr(resp, rep) | SendError::ResponseErr(resp, rep) => {
                                         error!("{:#?}", rep);
@@ -138,6 +144,8 @@ impl ServerBuilder for S3ServerBuilder {
             .map_err(|e| miette::miette!(e))?
             .serve(make_svc);
 
+        // Attach a webhook component to the server
+        // TODO: Webhooks should be part of the pipeline
         let webhook = match broadcast.as_ref() {
             Some(tx) => {
                 Some(S3WebhookServerBuilder::new(self.host.clone(), self.port + 1).serve(tx)?)
@@ -145,6 +153,7 @@ impl ServerBuilder for S3ServerBuilder {
             None => None,
         };
 
+        // Graceful shutdown via signals
         let (tx, rx) = tokio::sync::oneshot::channel::<()>();
         let server = server.with_graceful_shutdown(async {
             rx.await.ok();
@@ -173,6 +182,7 @@ impl ServerBuilder for S3ServerBuilder {
     }
 }
 
+/// Build a new [S3ServerBuilder] from [S3ServerConfig]
 impl From<&S3ServerConfig> for S3ServerBuilder {
     fn from(config: &S3ServerConfig) -> Self {
         let mut builder = S3ServerBuilder::new(config.host.clone(), config.port);

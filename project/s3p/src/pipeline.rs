@@ -7,6 +7,7 @@ use crate::{
     server::{Server, ServerBuilder},
 };
 
+/// A Pipeline builds the internal flow between the individual components
 pub struct Pipeline<S, M, C>
 where
     S: ServerBuilder + Send + Sync,
@@ -35,7 +36,9 @@ where
     #[allow(unused)]
     pub async fn run(mut self) -> Result<impl Server> {
         // TODO: make cap configurable
+        // Construct te message channel for events
         let (mut tx, rx) = broadcast(256);
+        //deactivate but don't drop before passing it, or the channel will close
         let rx = rx.deactivate();
 
         tx.set_await_active(false);

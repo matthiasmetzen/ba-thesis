@@ -25,18 +25,25 @@ use crate::client::s3::S3Error;
 use super::Request;
 use super::Response;
 
+/// Extension for [Request]. Provides all data available in regard to S3 requests and responses
 #[derive(Default)]
 pub struct S3Extension {
+    /// request path
     pub s3_path: Option<S3Path>,
+    /// queries
     pub qs: Option<OrderedQs>,
 
     pub multipart: Option<Multipart>,
     pub vec_stream: Option<VecByteStream>,
 
+    /// credentials if provided
     pub credentials: Option<Credentials>,
+    /// The operation associated with the request
+    /// currently optional due to being parsed later
     pub(crate) op: Option<s3s::ops::OperationType>, // TODO: can be non-optional
     //pub(crate) input: Mutex<Option<Pin<Arc<dyn Any + Send + Sync>>>>,
     // FIXME: Cow<'static, ..> might be better
+    ///Holds the metadata associated with the request. This is used to avoid multiple parses
     pub(crate) data: OnceLock<Arc<dyn Any + Send + Sync>>,
 }
 
@@ -146,6 +153,7 @@ pub(crate) trait S3RequestExt {
 }
 
 impl S3RequestExt for Request {
+    /// Creates a new [s3s::http::Request] from a reference. This only copies metadata, but does not copy its data streams
     fn try_as_s3_request(&self) -> Result<s3s::http::Request> {
         let s3_ext = self
             .extensions
@@ -168,6 +176,7 @@ impl S3RequestExt for Request {
         })
     }
 
+    /// Get or set the input metadata
     fn try_get_input<Op: S3Operation>(&self) -> Option<Arc<Op::InputMeta>> {
         let s3_ext = self.extensions.get::<S3Extension>()?;
 
@@ -176,6 +185,7 @@ impl S3RequestExt for Request {
             .get_or_try_init(|| -> Result<Arc<dyn Any + Send + Sync + 'static>, ()> {
                 let mut req = self.try_as_s3_request().map_err(|_| ())?;
                 let inner = Op::Input::try_from(&mut req).map_err(|_| ())?;
+                // inner has no data
                 let (meta, _) = inner.split_metadata();
                 Ok(Arc::new(meta))
             })
@@ -210,6 +220,7 @@ impl S3ResponseExt for Response {
     }
 }
 
+/// Typed operation trait. Simplifies the usage of [TypedOperation] with its associated types in other trait bounds
 pub trait S3Operation:
     TypedOperation<
         Input: s3s::dto::SplitMetadata<Meta: Send + Sync>
@@ -246,6 +257,7 @@ impl<Op> S3Operation for Op where
 {
 }
 
+/// Typed response objcet with an operation attached. Used for type system reasoning
 pub struct S3Response<'a, Op: S3Operation> {
     response: &'a mut Response,
     pub metadata: std::sync::Arc<Op::OutputMeta>,

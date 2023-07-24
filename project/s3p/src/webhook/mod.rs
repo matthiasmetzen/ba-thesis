@@ -13,7 +13,9 @@ pub type Event = WebhookEvent;
 pub type BroadcastRecv = async_broadcast::Receiver<Event>;
 pub type BroadcastSend = async_broadcast::Sender<Event>;
 
+/// Extension trait for [Receiver]
 pub(crate) trait ReceiverExt<T: Clone> {
+    /// Generate a stream of received messages. Does not skip error messages
     fn recv_stream(self) -> impl Stream<Item = Result<T, RecvError>>;
 }
 
@@ -31,15 +33,20 @@ impl<T: Clone> ReceiverExt<T> for Receiver<T> {
     }
 }
 
+/// A builder for webhooks
 pub trait WebhookServerBuilder {
     fn serve(&self, tx: &BroadcastSend) -> Result<impl WebhookServer>;
 }
 
+/// Representation of a Webhook component
 #[async_trait::async_trait]
 pub trait WebhookServer: Send {
+    /// stop a running webhook gracefully
     async fn stop(self) -> Result<()>;
 }
 
+/// Data reveived by the webhook gets sent as one of these types
+// TODO: this is not very extensible
 #[derive(Debug)]
 #[allow(dead_code)]
 pub enum WebhookEvent {
@@ -57,12 +64,14 @@ impl Clone for WebhookEvent {
 impl WebhookEvent {
     pub async fn from_request(req: hyper::Request<hyper::Body>) -> Result<Self> {
         let mut req = req;
+        // Take bytes from body
         let body = hyper::body::to_bytes(req.body_mut())
             .await
             .into_diagnostic()
             .wrap_err("Error while parsing webhook request")
             .context(format!("{:?}", req))?;
 
+        // Parse as S3 event
         let val = serde_json::from_slice::<S3WebhookEvent>(&body);
 
         Ok(match val {

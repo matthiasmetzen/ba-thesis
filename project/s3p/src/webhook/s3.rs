@@ -12,6 +12,7 @@ use tracing::{error, info};
 
 use super::{WebhookServer, WebhookServerBuilder};
 
+/// A [WebhookServer] that handles S3 webhook events
 #[allow(dead_code)]
 pub struct S3WebhookServer<'a> {
     tx: BroadcastSend,
@@ -30,6 +31,7 @@ impl WebhookServer for S3WebhookServer<'_> {
     }
 }
 
+/// Builder for [S3WebhookServer]
 #[derive(Default)]
 pub struct S3WebhookServerBuilder {
     pub host: String,
@@ -49,6 +51,8 @@ impl S3WebhookServerBuilder {
 
 impl WebhookServerBuilder for S3WebhookServerBuilder {
     fn serve(&self, tx: &BroadcastSend) -> Result<impl WebhookServer> {
+        // Construct a hyper service.
+        // This takes the received request and releases it onto the broadcast queue
         let make_svc = {
             let tx = tx.clone();
             make_service_fn(move |_| {
@@ -95,6 +99,7 @@ impl WebhookServerBuilder for S3WebhookServerBuilder {
 
         let make_svc = Timeout::new(make_svc, Duration::from_secs(1));
 
+        // Start server
         let listener =
             TcpListener::bind((self.host.as_str(), self.port)).map_err(|e| miette::miette!(e))?;
         let server = hyper::Server::from_tcp(listener)

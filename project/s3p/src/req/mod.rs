@@ -7,6 +7,8 @@ pub use response::Response;
 
 pub use s3::S3Extension;
 
+/// The default error for all things related to request & response errors
+/// The [crate::Server] uses this to reply with propper error messages
 #[derive(thiserror::Error, Debug)]
 pub enum SendError {
     #[error("Internal error")]

@@ -11,15 +11,27 @@ use crate::{client::Client, server::Handler};
 
 use std::{future::Future, sync::Arc};
 
+/// Represents a middleware. unlike middlewares provided by tower, this implementation is object-safe.
 #[async_trait::async_trait]
 pub trait Layer: Send + Sync {
+    /// Takes a [Request] and a handler that will resolve the request when called and resolves the request
     async fn call(&self, req: Request, next: &dyn NextLayer) -> Result<Response, SendError>;
 
+    // Subscribe to broadcast events
     fn subscribe(&mut self, _tx: &BroadcastSend) {}
 
+    // Unsubscribe from broadcast events
     fn unsubscribe(&mut self) {}
 }
 
+/// Represents a middleware stack that uses dynamic dispatch
+/// Can be cained by nesting
+pub struct DynChain {
+    current: Box<dyn Layer>,
+    next: Box<dyn Layer>,
+}
+
+/// Build a new middleware stack from the provided configuration
 impl From<&Vec<MiddlewareType>> for DynChain {
     fn from(config: &Vec<MiddlewareType>) -> Self {
         let mut chain = DynChain::new(Box::new(Identity), Box::new(Identity));
@@ -37,16 +49,13 @@ impl From<&Vec<MiddlewareType>> for DynChain {
     }
 }
 
-pub struct DynChain {
-    current: Box<dyn Layer>,
-    next: Box<dyn Layer>,
-}
-
 impl DynChain {
+    /// Create a new [DynChain]
     pub fn new(current: Box<dyn Layer>, next: Box<dyn Layer>) -> Self {
         Self { current, next }
     }
 
+    /// Append a new [Layer] to the stack
     pub fn then(self, next: Box<dyn Layer>) -> DynChain {
         Self::new(Box::new(self), next)
     }
@@ -70,24 +79,29 @@ impl Layer for DynChain {
     }
 }
 
+/// Representation of a middeware stack using generics. Faster than [DynChain] but can not be used in every situation.
 // based on https://github.com/tower-rs/tower/blob/master/tower-layer/src/stack.rs#L5
+/// Can be cained by nesting
 pub struct Chain<Current: Layer, Next: Layer> {
     current: Current,
     next: Next,
 }
 
+#[allow(unused)]
 impl<C: Layer, N: Layer> Chain<C, N> {
-    #[allow(unused)]
+    /// Create a new [Chain]
     pub fn new(current: C, next: N) -> Self {
         Self { current, next }
     }
 
-    #[allow(unused)]
+    /// Append a new [Layer] to the stack
     pub fn then<L: Layer>(self, next: L) -> Chain<Self, L> {
         Chain::new(self, next)
     }
 }
 
+/// A handler that will resolve a request.
+/// Implemented for `async Fn(Request) -> Result<Response, SendError>`
 #[async_trait::async_trait]
 pub trait NextLayer: Send + Sync {
     async fn call(&self, req: Request) -> Result<Response, SendError>;
@@ -137,6 +151,7 @@ impl<C: Layer, N: Layer> Layer for Chain<C, N> {
     }
 }
 
+/// This [Layer] does nothing. It is used as a placeholder.
 pub struct Identity;
 
 #[async_trait::async_trait]
@@ -146,6 +161,7 @@ impl Layer for Identity {
     }
 }
 
+/// Combines a [Layer] with a [Client] that will eventually resolve the request.
 pub struct RequestProcessor<C: Client, L: Layer = Identity> {
     layer: L,
     client: Arc<C>,

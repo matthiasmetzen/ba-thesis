@@ -7,24 +7,16 @@ use miette::{ErrReport, Result};
 use thiserror::Error;
 use tower::Service;
 
-use self::s3::S3Client;
-
 pub mod s3;
+pub use self::s3::S3Client;
 
+/// This trait defines a component used to resolve [Request]s asynchronously
 pub trait Client: Send + Sync {
+    /// Asynchrounously resolves a [Request] into a [Response]
     fn send(&self, request: Request) -> impl Future<Output = Result<Response, SendError>> + Send;
 }
 
-/* pub trait Client:
-    Service<
-    Request,
-    Response = Response,
-    Error = Error,
-    Future = Pin<Box<dyn Future<Output = Result<Response, Error>> + Send>>,
->
-{
-} */
-
+/// Provides enum dispatch over all included [Client]s
 pub enum ClientDelegate {
     S3(S3Client),
 }

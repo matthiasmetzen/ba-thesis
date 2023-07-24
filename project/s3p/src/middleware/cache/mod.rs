@@ -39,14 +39,22 @@ use tracing::{debug, error, warn};
 mod logic;
 pub use logic::*;
 
+/// The key type used by the cache
 type Key = String;
+
+/// The data type used by the cache
 type Data = CachedResponse;
 
+/// Representation for a cached response with cache data
 #[derive(Debug, Clone)]
 struct CachedResponse {
+    /// Time-to-Live
     ttl: Option<Duration>,
+    /// Time-to-Idle
     tti: Option<Duration>,
+    /// Time last updated
     updated_at: SystemTime,
+    /// Actual response data
     data: CacheData,
 }
 
@@ -56,6 +64,7 @@ enum Either<L, R> {
     Right(R),
 }
 
+/// Types of cached data representation for supported operations
 #[derive(Debug, Clone)]
 enum CacheData {
     GetObject(GetObjectOutputMeta, Bytes),
@@ -73,13 +82,16 @@ pub enum CacheState<T> {
     None,
 }
 
+/// Creates a new [Response] from a [CachedResponse]
 impl TryFrom<CachedResponse> for Response {
     type Error = miette::Report;
 
     fn try_from(value: CachedResponse) -> Result<Self, Report> {
+        // Each CacheData variant needs its own handling
         match value.data {
             CacheData::GetObject(meta, bytes) => {
                 let resp = {
+                    // build response from metadata + body bytes
                     let mut output: GetObjectOutput = meta.into();
                     let body = s3s::http::Body::from(bytes);
                     output.set_data(Some(body.into()));
@@ -104,6 +116,7 @@ impl TryFrom<CachedResponse> for Response {
             }
             CacheData::ListObjects(lst) => {
                 let resp: s3s::http::Response = match lst {
+                    // select between ListObjects and ListObjectsV2 response
                     Either::Left(l) => l
                         .try_into()
                         .into_diagnostic()
@@ -139,19 +152,22 @@ impl TryFrom<CachedResponse> for Response {
 }
 
 impl CachedResponse {
+    // Set Time-to-Live
     fn time_to_live(self, ttl: impl Into<Option<Duration>>) -> Self {
         let mut this = self;
         this.ttl = ttl.into();
         this
     }
 
+    // Set Time-to-Idle
     fn time_to_idle(self, tti: impl Into<Option<Duration>>) -> Self {
         let mut this = self;
         this.tti = tti.into();
         this
     }
 
-    fn len(&self) -> usize {
+    // Size of the response. This is used for the cache weighting
+    fn size(&self) -> usize {
         // +8 for size of status code + padding
         match &self.data {
             CacheData::GetObject(_, bytes) => bytes.len(),
@@ -160,6 +176,7 @@ impl CachedResponse {
     }
 }
 
+/// Async version of [std::convert::From]
 trait AsyncFrom<T>: Sized {
     async fn async_from(value: T) -> Self;
 }
@@ -168,8 +185,11 @@ impl<'a> AsyncFrom<&mut S3Response<'a, ops::GetObject>> for CachedResponse {
     async fn async_from(resp: &mut S3Response<'a, ops::GetObject>) -> Self {
         // TODO: limit cachable body size
         let bytes = {
+            // take body from response
             let mut body = std::mem::take(&mut resp.body);
+            // read all bytes for the response
             let bytes = body.store_all_unlimited().await.ok();
+            // reattach body to response
             if let Some(ref b) = bytes {
                 resp.body = s3s::Body::from(b.clone());
             } else {
@@ -254,6 +274,7 @@ impl<'a> AsyncFrom<&mut S3Response<'a, ops::ListBuckets>> for CachedResponse {
     }
 }
 
+/// Per-item expiration policy for [CachedResponse] that uses the TTL and TTI on the object. TTL is reset on update
 pub struct PerItemExpiration;
 impl Expiry<Key, Data> for PerItemExpiration {
     fn expire_after_create(
@@ -290,6 +311,8 @@ impl Expiry<Key, Data> for PerItemExpiration {
     }
 }
 
+/// A [crate::middleware::Layer] that implements caching for multiple S3 operations.
+/// Can process webhook events with [crate::webhook::event_types::S3WebhookEvent]
 pub struct CacheLayer {
     cache: Arc<Cache<Key, Data>>,
     config: CacheMiddlewareConfig,
@@ -298,10 +321,11 @@ pub struct CacheLayer {
 
 impl From<CacheMiddlewareConfig> for CacheLayer {
     fn from(config: CacheMiddlewareConfig) -> Self {
+        // Creates an asynchronous cache with weighting, global ttl, global tti and per-item-exiration
         let mut cache = Cache::builder()
             .max_capacity(config.cache_size)
             .weigher(|_k: &Key, v: &CachedResponse| -> u32 {
-                v.len().try_into().unwrap_or(u32::MAX)
+                v.size().try_into().unwrap_or(u32::MAX)
             })
             .expire_after(PerItemExpiration);
 
@@ -344,6 +368,8 @@ impl CacheLayer {
         Self::from(config)
     }
 
+    /// Gets a response from the cache. Does not check for HTTP cache policy.
+    #[allow(unused)]
     pub fn get_cached_response(&self, key: &Key) -> Result<Response, SendError> {
         let data = self
             .cache
@@ -354,6 +380,7 @@ impl CacheLayer {
         data.try_into().map_err(SendError::Internal)
     }
 
+    /// Gets a response from the cache. Responses are checked for staleness via HTTP cache policy.
     pub async fn get_matching_response(
         &self,
         key: &Key,
@@ -369,6 +396,7 @@ impl CacheLayer {
             return CacheState::None;
         };
 
+        // Cache policy for private (non-shared) cache
         let options = CacheOptions {
             shared: false,
             ..Default::default()
@@ -379,12 +407,10 @@ impl CacheLayer {
         let policy = CachePolicy::new_options(req, &resp, resp_time, options);
         debug!("is cacheable: {}", policy.is_storable());
 
-        {
-            // Fixes: TTL was set to 0 since no caching headers were found on the response
-            // this is an ugly escape hatch
-            if policy.time_to_live(resp_time) == Duration::from_secs(0) {
-                return CacheState::Fresh(resp);
-            }
+        // Fixes: TTL was set to 0 since no caching headers were found on the response
+        // this is an ugly escape hatch
+        if policy.time_to_live(resp_time) == Duration::from_secs(0) {
+            return CacheState::Fresh(resp);
         }
 
         // Check http cache policy
@@ -398,6 +424,7 @@ impl CacheLayer {
                 debug!("cache entry for {} was stale", key);
 
                 if !matches {
+                    // Response from cache did not match the request. remove cache entry and send request unconditionally
                     self.cache.remove(key).await;
                     return CacheState::None;
                 }
@@ -441,6 +468,7 @@ impl CacheLayer {
                                     - refetch when possible
                                     - delete ListObject caches matching updated prefixes
                             */
+                            // New object was created
                             S3EventType::ObjectCreated(ev) => match ev {
                                 ObjectCreatedEvent::Any
                                 | ObjectCreatedEvent::CompleteMultipartUpload
@@ -461,9 +489,11 @@ impl CacheLayer {
                                     };
 
                                     cache.invalidate(&key_data.as_key()).await;
+
+                                    // TODO: Clear ListObject, ListObjectVersions
                                 }
+                                //Existing object was updated. Refetch possible
                                 ObjectCreatedEvent::Post => {
-                                    //Existing object was updated. Refetch possible
                                     let key_data = KeyData::GetObject {
                                         bucket: &record.s3.bucket.name,
                                         object: &record.s3.object.key,
@@ -480,10 +510,11 @@ impl CacheLayer {
 
                                     cache.invalidate(&key_data.as_key()).await;
 
-                                    //TODO: fetch updated
+                                    //TODO: refetch updated
                                 }
                                 _ => unimplemented!(),
                             },
+                            // Object was removed
                             S3EventType::ObjectRemoved(ev) => match ev {
                                 ObjectRemovedEvent::Any | ObjectRemovedEvent::Delete => {
                                     let key_data = KeyData::GetObject {
@@ -501,9 +532,12 @@ impl CacheLayer {
                                     };
 
                                     cache.invalidate(&key_data.as_key()).await;
+
+                                    // TODO: Clear ListObject, ListObjectVersions
                                 }
                                 _ => unimplemented!(),
                             },
+                            // Object expired
                             S3EventType::LifecycleExpiration(ev) => match ev {
                                 LifecycleExpirationEvent::Delete => {
                                     let key_data = KeyData::GetObject {
@@ -521,6 +555,8 @@ impl CacheLayer {
                                     };
 
                                     cache.invalidate(&key_data.as_key()).await;
+
+                                    // TODO: Clear ListObject, ListObjectVersions
                                 }
                                 _ => unimplemented!(),
                             },
@@ -554,6 +590,7 @@ impl CacheLayer {
     }
 }
 
+/// Provides unified key generation for operations
 enum KeyData<'a> {
     GetObject {
         bucket: &'a str,
@@ -643,6 +680,7 @@ impl CacheLogic for CacheLayer {
 #[async_trait::async_trait]
 impl Layer for CacheLayer {
     async fn call(&self, mut req: Request, next: &dyn NextLayer) -> Result<Response, SendError> {
+        // Check cachability and get expiration settings from config
         let Some(intent) = self.make_cache_intent(&req, &self.config) else {
             // Request is not cacheable
             return next.call(req).await;
@@ -650,6 +688,7 @@ impl Layer for CacheLayer {
 
         let key = intent.key;
 
+        // Check if the etag header is set. We later check if a new etag was set for the upstream request
         let has_etag = req.headers.get(http::header::ETAG).is_some();
 
         // get response and staleness from cache
@@ -759,6 +798,7 @@ impl Layer for CacheLayer {
     }
 }
 
+/// Expresses the intent to cache a response and provides per-item-expiration data
 #[derive(Default)]
 pub struct CacheIntent {
     pub key: Key,

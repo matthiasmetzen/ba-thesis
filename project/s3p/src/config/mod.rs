@@ -6,6 +6,8 @@ use miette::{miette, Context, IntoDiagnostic, Result};
 use schematic::{Config, ConfigEnum, ConfigLoader, ValidateError};
 use serde::{Deserialize, Serialize};
 
+/// Generate a new config file at the provided location. Will error if the file already exists.
+/// If the path is a directory, a new file called `config.toml` will be created inside.
 pub(crate) fn generate(file: impl AsRef<Path>) -> Result<()> {
     let path = file.as_ref();
     let file = match path.is_dir() {
@@ -34,14 +36,17 @@ pub(crate) fn generate(file: impl AsRef<Path>) -> Result<()> {
         _ => unimplemented!(),
     }
 
+    // Create file handle
     let mut f = File::create(file.as_path())
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to open file {:?}", file))?;
 
+    // stringify config
     let config_str = toml::to_string_pretty(&config)
         .into_diagnostic()
         .wrap_err_with(|| "Failed to serialize default configuration")?;
 
+    // write config to file
     f.write_all(config_str.as_bytes())
         .into_diagnostic()
         .wrap_err_with(|| format!("Failed to write file {:?}", file))?;
@@ -49,6 +54,7 @@ pub(crate) fn generate(file: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
+/// Load config from file
 #[allow(unused)]
 pub(crate) fn load(file: impl AsRef<Path>) -> Result<AppConfig> {
     let path = file.as_ref();
@@ -66,6 +72,7 @@ pub(crate) fn load(file: impl AsRef<Path>) -> Result<AppConfig> {
     Ok(config)
 }
 
+/// Load config from file or generate a new config at the location if the file does not exists.
 #[allow(unused)]
 pub(crate) fn load_or_generate(file: impl AsRef<Path>) -> Result<AppConfig> {
     let path = file.as_ref();
@@ -83,6 +90,7 @@ pub(crate) fn load_or_generate(file: impl AsRef<Path>) -> Result<AppConfig> {
     load(file.as_path())
 }
 
+/// Top-Level configuration
 #[derive(Config, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
@@ -90,8 +98,10 @@ pub struct AppConfig {
     pub server: ServerType,
     pub middlewares: Vec<MiddlewareType>,
     pub client: ClientType,
+    pub webhook: WebhookType,
 }
 
+/// Log Level for the application
 #[derive(ConfigEnum, Clone, Default, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LogLevel {
@@ -103,6 +113,7 @@ pub enum LogLevel {
     Off,
 }
 
+/// Shared context for [crate::Server] configuration
 #[derive(Default)]
 #[allow(unused)]
 pub struct ServerContext {
@@ -110,6 +121,7 @@ pub struct ServerContext {
     pub port: u16,
 }
 
+/// Enum for all available [crate::Server] types
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerType {
@@ -122,6 +134,7 @@ impl Default for ServerType {
     }
 }
 
+/// Configuration for [crate::server::S3Server]
 #[derive(Config, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[config(context = ServerContext)]
 #[serde(rename_all = "camelCase")]
@@ -136,6 +149,7 @@ pub struct S3ServerConfig {
     pub credentials: Option<S3Credentials>,
 }
 
+// Checks that credentials are provided when validate_credentials = true
 fn validate_credentials(
     value: &bool,
     partial: &PartialS3ServerConfig,
@@ -151,6 +165,7 @@ fn validate_credentials(
     Ok(())
 }
 
+/// S3 credentials
 #[derive(Config, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct S3Credentials {
@@ -160,9 +175,11 @@ pub struct S3Credentials {
     pub secret_key: String,
 }
 
+/// Shared context for middlewares
 #[derive(Default)]
 pub struct MiddlewareConfig {}
 
+/// Enum for all available [crate::middleware::Layer]s
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum MiddlewareType {
@@ -170,6 +187,7 @@ pub enum MiddlewareType {
     Cache(CacheMiddlewareConfig),
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = MiddlewareConfig)]
 #[serde(rename_all = "camelCase")]
@@ -183,6 +201,7 @@ pub struct CacheMiddlewareConfig {
     pub ops: CacheOpsConfig,
 }
 
+/// Configuration for the individual operations available for the [crate::middleware::CacheLayer]
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(rename_all = "PascalCase")]
 #[serde(rename_all = "PascalCase")]
@@ -195,6 +214,7 @@ pub struct CacheOpsConfig {
     pub list_buckets: ListBucketsSetting,
 }
 
+/// Shared configuration for all operations supported by [crate::middleware::CacheLayer]
 #[derive(Default)]
 #[allow(unused)]
 pub struct CacheOpSetting {
@@ -203,6 +223,7 @@ pub struct CacheOpSetting {
     pub tti: Option<u64>,
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]s [s3s::ops::GetObject] operation
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = CacheOpSetting)]
 #[serde(rename_all = "camelCase")]
@@ -213,6 +234,7 @@ pub struct GetObjectSetting {
     pub tti: Option<u64>,
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]s [s3s::ops::HeadObject] operation
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = CacheOpSetting)]
 #[serde(rename_all = "camelCase")]
@@ -223,6 +245,7 @@ pub struct HeadObjectSetting {
     pub tti: Option<u64>,
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]s [s3s::ops::ListObjects] operation
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = CacheOpSetting)]
 #[serde(rename_all = "camelCase")]
@@ -233,6 +256,7 @@ pub struct ListObjectsSetting {
     pub tti: Option<u64>,
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]s [s3s::ops::ListObjectVersions] operation
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = CacheOpSetting)]
 #[serde(rename_all = "camelCase")]
@@ -243,6 +267,7 @@ pub struct ListObjectVersionsSetting {
     pub tti: Option<u64>,
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]s [s3s::ops::HeadBucket] operation
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = CacheOpSetting)]
 #[serde(rename_all = "camelCase")]
@@ -253,6 +278,7 @@ pub struct HeadBucketSetting {
     pub tti: Option<u64>,
 }
 
+/// Configuration for the [crate::middleware::CacheLayer]s [s3s::ops::ListBuckets] operation
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = CacheOpSetting)]
 #[serde(rename_all = "camelCase")]
@@ -263,9 +289,11 @@ pub struct ListBucketsSetting {
     pub tti: Option<u64>,
 }
 
+/// Shared configuration for [crate::client::Client]s
 #[derive(Default)]
 pub struct ClientConfig {}
 
+/// Enum for all available [crate::client::Client] implementations
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientType {
@@ -278,6 +306,7 @@ impl Default for ClientType {
     }
 }
 
+/// Configuration for [crate::client::S3Client]
 #[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[config(context = ClientConfig)]
 #[serde(rename_all = "camelCase")]
@@ -286,7 +315,45 @@ pub struct S3ClientConfig {
     pub endpoint_url: String,
     #[setting(default = false)]
     pub force_path_style: bool,
+    #[setting(default = false)]
+    pub enable_http2: bool,
+    #[setting(default = false)]
+    pub insecure: bool,
+    pub connect_timeout: Option<u64>,
+    pub read_timeout: Option<u64>,
+    pub operation_timeout: Option<u64>,
+    pub operation_attempt_timeout: Option<u64>,
+    #[setting(default = 3)]
+    pub max_retry_attempts: u32,
     pub credentials: Option<S3Credentials>,
+}
+
+/// Shared configuration for [crate::webhook::WebhookServer]
+#[derive(Default)]
+pub struct WebhookConfig {}
+
+/// Enum for all available [crate::webhook::WebhookServer] implementations
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum WebhookType {
+    S3(S3WebhookConfig),
+}
+
+impl Default for WebhookType {
+    fn default() -> Self {
+        Self::S3(S3WebhookConfig::default())
+    }
+}
+
+/// Configuration for [crate::webhook::S3WebhookServer]
+#[derive(Config, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[config(context = WebhookConfig)]
+#[serde(rename_all = "camelCase")]
+pub struct S3WebhookConfig {
+    #[setting(default = "127.0.0.1")]
+    pub host: String,
+    #[setting(default = 4357)]
+    pub port: u16,
 }
 
 #[cfg(test)]

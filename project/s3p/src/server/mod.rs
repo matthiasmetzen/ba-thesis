@@ -9,17 +9,21 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 pub mod s3;
-pub use s3::S3ServerBuilder;
+pub use s3::{S3Server, S3ServerBuilder};
 
+/// Servers get started using the serve method on the builder
 pub trait ServerBuilder {
     fn broadcast(&mut self, tx: &BroadcastSend) -> &mut Self;
     fn serve(&self, handler: impl Handler) -> Result<impl Server, Report>;
 }
 
+/// Represents a Server component
 pub trait Server: Send {
     async fn stop(self) -> Result<(), Report>;
 }
 
+/// A Handler gets passed to the server upon creation. The [Server] forwards requests to it.
+/// Its implemented for [Fn(Request) -> Future + Send + Sync]
 pub trait Handler<Req = Request, Resp = Response>: Send + Sync {
     type Future: Future<Output = Result<Resp, SendError>> + Send;
 
@@ -52,6 +56,7 @@ where
     }
 }
 
+/// Enum to select the server type during creation from config
 pub enum ServerDelegate {
     S3(S3ServerBuilder),
 }

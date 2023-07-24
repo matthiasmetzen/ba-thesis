@@ -38,6 +38,7 @@ async fn main() -> Result<()> {
 
     let args = cli::CliArgs::parse();
 
+    // read config from file if present
     let config = if let Some(file) = args.config.config_file {
         match (
             file.exists(),
@@ -65,57 +66,20 @@ async fn main() -> Result<()> {
     }
     .unwrap_or_default();
 
-    /*let host = std::env::var("S3_HOST").unwrap_or("localhost".to_string());
-    let port: u16 = match std::env::var("S3_PORT") {
-        Ok(p) => p.parse().into_diagnostic().wrap_err("invalid port")?,
-        Err(_) => 4356,
-    };
-
-    let endpoint_url = std::env::var("S3_ENDPOINT_URL")
-        .into_diagnostic()
-        .wrap_err("Missing S3 endpoint url")?;
-
-    let base_domain = std::env::var("S3_BASE_DOMAIN").ok();
-
-    let access_key_id = std::env::var("S3_ACCESS_KEY")
-        .into_diagnostic()
-        .wrap_err("missing access key")?;
-
-    let secret_access_key = std::env::var("S3_SECRET_KEY")
-        .into_diagnostic()
-        .wrap_err("missing secret key")?;
-
-    let force_path_style: bool = match std::env::var("S3_FORCE_PATH_STYLE") {
-        Ok(f) => f
-            .parse()
-            .into_diagnostic()
-            .wrap_err("Failed to parse S3_FORCE_PATH_STYLE")
-            .with_context(|| format!("Expected bool, got {}", f))?,
-        Err(_) => false,
-    };
-
-    let validate_credentials: bool = match std::env::var("S3_VALIDATE_CREDENTIALS") {
-        Ok(f) => f
-            .parse()
-            .into_diagnostic()
-            .wrap_err("Failed to parse S3_VALIDATE_CREDENTIALS")
-            .with_context(|| format!("Expected bool, got {}", f))?,
-        Err(_) => false,
-    };*/
-
+    // Construct a Server from config
     let server = ServerDelegate::from(&config.server);
 
-    /*let middleware = Chain::new(
-        CacheLayer::new(4192, Duration::from_secs(10), None),
-        Identity,
-    );*/
+    // Construct a Middleware Stack from config
     let middleware = DynChain::from(&config.middlewares);
 
+    // Construct a Client from config
     let client = ClientDelegate::from(&config.client);
 
+    //Construct the pipeline
     let p = Pipeline::new(server, middleware, client);
     let server = p.run().await?;
 
+    // Wait for Ctrl+C for graceful shutdown
     tokio::signal::ctrl_c()
         .await
         .map_err(|e| miette::miette!(e))?; // FIXME: Temporary

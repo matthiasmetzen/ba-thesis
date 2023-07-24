@@ -7,6 +7,7 @@ use s3s::{
     Body,
 };
 
+/// Basic Response representation. Similar to [http::Response]
 #[derive(Debug, Default)]
 pub struct Response {
     pub status: StatusCode,
@@ -24,6 +25,8 @@ impl Response {
     }
 }
 
+/// A [Response] without [Extensions] and a [Option<Bytes>] instead of [Body].
+/// This is used for type converseion
 #[derive(Debug, Default, Clone)]
 pub struct RawResponse {
     pub status: StatusCode,
@@ -31,12 +34,13 @@ pub struct RawResponse {
     pub bytes: Option<Bytes>,
 }
 
-impl From<Report> for Response {
+/* impl From<Report> for Response {
     fn from(_value: Report) -> Self {
         todo!()
     }
-}
+} */
 
+/// Turns our response into a [hyper::Response]
 impl From<Response> for hyper::Response<hyper::Body> {
     fn from(value: Response) -> Self {
         // FIXME: temporary
@@ -58,6 +62,7 @@ impl From<Response> for hyper::Response<hyper::Body> {
     }
 }
 
+/// Turns our response into a [s3s::http::Response]
 impl From<s3s::http::Response> for Response {
     fn from(value: s3s::http::Response) -> Self {
         Response {
@@ -69,11 +74,11 @@ impl From<s3s::http::Response> for Response {
     }
 }
 
-impl From<hyper::Request<hyper::Body>> for Response {
+/* impl From<hyper::Request<hyper::Body>> for Response {
     fn from(_value: hyper::Request<hyper::Body>) -> Self {
         todo!()
     }
-}
+} */
 
 impl From<Response> for RawResponse {
     fn from(value: Response) -> Self {

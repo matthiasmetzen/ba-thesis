@@ -4,6 +4,7 @@ use s3s::Body;
 
 use super::s3::S3Extension;
 
+/// A basic representation of a request, flattened version of [http::Request]
 #[derive(Default)]
 pub struct Request {
     pub method: Method,
@@ -30,11 +31,13 @@ impl std::fmt::Debug for Request {
     }
 }
 
+/// impl of [Requestlike] for http_cache_policy
 impl RequestLike for Request {
     fn uri(&self) -> Uri {
         self.uri.clone()
     }
 
+    /// trim '/' from the end of a uri to ensure matches even with different styles
     fn is_same_uri(&self, other: &Uri) -> bool {
         //self.uri.eq(other)
 
