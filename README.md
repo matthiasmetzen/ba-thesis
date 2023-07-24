@@ -6,9 +6,20 @@
 
 # :notebook: &nbsp; Aufgabenbeschreibung
 
-_Hier den erstellten Entwurf einfügen_
+This thesis focuses on the development and implementation of a lightweight and extensible proxy with caching functionality for S3 systems. The primary objective is to enhance access times for personal or company internal use, where it can run alongside a service requiring rapid and recurrent access that will profit from even small decreases in access times.
+
+The implementation will primarily focus on the caching functionality of the proxy and its compatibility with the S3 API.
+Furthermore, the implementation will emphasize the proxy's extensibility and configurability. The terms \textit{internal composability} and \textit{external composability} will be defined and used to describe the design approach:
+
+\begin{description}
+	\label{def:composition}
+	\item[Internal composability] The implementation aims for a modular design in which parts of the software can easily be swapped, reconfigured or extended. The reconfiguration of modules will be done through simple configuration files.
+	\item[External composability] To further reduce access times, the software will be enabled to be chained with other instances of itself, to allow for multiple levels of caching and to further extend the software's capabilities eg. by sharing data or by providing more efficient communication.
+\end{description}
 
 # Building
+
+The project is build with Rust nightly
 
 ```sh
 cd project/s3p
@@ -100,6 +111,20 @@ endpointUrl = "http://localhost:9000"
 # true: http://localhost:9000/<bucket>/
 # false: http://<bucket>.localhost:9000/
 forcePathStyle = true
+# send requests over HTTP/2
+enableHttp2 = true
+# allow insecure requests
+insecure = true
+# connection timeout
+connectTimeout = 10_000
+# read timeout
+readTimeout = 10_000
+# Timeout per operation, including retries
+operationTimeout = 10_000
+# Timeout per single operation, not including retries
+operationAttemptTimeout = 10_000
+# Maximum retry attempts
+maxRetryAttempts = 3
 
 # Client credentails
 [client.credentials]
@@ -127,10 +152,27 @@ oha: https://github.com/hatoo/oha
 
 ## Prepare
 
-Create a bucket called `bench` on the S3 server and set access to public
-
+Create a bucket called `bench` on the S3 server and set the access to public
+The prepare script will then create the dataset
 `./prepare.sh <server>`
 
-## Run
+## Run test
+Runs the tests with all sizes
+`./run.sh -s <server> -p <port> -i <interface to capture> -u <port to capture> -n <name of measurement> [oha|warp]`
 
-`./run.sh <server>`
+## Example
+
+Runs minIO and Warp on a local MinIO server running in podman
+
+`./run.sh -s 127.0.0.1 -p 9000 -i podman1 -u 9000 -n local-minio`
+
+## Analysis
+
+### Requirements
+
+`pip install pandas ods pprint pyexcel`
+
+### Run
+
+This will gather data from all collected outputs and collect them in a .ods file
+`python analyze.py <path/to/outputs>`
