@@ -48,7 +48,7 @@ After designing the architecture (\ref{architecture}), the first step to impleme
 
 Since configurability was part of the stated goals (\ref{goals}), the intended configuration schema was loosely defined very early on in the implementation. It uses a single TOML file, through which all configurations can be accessed. The configuration file is passed to the program on startup via CLI arguments and through it the internal composition is defined. During startup, the file is parsed and the individual components are dynamically configured at runtime. Within this chapter, each component will introduce its own specific configuration.
 
-\section{The Server component}
+\section{Server}
 
 The server is the component responsible for accepting requests made to the proxy. It is represented by the \code{Server} trait. 
 It is initialized by calling the \code{serve} method of a \code{ServerBuilder} with a \code{Handler} to which it will forward all accepted requests. The \code{Handler} trait is implemented for any callable that receives a \code{Request} and returns a future that will resolve to a \code{Response} or an error type.
@@ -157,7 +157,7 @@ To enable the caching logic to efficiently retrieve cached responses without thi
 As part of the \textit{external composition} goal of this work, this cache also is capable of receiving update notifications for cached items from other upstream caches or upstream servers by listening to broadcast events provided by the webhook component. By configuring the upstream S3 server to send update events via the webhook, cache items can be efficiently evicted upon notice. This allows chaining multiple instances of this proxy without significantly increasing the risk of serving stale data due to additive TTL.
 This feature could be further enhanced by directly refreshing entries instead of evicting them upon notice.
 
-\section{S3 Client}
+\section{Client}
 
 The client is the component responsible for resolving requests into responses, commonly by forwarding the request to an upstream server, although this is not strictly necessary. For example, a client could also be implemented to resolve requests by retrieving files directly from storage.
 
